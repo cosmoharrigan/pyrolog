@@ -1,23 +1,18 @@
 #!/usr/bin/env python
 
-try:
-    import autopath
-except ImportError:
-    pass
-
 import py
 import sys
 #sys.path.append(str(py.path.local(__file__).dirpath().dirpath()))
 
 from pypy.rlib.parsing.parsing import ParseError
 from pypy.rlib.parsing.deterministic import LexerError
-from pypy.lang.prolog.interpreter.parsing import parse_file, get_query_and_vars
-from pypy.lang.prolog.interpreter.parsing import get_engine
-from pypy.lang.prolog.interpreter.engine import Engine
-from pypy.lang.prolog.interpreter.engine import Continuation
-from pypy.lang.prolog.interpreter import error
-import pypy.lang.prolog.interpreter.term
-pypy.lang.prolog.interpreter.term.DEBUG = False
+from prolog.interpreter.parsing import parse_file, get_query_and_vars
+from prolog.interpreter.parsing import get_engine
+from prolog.interpreter.engine import Engine
+from prolog.interpreter.engine import Continuation
+from prolog.interpreter import error
+import prolog.interpreter.term
+prolog.interpreter.term.DEBUG = False
 
 import code
 
@@ -55,7 +50,7 @@ class ContinueContinuation(Continuation):
                 self.write('unknown action. press "h" for help\n')
 
 def var_representation(var_to_pos, engine, write):
-    from pypy.lang.prolog.builtin.formatting import TermFormatter
+    from prolog.builtin.formatting import TermFormatter
     f = TermFormatter(engine, quoted=True, max_depth=10)
     vars = var_to_pos.items()
     vars.sort()

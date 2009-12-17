@@ -6,7 +6,7 @@ from pypy.rlib.objectmodel import we_are_translated
 from pypy.rpython.rstack import yield_current_heap_to_caller
 from pypy.translator.c.test.test_stackless import StacklessTest
 
-from pypy.lang.prolog.interpreter.error import UnificationFailed, CutException
+from prolog.interpreter.error import UnificationFailed, CutException
 
 def make_llheap(choice_point, func, args):
     llheap = yield_current_heap_to_caller()

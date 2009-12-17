@@ -1,10 +1,10 @@
 import py
-from pypy.lang.prolog.interpreter.parsing import parse_file, TermBuilder
-from pypy.lang.prolog.interpreter.parsing import parse_query_term, get_engine
-from pypy.lang.prolog.interpreter.parsing import get_query_and_vars
-from pypy.lang.prolog.interpreter.error import UnificationFailed, CatchableError
-from pypy.lang.prolog.interpreter.test.tool import collect_all, assert_true, assert_false
-from pypy.lang.prolog.interpreter.test.tool import prolog_raises
+from prolog.interpreter.parsing import parse_file, TermBuilder
+from prolog.interpreter.parsing import parse_query_term, get_engine
+from prolog.interpreter.parsing import get_query_and_vars
+from prolog.interpreter.error import UnificationFailed, CatchableError
+from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
+from prolog.interpreter.test.tool import prolog_raises
 
 def test_trivial():
     e = get_engine("""
@@ -214,6 +214,8 @@ def test_lists():
         append([],L,L).
         append([X|Y],L,[X|Z]) :- append(Y,L,Z).
     """)
+    e.run(parse_query_term("append(%s, %s, X)." % (range(30), range(10))))
+    return
     e.run(parse_query_term("nrev(%s, X)." % (range(15), )))
     e.run(parse_query_term("nrev(%s, %s)." % (range(8), range(7, -1, -1))))
 
@@ -259,5 +261,20 @@ def test_call_atom():
         test :- test(_).
     """)
     assert_true("test.", e)
+
+
+def test_metainterp():
+    e = get_engine("""
+        run(X) :- solve([X]).
+        solve([]).
+        solve([A | T]) :-
+            my_pred(A, T, T1),
+            solve(T1).
+
+        my_pred(app([], X, X), T, T).
+        my_pred(app([H | T1], T2, [H | T3]), T, [app(T1, T2, T3) | T]).
+
+    """)
+    assert_true("run(app([1, 2, 3, 4], [5, 6], X)), X == [1, 2, 3, 4, 5, 6].", e)
 
 

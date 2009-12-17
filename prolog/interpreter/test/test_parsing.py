@@ -1,5 +1,5 @@
-from pypy.lang.prolog.interpreter.parsing import parse_file, TermBuilder, OrderTransformer
-from pypy.lang.prolog.interpreter.parsing import parse_query_term
+from prolog.interpreter.parsing import parse_file, TermBuilder, OrderTransformer
+from prolog.interpreter.parsing import parse_query_term
 
 
 def test_simple():
@@ -11,8 +11,8 @@ h(X, Y, Z) :- -Y = Z.
     assert len(facts) == 1
 
 def test_numeral():
-    from pypy.lang.prolog.interpreter.term import Term, Atom, Var
-    from pypy.lang.prolog.interpreter.engine import Engine
+    from prolog.interpreter.term import Term, Atom, Var
+    from prolog.interpreter.engine import Engine
     t = parse_file("""
 numeral(null). % end of line comment
 numeral(succ(X)) :- numeral(X). % another one

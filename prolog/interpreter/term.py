@@ -1,21 +1,14 @@
 import math
+from prolog.interpreter.error import UnificationFailed, UncatchableError
+from prolog.interpreter import error
 from pypy.rlib.objectmodel import we_are_translated, UnboxedValue
 from pypy.rlib.objectmodel import compute_unique_id
 from pypy.rlib.rarithmetic import intmask
-from pypy.lang.prolog.interpreter.error import UnificationFailed, UncatchableError
-from pypy.lang.prolog.interpreter import error
 from pypy.rlib.objectmodel import specialize
-from pypy.rlib.objectmodel import compute_hash, compute_identity_hash
+from pypy.rlib.debug import make_sure_not_resized
+from pypy.rlib import jit
 
 DEBUG = False
-
-TAGBITS = 3
-CURR_TAG = 1
-def tag():
-    global CURR_TAG
-    CURR_TAG += 1
-    assert CURR_TAG <= 2 ** TAGBITS
-    return CURR_TAG
 
 def debug_print(*args):
     if DEBUG and not we_are_translated():
@@ -35,12 +28,13 @@ class PrologObject(object):
     def copy(self, heap, memo):
         raise NotImplementedError("abstract base class")
 
-    def copy_and_unify(self, other, heap, memo):
+    def copy_standardize_apart(self, heap, env):
         raise NotImplementedError("abstract base class")
 
-    def get_unify_hash(self, heap):
-        # if two non-var objects return two different numbers
-        # they must not be unifiable
+    def unify_and_standardize_apart(self, other, heap, env):
+        raise NotImplementedError("abstract base class")
+
+    def enumerate_vars(self, memo):
         raise NotImplementedError("abstract base class")
 
     @specialize.arg(3)
@@ -48,26 +42,25 @@ class PrologObject(object):
         raise NotImplementedError("abstract base class")
 
     @specialize.arg(3)
-    def _unify(self, other, heap, occurs_check=False):
+    def _unify_derefed(self, other, heap, occurs_check=False):
         raise NotImplementedError("abstract base class")
 
     def contains_var(self, var, heap):
         return False
 
-    def __eq__(self, other):
-        # for testing
-        return (self.__class__ == other.__class__ and
-                self.__dict__ == other.__dict__)
+    #def __eq__(self, other):
+    #    # for testing
+    #    return (self.__class__ == other.__class__ and
+    #            self.__dict__ == other.__dict__)
 
-    def __ne__(self, other):
-        # for testing
-        return not (self == other)
+    #def __ne__(self, other):
+    #    # for testing
+    #    return not (self == other)
 
     def eval_arithmetic(self, engine):
         error.throw_type_error("evaluable", self)
 
 class Var(PrologObject):
-    TAG = 0
     STANDARD_ORDER = 0
 
     __slots__ = ('binding', )
@@ -78,11 +71,11 @@ class Var(PrologObject):
 
     @specialize.arg(3)
     def unify(self, other, heap, occurs_check=False):
-        return self.dereference(heap)._unify(other, heap, occurs_check)
+        other = other.dereference(heap)
+        return self.dereference(heap)._unify_derefed(other, heap, occurs_check)
 
     @specialize.arg(3)
-    def _unify(self, other, heap, occurs_check=False):
-        other = other.dereference(heap)
+    def _unify_derefed(self, other, heap, occurs_check=False):
         if isinstance(other, Var) and other is self:
             pass
         elif occurs_check and other.contains_var(self, heap):
@@ -96,8 +89,9 @@ class Var(PrologObject):
             return self
         else:
             result = next.dereference(heap)
-            # do path compression
-            self.setvalue(result, heap)
+            if result is not next:
+                # do path compression
+                self.setvalue(result, heap)
             return result
 
     def getvalue(self, heap):
@@ -117,23 +111,12 @@ class Var(PrologObject):
             newvar = memo[self] = heap.newvar()
             return newvar
 
-    def copy_and_unify(self, other, heap, memo):
-        try:
-            seen_value = memo[self]
-        except KeyError:
-            memo[self] = other
-            return other
-        else:
-            seen_value.unify(other, heap)
-            return seen_value
-
-    def get_unify_hash(self, heap):
-        if heap is not None:
-            self = self.dereference(heap)
-            if isinstance(self, Var):
-                return 0
-            return self.get_unify_hash(heap)
-        return 0
+    def enumerate_vars(self, memo):
+        if self in memo:
+            return memo[self]
+        result = NumberedVar(len(memo))
+        memo[self] = result
+        return result
 
     def contains_var(self, var, heap):
         self = self.dereference(heap)
@@ -155,8 +138,34 @@ class Var(PrologObject):
         self = self.dereference(engine.heap)
         if isinstance(self, Var):
             error.throw_instantiation_error()
+
         return self.eval_arithmetic(engine)
 
+
+class NumberedVar(PrologObject):
+    _immutable_ = True
+    def __init__(self, index):
+        self.num = index
+
+    def copy_standardize_apart(self, heap, env):
+        res = env[self.num]
+        if res is None:
+            res = env[self.num] = heap.newvar()
+        return res
+
+    def unify_and_standardize_apart(self, other, heap, env):
+        res = env[self.num]
+        if res is None:
+            env[self.num] = other
+            return other
+        res.unify(other, heap)
+        return res
+
+    def dereference(self, heap):
+        return self
+
+    def __repr__(self):
+        return "NumberedVar(%s)" % (self.num, )
 
 class NonVar(PrologObject):
     __slots__ = ()
@@ -164,50 +173,56 @@ class NonVar(PrologObject):
     def dereference(self, heap):
         return self
 
+    # needs to be overridden in non-atomic subclasses
+    def copy(self, heap, memo):
+        return self
+
+    # needs to be overridden in non-atomic subclasses
+    def copy_standardize_apart(self, heap, memo):
+        return self
+
     @specialize.arg(3)
     def unify(self, other, heap, occurs_check=False):
-        return self._unify(other, heap, occurs_check)
-
+        other = other.dereference(heap)
+        return self._unify_derefed(other, heap, occurs_check)
 
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
         raise NotImplementedError("abstract base class")
 
     @specialize.arg(3)
-    def _unify(self, other, heap, occurs_check=False):
-        other = other.dereference(heap)
+    def _unify_derefed(self, other, heap, occurs_check=False):
         if isinstance(other, Var):
-            other._unify(self, heap, occurs_check)
+            other._unify_derefed(self, heap, occurs_check)
         else:
             self.basic_unify(other, heap, occurs_check)
 
-    def copy_and_unify(self, other, heap, memo):
+    def unify_and_standardize_apart(self, other, heap, env):
         other = other.dereference(heap)
         if isinstance(other, Var):
-            copy = self.copy(heap, memo)
-            other._unify(copy, heap)
+            copy = self.copy_standardize_apart(heap, env)
+            other._unify_derefed(copy, heap)
             return copy
         else:
-            return self.copy_and_basic_unify(other, heap, memo)
+            return self.copy_and_basic_unify(other, heap, env)
 
-    def copy_and_basic_unify(self, other, heap, memo):
+    def copy_and_basic_unify(self, other, heap, env):
         raise NotImplementedError("abstract base class")
 
+    def enumerate_vars(self, memo):
+        return self
 
 class Callable(NonVar):
     __slots__ = ("name", "signature")
+    _immutable_ = True
     name = ""
     signature = ""
 
     def get_prolog_signature(self):
         raise NotImplementedError("abstract base")
 
-    def unify_hash_of_children(self, heap):
-        raise NotImplementedError("abstract base")
-
 
 class Atom(Callable):
-    TAG = tag()
     STANDARD_ORDER = 1
 
     cache = {}
@@ -230,21 +245,12 @@ class Atom(Callable):
             return
         raise UnificationFailed
 
-    def copy(self, heap, memo):
-        return self
-
-    def copy_and_basic_unify(self, other, heap, memo):
+    def copy_and_basic_unify(self, other, heap, env):
         if isinstance(other, Atom) and (self is other or
                                         other.name == self.name):
             return self
         else:
             raise UnificationFailed
-
-    def get_unify_hash(self, heap):
-        return intmask(compute_hash(self.name) << TAGBITS | self.TAG)
-
-    def unify_hash_of_children(self, heap):
-        return []
 
     def get_prolog_signature(self):
         return Term("/", [self, NUMBER_0])
@@ -266,11 +272,13 @@ class Atom(Callable):
         error.throw_type_error("evaluable", self.get_prolog_signature())
 
 
-class Number(NonVar, UnboxedValue):
-    TAG = tag()
+class Number(NonVar): #, UnboxedValue):
     STANDARD_ORDER = 2
     _immutable_ = True
     __slots__ = ("num", )
+
+    def __init__(self, num):
+        self.num = num
 
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
@@ -278,10 +286,7 @@ class Number(NonVar, UnboxedValue):
             return
         raise UnificationFailed
 
-    def copy(self, heap, memo):
-        return self
-
-    def copy_and_basic_unify(self, other, heap, memo):
+    def copy_and_basic_unify(self, other, heap, env):
         if isinstance(other, Number) and other.num == self.num:
             return self
         else:
@@ -293,16 +298,12 @@ class Number(NonVar, UnboxedValue):
     def __repr__(self):
         return "Number(%r)" % (self.num, )
 
-    def get_unify_hash(self, heap):
-        return intmask(self.num << TAGBITS | self.TAG)
-
     def eval_arithmetic(self, engine):
         return self
 
 NUMBER_0 = Number(0)
 
 class Float(NonVar):
-    TAG = tag()
     STANDARD_ORDER = 2
     _immutable_ = True
     def __init__(self, floatval):
@@ -314,20 +315,11 @@ class Float(NonVar):
             return
         raise UnificationFailed
 
-    def copy(self, heap, memo):
-        return self
-
-    def copy_and_basic_unify(self, other, heap, memo):
+    def copy_and_basic_unify(self, other, heap, env):
         if isinstance(other, Float) and other.floatval == self.floatval:
             return self
         else:
             raise UnificationFailed
-
-    def get_unify_hash(self, heap):
-        #XXX no clue whether this is a good idea...
-        m, e = math.frexp(self.floatval)
-        m = intmask(int(m / 2 * 2 ** (32 - TAGBITS)))
-        return intmask(m << TAGBITS | self.TAG)
 
     def __str__(self):
         return repr(self.floatval)
@@ -336,7 +328,7 @@ class Float(NonVar):
         return "Float(%r)" % (self.floatval, )
 
     def eval_arithmetic(self, engine):
-        from pypy.lang.prolog.interpreter.arithmetic import norm_float
+        from prolog.interpreter.arithmetic import norm_float
         return norm_float(self)
 
 Float.e = Float(math.e)
@@ -345,7 +337,6 @@ Float.pi = Float(math.pi)
 
 class BlackBox(NonVar):
     # meant to be subclassed
-    TAG = tag()
     STANDARD_ORDER = 4
     def __init__(self):
         pass
@@ -356,35 +347,38 @@ class BlackBox(NonVar):
             return
         raise UnificationFailed
 
-    def copy(self, heap, memo):
-        return self
-
     def copy_and_basic_unify(self, other, heap, memo):
         if self is other:
             return self
         else:
             raise UnificationFailed
 
-    def get_unify_hash(self, heap):
-        return intmask(compute_identity_hash(self) << TAGBITS | self.TAG)
-
-
 
 # helper functions for various Term methods
 
-def _clone(obj, offset):
-    return obj.clone(offset)
+def _term_copy(obj, i, heap, memo):
+    return obj.copy(heap, memo)
 
-def _getvalue(obj, heap):
+def _term_copy_standardize_apart(obj, i, heap, env):
+    return obj.copy_standardize_apart(heap, env)
+
+def _term_enumerate_vars(obj, i, memo):
+    return obj.enumerate_vars(memo)
+
+def _term_getvalue(obj, i, heap):
     return obj.getvalue(heap)
 
+def _term_unify_and_standardize_apart(obj, i, other, heap, memo):
+    obj.unify_and_standardize_apart(other.args[i], heap, memo)
+
 class Term(Callable):
-    TAG = tag()
     STANDARD_ORDER = 3
     _immutable_ = True
+    _immutable_fields_ = ["args[*]"]
+
     def __init__(self, name, args, signature=None):
         self.name = name
-        self.args = args
+        self.args = make_sure_not_resized(args)
         if signature is None:
             self.signature = name + "/" + str(len(args))
         else:
@@ -406,53 +400,42 @@ class Term(Callable):
         else:
             raise UnificationFailed
 
-    def copy(self, heap, memo):
-        newargs = []
-        i = 0
-        while i < len(self.args):
-            arg = self.args[i].copy(heap, memo)
-            newargs.append(arg)
-            i += 1
-        return Term(self.name, newargs, self.signature)
-
-    def copy_and_basic_unify(self, other, heap, memo):
+    def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Term) and
-            self.signature == other.signature):
-            newargs = [None] * len(self.args)
-            i = 0
-            while i < len(self.args):
-                arg = self.args[i].copy_and_unify(other.args[i], heap, memo)
-                newargs[i] = arg
-                i += 1
-            return Term(self.name, newargs, self.signature)
+                self.signature == other.signature):
+            return self._copy_term(_term_unify_and_standardize_apart,
+                                   other, heap, env)
         else:
             raise UnificationFailed
 
-    def getvalue(self, heap):
-        return self._copy_term(_getvalue, heap)
+    def copy(self, heap, memo):
+        return self._copy_term(_term_copy, heap, memo)
 
+    def copy_standardize_apart(self, heap, env):
+        return self._copy_term(_term_copy_standardize_apart, heap, env)
+
+    def enumerate_vars(self, memo):
+        return self._copy_term(_term_enumerate_vars, memo)
+
+    def getvalue(self, heap):
+        return self._copy_term(_term_getvalue, heap)
+
+    @specialize.arg(1)
+    @jit.unroll_safe
     def _copy_term(self, copy_individual, *extraargs):
         args = [None] * len(self.args)
         newinstance = False
-        for i in range(len(self.args)):
+        i = 0
+        while i < len(self.args):
             arg = self.args[i]
-            cloned = copy_individual(arg, *extraargs)
-            if cloned is not arg:
-                newinstance = True
+            cloned = copy_individual(arg, i, *extraargs)
+            newinstance = newinstance or cloned is not arg
             args[i] = cloned
+            i += 1
         if newinstance:
             return Term(self.name, args, self.signature)
         else:
             return self
-
-    def get_unify_hash(self, heap):
-        return intmask(compute_hash(self.signature) << TAGBITS | self.TAG)
-
-    def unify_hash_of_children(self, heap):
-        unify_hash = [0] * len(self.args)
-        for i in range(len(self.args)):
-            unify_hash[i] = self.args[i].get_unify_hash(heap)
-        return unify_hash
 
     def get_prolog_signature(self):
         return Term("/", [Atom.newatom(self.name), Number(len(self.args))])
@@ -464,27 +447,33 @@ class Term(Callable):
         return False
         
     def eval_arithmetic(self, engine):
-        from pypy.lang.prolog.interpreter.arithmetic import arithmetic_functions
-        func = arithmetic_functions.get(self.signature, None)
+        from prolog.interpreter.arithmetic import get_arithmetic_function
+
+        func = get_arithmetic_function(self.signature)
         if func is None:
             error.throw_type_error("evaluable", self.get_prolog_signature())
         return func(engine, self)
 
 class Rule(object):
     _immutable_ = True
-    unify_hash = []
+    _immutable_fields_ = ["headargs[*]"]
+
     def __init__(self, head, body):
-        from pypy.lang.prolog.interpreter import helper
+        from prolog.interpreter import helper
         assert isinstance(head, Callable)
-        self.head = head
+        memo = {}
+        self.head = h = head.enumerate_vars(memo)
+        if isinstance(h, Term):
+            self.headargs = h.args
+        else:
+            self.headargs = []
         if body is not None:
             body = helper.ensure_callable(body)
-            self.body = body
+            self.body = body.enumerate_vars(memo)
         else:
             self.body = None
-        self.signature = self.head.signature
-        if isinstance(head, Term):
-            self.unify_hash = [arg.get_unify_hash(None) for arg in head.args]
+        self.size_env = len(memo)
+        self.signature = head.signature
         self._does_contain_cut()
 
     def _does_contain_cut(self):
@@ -502,21 +491,19 @@ class Rule(object):
                 stack.extend(current.args)
         self.contains_cut = False
 
+    @jit.unroll_safe
     def clone_and_unify_head(self, heap, head):
-        memo = {}
-        h2 = self.head
-        if isinstance(h2, Term):
+        env = [None] * self.size_env
+        if self.headargs:
             assert isinstance(head, Term)
-            i = 0
-            while i < len(h2.args):
-                arg2 = h2.args[i]
+            for i in range(len(self.headargs)):
+                arg2 = self.headargs[i]
                 arg1 = head.args[i]
-                arg2.copy_and_unify(arg1, heap, memo)
-                i += 1
+                arg2.unify_and_standardize_apart(arg1, heap, env)
         body = self.body
         if body is None:
             return None
-        return body.copy(heap, memo)
+        return body.copy_standardize_apart(heap, env)
 
     def __repr__(self):
         if self.body is None:

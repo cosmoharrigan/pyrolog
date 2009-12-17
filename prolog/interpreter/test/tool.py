@@ -1,7 +1,7 @@
 import py
-from pypy.lang.prolog.interpreter.error import UnificationFailed, FunctionNotFound
-from pypy.lang.prolog.interpreter.parsing import parse_query_term, get_engine
-from pypy.lang.prolog.interpreter.engine import Continuation, Heap, Engine
+from prolog.interpreter.error import UnificationFailed, FunctionNotFound
+from prolog.interpreter.parsing import parse_query_term, get_engine
+from prolog.interpreter.engine import Continuation, Heap, Engine
 
 def assert_true(query, e=None):
     if e is None:

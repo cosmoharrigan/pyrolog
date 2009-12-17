@@ -1,7 +1,8 @@
 import py
-from pypy.lang.prolog.interpreter.error import UnificationFailed
-from pypy.lang.prolog.interpreter.term import Atom, Var, Number, Term, BlackBox
-from pypy.lang.prolog.interpreter.engine import Heap, Engine
+from prolog.interpreter.error import UnificationFailed
+from prolog.interpreter.term import Atom, Var, Number, Term, BlackBox
+from prolog.interpreter.term import NumberedVar
+from prolog.interpreter.engine import Heap, Engine
 
 def test_atom():
     a = Atom.newatom("hallo")
@@ -52,6 +53,27 @@ def test_blackbox():
     bl1.unify(bl1, heap)
     py.test.raises(UnificationFailed, bl1.unify, bl2, heap)
 
+def test_enumerate_vars():
+    X = Var()
+    Y = Var()
+    t1 = Term("f", [X, X, Term("g", [Y, X])])
+    t2 = t1.enumerate_vars({})
+    assert isinstance(t2, Term)
+    assert t2.signature == t1.signature
+    assert t2.args[0] is t2.args[1]
+    assert t2.args[0].num == 0
+    assert t2.args[2].args[1].num == 0
+
+def test_copy_and_unify():
+    heap = Heap()
+    X = Var()
+    Y = Var()
+    Z = NumberedVar(0)
+    t1 = Term("f", [Z, Term("g", [Z, Atom.newatom("h")]), Z])
+    t2 = Term("f", [Atom.newatom("i"), X, Y])
+    env = [None]
+    t1.unify_and_standardize_apart(t2, heap, env)
+
 def test_run():
     e = Engine()
     e.add_rule(Term("f", [Atom.newatom("a"), Atom.newatom("b")]))
@@ -63,6 +85,5 @@ def test_run():
     X = e.heap.newvar()
     e.run(Term("f", [Atom.newatom("b"), X]))
     assert X.dereference(e.heap).name == "b"
-    e.run(Term("f", [Atom.newatom("b"), Atom.newatom("a")]))
-
-
+    query = Term("f", [Atom.newatom("b"), Atom.newatom("a")]) 
+    e.run(query)

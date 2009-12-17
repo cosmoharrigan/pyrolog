@@ -1,10 +1,10 @@
 from pypy.translator.interactive import Translation
 from pypy.rpython.test.test_llinterp import interpret
-from pypy.lang.prolog.interpreter import parsing
-from pypy.lang.prolog.interpreter.term import Atom
-from pypy.lang.prolog.interpreter.test.tool import *
+from prolog.interpreter import parsing
+from prolog.interpreter.term import Atom
+from prolog.interpreter.test.tool import *
 
-from pypy.lang.prolog.interpreter.conftest import option
+from prolog.interpreter.conftest import option
 if not option.slow:
     py.test.skip("slow tests")
 

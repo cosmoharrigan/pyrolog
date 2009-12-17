@@ -1,4 +1,4 @@
-from pypy.lang.prolog.interpreter.eclipseprologparser import parse
+from prolog.interpreter.eclipseprologparser import parse
 
 def entry_point(args):
     if len(args) > 1:

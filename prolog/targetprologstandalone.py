@@ -3,12 +3,12 @@ A simple standalone target for the prolog interpreter.
 """
 
 import sys
-from pypy.lang.prolog.interpreter.translatedmain import repl, execute
+from prolog.interpreter.translatedmain import repl, execute
 
 # __________  Entry point  __________
 
-from pypy.lang.prolog.interpreter.engine import Engine
-from pypy.lang.prolog.interpreter import engine, term
+from prolog.interpreter.engine import Engine
+from prolog.interpreter import engine, term
 e = Engine()
 engine.DEBUG = False
 term.DEBUG = False
@@ -34,7 +34,7 @@ def target(driver, args):
     return entry_point, None
 
 def portal(driver):
-    from pypy.lang.prolog.interpreter.portal import get_portal
+    from prolog.interpreter.portal import get_portal
     return get_portal(driver)
 
 if __name__ == '__main__':

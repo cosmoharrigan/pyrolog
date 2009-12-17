@@ -3,16 +3,16 @@ from prolog.interpreter.term import Var, Term, Rule, Atom, debug_print, \
 from prolog.interpreter.error import UnificationFailed, FunctionNotFound, \
     CutException
 from prolog.interpreter import error
-from pypy.rlib.jit import purefunction
+from pypy.rlib import jit
 
 DEBUG = False
 
 # bytecodes:
-CALL = 'a'
-USER_CALL = 'u'
-TRY_RULE = 't'
-CONTINUATION = 'c'
-DONE = 'd'
+CALL = 0
+USER_CALL = 1
+TRY_RULE = 2
+CONTINUATION = 3
+DONE = 4
 
 
 class Continuation(object):
@@ -84,21 +84,12 @@ class LinkedRules(object):
             curr = curr.next
         return first, copy
 
-    def find_applicable_rule(self, uh2):
-        #import pdb;pdb.set_trace()
-        while self:
-            uh = self.rule.unify_hash
-            j = 0
-            while j < len(uh):
-                hash1 = uh[j]
-                hash2 = uh2[j]
-                if hash1 != 0 and hash2 * (hash2 - hash1) != 0:
-                    break
-                j += 1
-            else:
-                return self
-            self = self.next
-        return None
+    def find_applicable_rule(self, query):
+        # This method should do some quick filtering on the rules to filter out
+        # those that cannot match query. Here is where e.g. indexing should
+        # occur. For now, we just return all rules, which is clearly not
+        # optimal. XXX
+        return self
 
     def __repr__(self):
         return "LinkedRules(%r, %r)" % (self.rule, self.next)
@@ -126,6 +117,53 @@ class Function(object):
     def remove(self, rulechain):
         self.rulechain, last = self.rulechain.copy(rulechain)
         last.next = rulechain.next
+
+# ___________________________________________________________________
+# JIT stuff
+
+def can_inline(where, rule):
+    if rule is None:
+        return True
+    if rule.body is None:
+        return True
+    return False # XXX for now!
+
+def get_printable_location(where, rule):
+    if rule:
+        s = rule.signature
+    else:
+        s = "No rule"
+    return "%s: %s" % (where, s)
+
+def leave(where, rule, self, query, continuation):
+    pass
+
+def get_jitcell_at(where, rule):
+    # XXX can be vastly simplified
+    return rule.jit_cells.get(where, None)
+
+def set_jitcell_at(newcell, where, rule):
+    # XXX can be vastly simplified
+    rule.jit_cells[where] = newcell
+
+
+jitdriver = jit.JitDriver(
+        greens=["where", "rule"],
+        reds=["self", "query", "continuation"],
+        can_inline=can_inline,
+        get_printable_location=get_printable_location,
+        leave=leave,
+        #get_jitcell_at=get_jitcell_at,
+        #set_jitcell_at=set_jitcell_at,
+        )
+
+# ___________________________________________________________________
+# end JIT stuff
+
+class Frame(object):
+    def __init__(self, rule):
+        self.rule = rule
+
 
 
 class Engine(object):
@@ -185,20 +223,26 @@ class Engine(object):
             return (CALL, query, continuation, None)
         return self.main_loop(CALL, query, continuation)
 
-    def _call(self, query, continuation):
+    @jit.purefunction_promote
+    def get_builtin(self, signature):
         from prolog.builtin import builtins
-        signature = query.signature
         builtin = builtins.get(signature, None)
+        return builtin
+
+    def _call(self, query, continuation):
+        signature = query.signature
+        builtin = self.get_builtin(signature)
         if builtin is not None:
             return builtin.call(self, query, continuation)
         # do a real call
         return self.user_call(query, continuation, choice_point=False)
 
     def main_loop(self, where, query, continuation, rule=None):
-        next = (DONE, None, None, None)
         while 1:
+            jitdriver.jit_merge_point(self=self, where=where, query=query,
+                                      continuation=continuation, rule=rule)
             if where == DONE:
-                return next
+                return (DONE, None, None, None)
             next = self.dispatch_bytecode(where, query, continuation, rule)
             where, query, continuation, rule = next
 
@@ -209,13 +253,16 @@ class Engine(object):
             next = self._try_rule(rule, query, continuation)
         elif where == USER_CALL:
             next = self._user_call(query, continuation)
+            where, query, continuation, rule = next
+            jitdriver.can_enter_jit(self=self, where=where, query=query,
+                                    continuation=continuation, rule=rule)
         elif where == CONTINUATION:
             next = continuation._call(self)
         else:
             raise Exception("unknown bytecode")
         return next
 
-    @purefunction
+    @jit.purefunction
     def _lookup(self, signature):
         signature2function = self.signature2function
         function = signature2function.get(signature, None)
@@ -228,16 +275,16 @@ class Engine(object):
             return (USER_CALL, query, continuation, None)
         return self.main_loop(USER_CALL, query, continuation)
 
+    @jit.unroll_safe
     def _user_call(self, query, continuation):
         signature = query.signature
         function = self._lookup(signature)
-        startrulechain = function.rulechain
+        startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             error.throw_existence_error(
                 "procedure", query.get_prolog_signature())
 
-        unify_hash = query.unify_hash_of_children(self.heap)
-        rulechain = startrulechain.find_applicable_rule(unify_hash)
+        rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             # none of the rules apply
             raise UnificationFailed()
@@ -246,7 +293,7 @@ class Engine(object):
         oldstate = self.heap.branch()
         while 1:
             if rulechain is not None:
-                rulechain = rulechain.find_applicable_rule(unify_hash)
+                rulechain = rulechain.find_applicable_rule(query)
                 choice_point = rulechain is not None
             else:
                 choice_point = False

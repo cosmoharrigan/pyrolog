@@ -1,4 +1,3 @@
-import autopath
 from prolog.interpreter.parsing import OrderTransformer, make_default_operations, unescape
 from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 
@@ -234,7 +233,7 @@ class ParseError(Exception):
 
 
 def _build_and_run(lines, tree):
-    from pypy.lang.prolog.interpreter.parsing import TermBuilder
+    from prolog.interpreter.parsing import TermBuilder
     builder = ASTTermBuilder()
     term = builder.build_query(tree)
     if (isinstance(term, Term) and term.name == ":-" and
@@ -259,14 +258,14 @@ def _build_and_run(lines, tree):
     return lines.parser
 
 def parse(s):
-    from pypy.lang.prolog.interpreter.parsing import parse_file
+    from prolog.interpreter.parsing import parse_file
     lines = Lines()
     trees = parse_file(s, lines.parser, _build_and_run, lines)
     return lines
 
 
 def impl_op(operations, precedence, typ, name):
-    from pypy.lang.prolog.interpreter import parsing
+    from prolog.interpreter import parsing
     precedence_to_ops = {}
     for prec, allops in operations:
         precedence_to_ops[prec] = allops

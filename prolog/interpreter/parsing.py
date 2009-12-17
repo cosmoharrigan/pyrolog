@@ -301,7 +301,7 @@ class TermBuilder(RPythonVisitor):
         return self.dispatch(node)
 
     def general_nonterminal_visit(self, node):
-        from pypy.lang.prolog.interpreter.term import Term, Number, Float
+        from prolog.interpreter.term import Term, Number, Float
         children = []
         name = ""
         for child in node.children:
@@ -345,7 +345,7 @@ class TermBuilder(RPythonVisitor):
         return node
 
     def general_symbol_visit(self, node):
-        from pypy.lang.prolog.interpreter.term import Atom
+        from prolog.interpreter.term import Atom
         if node.additional_info.startswith("'"):
             end = len(node.additional_info) - 1
             assert end >= 0
@@ -355,7 +355,7 @@ class TermBuilder(RPythonVisitor):
         return Atom.newatom(name)
 
     def visit_VAR(self, node):
-        from pypy.lang.prolog.interpreter.term import Var
+        from prolog.interpreter.term import Var
         varname = node.additional_info
         if varname == "_":
             return Var()
@@ -366,7 +366,7 @@ class TermBuilder(RPythonVisitor):
         return res
 
     def visit_NUMBER(self, node):
-        from pypy.lang.prolog.interpreter.term import Number, Float
+        from prolog.interpreter.term import Number, Float
         s = node.additional_info
         try:
             return Number(int(s))
@@ -374,13 +374,13 @@ class TermBuilder(RPythonVisitor):
             return Float(float(s))
 
     def visit_complexterm(self, node):
-        from pypy.lang.prolog.interpreter.term import Term
+        from prolog.interpreter.term import Term
         name = self.general_symbol_visit(node.children[0]).name
         children = self.build_list(node.children[2])
-        return Term(name, children)
+        return Term(name, children[:])
 
     def visit_expr(self, node):
-        from pypy.lang.prolog.interpreter.term import Number, Float
+        from prolog.interpreter.term import Number, Float
         if node.children[0].additional_info == '-':
             result = self.visit(node.children[1])
             if isinstance(result, Number):
@@ -390,7 +390,7 @@ class TermBuilder(RPythonVisitor):
         return self.visit(node.children[1])
 
     def visit_listexpr(self, node):
-        from pypy.lang.prolog.interpreter.term import Atom, Term
+        from prolog.interpreter.term import Atom, Term
         node = node.children[1]
         if len(node.children) == 1:
             l = self.build_list(node)
@@ -440,7 +440,7 @@ def unescape(s):
     return "".join(result)
 
 def get_engine(source):
-    from pypy.lang.prolog.interpreter.engine import Engine
+    from prolog.interpreter.engine import Engine
     trees = parse_file(source)
     builder = TermBuilder()
     e = Engine()
