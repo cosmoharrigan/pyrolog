@@ -12,7 +12,9 @@ def impl_between(engine, lower, upper, varorint, continuation):
             oldstate = engine.heap.branch()
             try:
                 varorint.unify(term.Number(i), engine.heap)
-                return continuation.call(engine, choice_point=True)
+                result = continuation.call(engine, choice_point=True)
+                engine.heap.discard(oldstate)
+                return result
             except error.UnificationFailed:
                 engine.heap.revert(oldstate)
         varorint.unify(term.Number(upper), engine.heap)

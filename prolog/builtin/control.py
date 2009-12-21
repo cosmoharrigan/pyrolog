@@ -1,5 +1,4 @@
 import py
-from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import engine, helper, term, error
 from prolog.builtin.register import expose_builtin
 
@@ -48,9 +47,9 @@ expose_builtin(impl_and, ",", unwrap_spec=["callable", "raw"],
 def impl_or(engine, call1, call2, continuation):
     oldstate = engine.heap.branch()
     try:
-        return engine.call(call1, continuation)
+        return engine.call(call1, continuation, choice_point=True)
     except error.UnificationFailed:
-        engine.heap.revert(oldstate)
+        engine.heap.revert_and_discard(oldstate)
     return engine.call(call2, continuation, choice_point=False)
 
 expose_builtin(impl_or, ";", unwrap_spec=["callable", "callable"],
@@ -72,7 +71,7 @@ def impl_if(engine, if_clause, then_clause, continuation):
     try:
         engine.call(if_clause)
     except error.UnificationFailed:
-        engine.heap.revert(oldstate)
+        engine.heap.revert_and_discard(oldstate)
         raise
     return engine.call(helper.ensure_callable(then_clause), continuation,
                        choice_point=False)

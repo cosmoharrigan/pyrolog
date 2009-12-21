@@ -44,9 +44,9 @@ def impl_retract(engine, pattern):
         raise error.UnificationFailed
     #import pdb; pdb.set_trace()
     rulechain = function.rulechain
+    oldstate = engine.heap.branch()
     while rulechain:
         rule = rulechain.rule
-        oldstate = engine.heap.branch()
         # standardizing apart
         try:
             deleted_body = rule.clone_and_unify_head(engine.heap, head)
@@ -66,6 +66,8 @@ def impl_retract(engine, pattern):
         rulechain = rulechain.next
     else:
         raise error.UnificationFailed()
+    engine.heap.discard(oldstate)
+
 expose_builtin(impl_retract, "retract", unwrap_spec=["callable"])
 
 

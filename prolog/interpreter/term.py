@@ -63,10 +63,9 @@ class PrologObject(object):
 class Var(PrologObject):
     STANDARD_ORDER = 0
 
-    __slots__ = ('binding', )
-    cache = {}
+    created_after_choice_point = None
 
-    def __init__(self, heap=None):
+    def __init__(self):
         self.binding = None
 
     @specialize.arg(3)

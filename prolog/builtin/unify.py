@@ -17,14 +17,13 @@ expose_builtin(impl_unify_with_occurs_check, "unify_with_occurs_check",
                unwrap_spec=["raw", "raw"])
 
 def impl_does_not_unify(engine, obj1, obj2):
+    branch = engine.heap.branch()
     try:
-        branch = engine.heap.branch()
-        try:
-            obj1.unify(obj2, engine.heap)
-        finally:
-            engine.heap.revert(branch)
+        obj1.unify(obj2, engine.heap)
     except error.UnificationFailed:
+        engine.heap.revert_and_discard(branch)
         return
+    engine.heap.discard(branch)
     raise error.UnificationFailed()
 expose_builtin(impl_does_not_unify, "\\=", unwrap_spec=["raw", "raw"])
 

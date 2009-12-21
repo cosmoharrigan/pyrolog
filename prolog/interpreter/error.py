@@ -17,10 +17,6 @@ class UncatchableError(PrologError):
 class UnificationFailed(PrologError):
     pass
 
-class FunctionNotFound(PrologError):
-    def __init__(self, signature):
-        self.signature = signature
-
 class CutException(PrologError):
     def __init__(self, continuation):
         self.continuation = continuation

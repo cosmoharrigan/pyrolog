@@ -2,7 +2,7 @@
 
 import py
 import sys
-#sys.path.append(str(py.path.local(__file__).dirpath().dirpath()))
+sys.path.append(str(py.path.local(__file__).dirpath().dirpath().dirpath()))
 
 from pypy.rlib.parsing.parsing import ParseError
 from pypy.rlib.parsing.deterministic import LexerError

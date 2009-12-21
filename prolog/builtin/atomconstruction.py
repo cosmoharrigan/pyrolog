@@ -15,7 +15,9 @@ def impl_atom_concat(engine, a1, a2, result, continuation):
                 try:
                     a1.unify(term.Atom(r[:i]), engine.heap)
                     a2.unify(term.Atom(r[i:]), engine.heap)
-                    return continuation.call(engine, choice_point=True)
+                    result = continuation.call(engine, choice_point=True)
+                    engine.heap.discard(oldstate)
+                    return result
                 except error.UnificationFailed:
                     engine.heap.revert(oldstate)
             raise error.UnificationFailed()
@@ -79,20 +81,18 @@ def impl_sub_atom(engine, s, before, length, after, sub, continuation):
         start = startbefore
         while True:
             try:
-                try:
-                    b = s.find(s1, start, stopbefore + len(s1)) # XXX -1?
-                    if b < 0:
-                        break
-                    start = b + 1
-                    before.unify(term.Number(b), engine.heap)
-                    after.unify(term.Number(len(s) - len(s1) - b), engine.heap)
-                    length.unify(term.Number(len(s1)), engine.heap)
-                    return continuation.call(engine, choice_point=True)
-                except:
-                    engine.heap.revert(oldstate)
-                    raise
+                b = s.find(s1, start, stopbefore + len(s1)) # XXX -1?
+                if b < 0:
+                    break
+                start = b + 1
+                before.unify(term.Number(b), engine.heap)
+                after.unify(term.Number(len(s) - len(s1) - b), engine.heap)
+                length.unify(term.Number(len(s1)), engine.heap)
+                result = continuation.call(engine, choice_point=True)
+                engine.heap.discard(oldstate)
+                return result
             except error.UnificationFailed:
-                pass
+                engine.heap.revert(oldstate)
         raise error.UnificationFailed()
     if isinstance(after, term.Var):
         for b in range(startbefore, stopbefore):
@@ -100,17 +100,15 @@ def impl_sub_atom(engine, s, before, length, after, sub, continuation):
                 if l + b > len(s):
                     continue
                 try:
-                    try:
-                        before.unify(term.Number(b), engine.heap)
-                        after.unify(term.Number(len(s) - l - b), engine.heap)
-                        length.unify(term.Number(l), engine.heap)
-                        sub.unify(term.Atom(s[b:b + l]), engine.heap)
-                        return continuation.call(engine, choice_point=True)
-                    except:
-                        engine.heap.revert(oldstate)
-                        raise
+                    before.unify(term.Number(b), engine.heap)
+                    after.unify(term.Number(len(s) - l - b), engine.heap)
+                    length.unify(term.Number(l), engine.heap)
+                    sub.unify(term.Atom(s[b:b + l]), engine.heap)
+                    result = continuation.call(engine, choice_point=True)
+                    engine.heap.discard(oldstate)
+                    return result
                 except error.UnificationFailed:
-                    pass
+                    engine.heap.revert(oldstate)
     else:
         a = helper.unwrap_int(after)
         for l in range(startlength, stoplength):
@@ -119,18 +117,15 @@ def impl_sub_atom(engine, s, before, length, after, sub, continuation):
             if l + b > len(s):
                 continue
             try:
-                try:
-                    before.unify(term.Number(b), engine.heap)
-                    after.unify(term.Number(a), engine.heap)
-                    length.unify(term.Number(l), engine.heap)
-                    sub.unify(term.Atom(s[b:b + l]), engine.heap)
-                    return continuation.call(engine, choice_point=True)
-                    return None
-                except:
-                    engine.heap.revert(oldstate)
-                    raise
+                before.unify(term.Number(b), engine.heap)
+                after.unify(term.Number(a), engine.heap)
+                length.unify(term.Number(l), engine.heap)
+                sub.unify(term.Atom(s[b:b + l]), engine.heap)
+                result = continuation.call(engine, choice_point=True)
+                engine.heap.discard(oldstate)
+                return result
             except error.UnificationFailed:
-                pass
+                engine.heap.revert(oldstate)
     raise error.UnificationFailed()
 expose_builtin(impl_sub_atom, "sub_atom",
                unwrap_spec=["atom", "obj", "obj", "obj", "obj"],

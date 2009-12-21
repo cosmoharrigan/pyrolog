@@ -37,15 +37,18 @@ def impl_arg(engine, first, second, third, continuation):
     if not isinstance(second, term.Term):
         error.throw_type_error("compound", second)
     if isinstance(first, term.Var):
+        oldstate = engine.heap.branch()
         for i in range(len(second.args)):
             arg = second.args[i]
-            oldstate = engine.heap.branch()
             try:
                 third.unify(arg, engine.heap)
                 first.unify(term.Number(i + 1), engine.heap)
-                return continuation.call(engine, choice_point=True)
+                result = continuation.call(engine, choice_point=True)
+                engine.heap.discard(oldstate)
+                return result
             except error.UnificationFailed:
                 engine.heap.revert(oldstate)
+        engine.heap.discard(oldstate)
         raise error.UnificationFailed()
     elif isinstance(first, term.Number):
         num = first.num

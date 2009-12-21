@@ -10,12 +10,14 @@ def impl_catch(engine, goal, catcher, recover, continuation):
     catching_continuation = enginemod.LimitedScopeContinuation(continuation)
     old_state = engine.heap.branch()
     try:
-        return engine.call(goal, catching_continuation)
+        result = engine.call(goal, catching_continuation)
+        engine.heap.discard(old_state)
+        return result
     except error.CatchableError, e:
         if not catching_continuation.scope_active:
             raise
         exc_term = e.term.getvalue(engine.heap)
-        engine.heap.revert(old_state)
+        engine.heap.revert_and_discard(old_state)
         d = {}
         exc_term = exc_term.copy(engine.heap, d)
         try:

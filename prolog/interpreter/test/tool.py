@@ -1,5 +1,5 @@
 import py
-from prolog.interpreter.error import UnificationFailed, FunctionNotFound
+from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.engine import Continuation, Heap, Engine
 

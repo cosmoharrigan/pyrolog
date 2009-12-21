@@ -1,7 +1,6 @@
 from prolog.interpreter.term import Var, Term, Rule, Atom, debug_print, \
     Callable
-from prolog.interpreter.error import UnificationFailed, FunctionNotFound, \
-    CutException
+from prolog.interpreter.error import UnificationFailed, CutException
 from prolog.interpreter import error
 from pypy.rlib import jit
 
@@ -35,37 +34,101 @@ class LimitedScopeContinuation(Continuation):
         self.scope_active = False
         return self.continuation.call(engine, choice_point=False)
 
-class Heap(object):
-    def __init__(self):
-        self.trail = []
 
-    def reset(self):
-        self.trail = []
-        self.last_branch = 0
+class TrailHolder(object):
+    CHUNKSIZE = 20
+    def __init__(self, heap):
+        self.heap = heap
+        self.trailvars = [None] * self.CHUNKSIZE
+        self.trailbindings = [None] * self.CHUNKSIZE
+        self.i = 0
+        self.prev = heap.current
+        heap.current = self
+        self.is_choice = False
 
     def add_trail(self, var):
-        self.trail.append((var, var.binding))
+        if self.i < len(self.trailvars):
+            self.trailvars[self.i] = var
+            self.trailbindings[self.i] = var.binding
+            self.i += 1
+            return
+        newtrail = self.heap.newtrail()
+        newtrail.add_trail(var)
+
+    @jit.unroll_safe
+    def revert(self):
+        for index in range(self.i):
+            self.trailvars[index].binding = self.trailbindings[index]
+        self.i = 0
+
+    @jit.unroll_safe
+    def last_choice(self):
+        while self is not None and not self.is_choice:
+            self = self.prev
+        return self
+
+
+class Heap(object):
+    current = None
+    def __init__(self):
+        self.newtrail()
+
+    def last_choice(self):
+        return self.current.last_choice()
+
+    def newtrail(self):
+        self.current = result = TrailHolder(self)
+        return result
+
+    def reset(self):
+        self.current = None
+        self.newtrail()
+
+    def add_trail(self, var):
+        # var was created after the currently active choice point
+        # which means that on backtracking, var will not even exist
+        # this makes trailing not necessary
+        created_after = var.created_after_choice_point
+        if created_after:
+            created_after = created_after.last_choice()
+        if created_after is self.last_choice():
+            return
+        self.current.add_trail(var)
 
     def branch(self):
-        return len(self.trail)
+        res = self.current
+        res.is_choice = True
+        self.newtrail()
+        return res
 
+    @jit.unroll_safe
     def revert(self, state):
-        trails = state
-        for i in range(len(self.trail) - 1, trails - 1, -1):
-            var, val = self.trail[i]
-            var.binding = val
-        del self.trail[trails:]
+        assert state.is_choice
+        old = state
+        curr = self.current
+        while curr is not state:
+            curr.revert()
+            old = curr
+            curr = curr.prev
+        self.current = old
 
+    @jit.unroll_safe
     def discard(self, state):
-        pass #XXX for now
-
-    def maxvar(self):
-        XXX
-        return self.needed_vars
+        # XXX check all calls to .branch in the code have a matching call to
+        # .discard
+        state.is_choice = False
+        while (self.current.i == 0 and self.current is not state):
+            assert not self.current.prev.is_choice
+            self.current = self.current.prev
 
     def newvar(self):
-        result = Var(self)
+        result = Var()
+        result.created_after_choice_point = self.current.last_choice()
         return result
+
+    def revert_and_discard(self, state):
+        self.revert(state)
+        self.discard(state)
 
 class LinkedRules(object):
     _immutable_ = True
@@ -88,7 +151,7 @@ class LinkedRules(object):
         # This method should do some quick filtering on the rules to filter out
         # those that cannot match query. Here is where e.g. indexing should
         # occur. For now, we just return all rules, which is clearly not
-        # optimal. XXX
+        # optimal. XXX improve this
         return self
 
     def __repr__(self):
@@ -159,11 +222,6 @@ jitdriver = jit.JitDriver(
 
 # ___________________________________________________________________
 # end JIT stuff
-
-class Frame(object):
-    def __init__(self, rule):
-        self.rule = rule
-
 
 
 class Engine(object):
@@ -347,7 +405,7 @@ class Engine(object):
                 continuation = e.continuation
 
     def parse(self, s):
-        from prolog.interpreter.parsing import parse_file, TermBuilder, lexer
+        from prolog.interpreter.parsing import parse_file, TermBuilder
         builder = TermBuilder()
         trees = parse_file(s, self.parser)
         terms = builder.build_many(trees)

@@ -21,7 +21,9 @@ def impl_findall(engine, template, goal, bag):
     try:
         engine.call(goal, collector)
     except error.UnificationFailed:
-        engine.heap.revert(oldstate)
+        engine.heap.revert_and_discard(oldstate)
+    else:
+        assert 0, "unreachable"
     result = term.Atom.newatom("[]")
     for i in range(len(collector.found) - 1, -1, -1):
         copy = collector.found[i]

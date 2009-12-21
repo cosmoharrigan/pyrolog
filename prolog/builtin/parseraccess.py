@@ -6,10 +6,10 @@ from prolog.builtin.register import expose_builtin
 # operators
 
 def impl_current_op(engine, precedence, typ, name, continuation):
+    oldstate = engine.heap.branch()
     for prec, allops in engine.getoperations():
         for form, ops in allops:
             for op in ops:
-                oldstate = engine.heap.branch()
                 try:
                     precedence.unify(term.Number(prec), engine.heap)
                     typ.unify(term.Atom.newatom(form), engine.heap)
@@ -17,6 +17,7 @@ def impl_current_op(engine, precedence, typ, name, continuation):
                     return continuation.call(engine, choice_point=True)
                 except error.UnificationFailed:
                     engine.heap.revert(oldstate)
+    engine.heap.discard(oldstate)
     raise error.UnificationFailed()
 expose_builtin(impl_current_op, "current_op", unwrap_spec=["obj", "obj", "obj"],
                handles_continuation=True)
