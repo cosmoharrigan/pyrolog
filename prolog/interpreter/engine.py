@@ -1,5 +1,6 @@
 from prolog.interpreter.term import Var, Term, Rule, Atom, debug_print, \
     Callable
+from prolog.interpreter.function import Function
 from prolog.interpreter.error import UnificationFailed, CutException
 from prolog.interpreter import error
 from pypy.rlib import jit
@@ -80,10 +81,6 @@ class Heap(object):
         self.current = result = TrailHolder(self)
         return result
 
-    def reset(self):
-        self.current = None
-        self.newtrail()
-
     def add_trail(self, var):
         # var was created after the currently active choice point
         # which means that on backtracking, var will not even exist
@@ -129,57 +126,6 @@ class Heap(object):
     def revert_and_discard(self, state):
         self.revert(state)
         self.discard(state)
-
-class LinkedRules(object):
-    _immutable_ = True
-    def __init__(self, rule, next=None):
-        self.rule = rule
-        self.next = next
-
-    def copy(self, stopat=None):
-        first = LinkedRules(self.rule)
-        curr = self.next
-        copy = first
-        while curr is not stopat:
-            new = LinkedRules(curr.rule)
-            copy.next = new
-            copy = new
-            curr = curr.next
-        return first, copy
-
-    def find_applicable_rule(self, query):
-        # This method should do some quick filtering on the rules to filter out
-        # those that cannot match query. Here is where e.g. indexing should
-        # occur. For now, we just return all rules, which is clearly not
-        # optimal. XXX improve this
-        return self
-
-    def __repr__(self):
-        return "LinkedRules(%r, %r)" % (self.rule, self.next)
-
-
-
-class Function(object):
-    def __init__(self, firstrule=None):
-        if firstrule is None:
-            self.rulechain = self.last = None
-        else:
-            self.rulechain = LinkedRules(firstrule)
-            self.last = self.rulechain
-
-    def add_rule(self, rule, end):
-        if self.rulechain is None:
-            self.rulechain = self.last = LinkedRules(rule)
-        elif end:
-            self.rulechain, last = self.rulechain.copy()
-            self.last = LinkedRules(rule)
-            last.next = self.last
-        else:
-            self.rulechain = LinkedRules(rule, self.rulechain)
-
-    def remove(self, rulechain):
-        self.rulechain, last = self.rulechain.copy(rulechain)
-        last.next = rulechain.next
 
 # ___________________________________________________________________
 # JIT stuff
@@ -265,7 +211,7 @@ class Engine(object):
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
-        if isinstance(term, Term) and term.name == ":-" and len(term.args) == 1:
+        if isinstance(term, Term) and term.signature == ":-/1":
             self.run(term.args[0])
         else:
             self.add_rule(term)
@@ -346,15 +292,11 @@ class Engine(object):
         if rulechain is None:
             # none of the rules apply
             raise UnificationFailed()
-        rule = rulechain.rule
-        rulechain = rulechain.next
         oldstate = self.heap.branch()
         while 1:
-            if rulechain is not None:
-                rulechain = rulechain.find_applicable_rule(query)
-                choice_point = rulechain is not None
-            else:
-                choice_point = False
+            rule = rulechain.rule
+            rulechain = rulechain.find_next_applicable_rule(query)
+            choice_point = rulechain is not None
             if rule.contains_cut:
                 continuation = LimitedScopeContinuation(continuation)
                 try:
@@ -379,8 +321,6 @@ class Engine(object):
                 except UnificationFailed:
                     assert choice_point
                     self.heap.revert(oldstate)
-            rule = rulechain.rule
-            rulechain = rulechain.next
 
     def try_rule(self, rule, query, continuation=DONOTHING, choice_point=True):
         if not choice_point:
