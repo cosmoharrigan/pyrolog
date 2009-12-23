@@ -9,7 +9,8 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # loading prolog source files
 
-def impl_consult(engine, var):
+@expose_builtin("consult", unwrap_spec=["obj"])
+def impl_consult(engine, heap, var):
     import os
     if isinstance(var, term.Atom):
         try:
@@ -28,6 +29,5 @@ def impl_consult(engine, var):
         finally:
             os.close(fd)
         engine.runstring(file_content)
-expose_builtin(impl_consult, "consult", unwrap_spec=["obj"])
 
 

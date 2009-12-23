@@ -1,35 +1,35 @@
 import py
-from prolog.interpreter import engine, helper, term, error
+from prolog.interpreter import helper, term, error
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________
 # arithmetic
 
 
-def impl_between(engine, lower, upper, varorint, continuation):
+@expose_builtin("between", unwrap_spec=["int", "int", "obj"],
+                handles_continuation=True)
+def impl_between(engine, heap, lower, upper, varorint, continuation):
     if isinstance(varorint, term.Var):
         for i in range(lower, upper):
-            oldstate = engine.heap.branch()
+            oldstate = heap.branch()
             try:
-                varorint.unify(term.Number(i), engine.heap)
+                varorint.unify(term.Number(i), heap)
                 result = continuation.call(engine, choice_point=True)
-                engine.heap.discard(oldstate)
+                heap.discard(oldstate)
                 return result
             except error.UnificationFailed:
-                engine.heap.revert(oldstate)
-        varorint.unify(term.Number(upper), engine.heap)
+                heap.revert(oldstate)
+        varorint.unify(term.Number(upper), heap)
         return continuation.call(engine, choice_point=False)
     else:
         integer = helper.unwrap_int(varorint)
         if not (lower <= integer <= upper):
             raise error.UnificationFailed
     return continuation.call(engine, choice_point=False)
-expose_builtin(impl_between, "between", unwrap_spec=["int", "int", "obj"],
-               handles_continuation=True)
 
-def impl_is(engine, var, num):
-    var.unify(num, engine.heap)
-expose_builtin(impl_is, "is", unwrap_spec=["raw", "arithmetic"])
+@expose_builtin("is", unwrap_spec=["raw", "arithmetic"])
+def impl_is(engine, heap, var, num):
+    var.unify(num, heap)
 
 for ext, prolog, python in [("eq", "=:=", "=="),
                             ("ne", "=\\=", "!="),
@@ -38,7 +38,8 @@ for ext, prolog, python in [("eq", "=:=", "=="),
                             ("gt", ">", ">"),
                             ("ge", ">=", ">=")]:
     exec py.code.Source("""
-def impl_arith_%s(engine, num1, num2):
+@expose_builtin(prolog, unwrap_spec=["arithmetic", "arithmetic"])
+def impl_arith_%s(engine, heap, num1, num2):
     eq = False
     if isinstance(num1, term.Number):
         if isinstance(num2, term.Number):
@@ -58,6 +59,4 @@ def impl_arith_%s(engine, num1, num2):
     eq = n1 %s n2
     if not eq:
         raise error.UnificationFailed()""" % (ext, python, python)).compile()
-    expose_builtin(globals()["impl_arith_%s" % (ext, )], prolog,
-                   unwrap_spec=["arithmetic", "arithmetic"])
  

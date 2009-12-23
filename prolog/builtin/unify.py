@@ -7,25 +7,25 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # comparison and unification of terms
 
-def impl_unify(engine, obj1, obj2):
-    obj1.unify(obj2, engine.heap)
-expose_builtin(impl_unify, "=", unwrap_spec=["raw", "raw"])
+@expose_builtin("=", unwrap_spec=["raw", "raw"])
+def impl_unify(engine, heap, obj1, obj2):
+    obj1.unify(obj2, heap)
 
-def impl_unify_with_occurs_check(engine, obj1, obj2):
-    obj1.unify(obj2, engine.heap, occurs_check=True)
-expose_builtin(impl_unify_with_occurs_check, "unify_with_occurs_check",
-               unwrap_spec=["raw", "raw"])
+@expose_builtin("unify_with_occurs_check",
+                unwrap_spec=["raw", "raw"])
+def impl_unify_with_occurs_check(engine, heap, obj1, obj2):
+    obj1.unify(obj2, heap, occurs_check=True)
 
-def impl_does_not_unify(engine, obj1, obj2):
-    branch = engine.heap.branch()
+@expose_builtin("\\=", unwrap_spec=["raw", "raw"])
+def impl_does_not_unify(engine, heap, obj1, obj2):
+    branch = heap.branch()
     try:
-        obj1.unify(obj2, engine.heap)
+        obj1.unify(obj2, heap)
     except error.UnificationFailed:
-        engine.heap.revert_and_discard(branch)
+        heap.revert_and_discard(branch)
         return
-    engine.heap.discard(branch)
+    heap.discard(branch)
     raise error.UnificationFailed()
-expose_builtin(impl_does_not_unify, "\\=", unwrap_spec=["raw", "raw"])
 
 
 for ext, prolog, python in [("eq", "==", "== 0"),
@@ -35,10 +35,9 @@ for ext, prolog, python in [("eq", "==", "== 0"),
                             ("gt", "@>", "== 1"),
                             ("ge", "@>=", "!= -1")]:
     exec py.code.Source("""
-def impl_standard_comparison_%s(engine, obj1, obj2):
-    c = term.cmp_standard_order(obj1, obj2, engine.heap)
+@expose_builtin(prolog, unwrap_spec=["obj", "obj"])
+def impl_standard_comparison_%s(engine, heap, obj1, obj2):
+    c = term.cmp_standard_order(obj1, obj2, heap)
     if not c %s:
         raise error.UnificationFailed()""" % (ext, python)).compile()
-    expose_builtin(globals()["impl_standard_comparison_%s" % (ext, )], prolog,
-                   unwrap_spec=["obj", "obj"])
  

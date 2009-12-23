@@ -5,24 +5,25 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # operators
 
-def impl_current_op(engine, precedence, typ, name, continuation):
-    oldstate = engine.heap.branch()
+@expose_builtin("current_op", unwrap_spec=["obj", "obj", "obj"],
+                handles_continuation=True)
+def impl_current_op(engine, heap, precedence, typ, name, continuation):
+    oldstate = heap.branch()
     for prec, allops in engine.getoperations():
         for form, ops in allops:
             for op in ops:
                 try:
-                    precedence.unify(term.Number(prec), engine.heap)
-                    typ.unify(term.Atom.newatom(form), engine.heap)
-                    name.unify(term.Atom(op), engine.heap)
+                    precedence.unify(term.Number(prec), heap)
+                    typ.unify(term.Atom.newatom(form), heap)
+                    name.unify(term.Atom(op), heap)
                     return continuation.call(engine, choice_point=True)
                 except error.UnificationFailed:
-                    engine.heap.revert(oldstate)
-    engine.heap.discard(oldstate)
+                    heap.revert(oldstate)
+    heap.discard(oldstate)
     raise error.UnificationFailed()
-expose_builtin(impl_current_op, "current_op", unwrap_spec=["obj", "obj", "obj"],
-               handles_continuation=True)
 
-def impl_op(engine, precedence, typ, name):
+@expose_builtin("op", unwrap_spec=["int", "atom", "atom"])
+def impl_op(engine, heap, precedence, typ, name):
     from prolog.interpreter import parsing
     if engine.operations is None:
         engine.operations = parsing.make_default_operations()
@@ -54,6 +55,5 @@ def impl_op(engine, precedence, typ, name):
             else:
                 operations.append((precedence, [(typ, [name])]))
     engine.parser = parsing.make_parser_at_runtime(engine.operations)
-expose_builtin(impl_op, "op", unwrap_spec=["int", "atom", "atom"])
 
 

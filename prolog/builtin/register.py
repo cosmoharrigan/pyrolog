@@ -19,7 +19,12 @@ class Builtin(object):
     def _freeze_(self):
         return True
 
-def expose_builtin(func, name, unwrap_spec=None, handles_continuation=False,
+def expose_builtin(*args, **kwargs):
+    def really_expose(func):
+        return make_wrapper(func, *args, **kwargs)
+    return really_expose
+
+def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
                    translatable=True):
     if isinstance(name, list):
         expose_as = name
@@ -30,10 +35,11 @@ def expose_builtin(func, name, unwrap_spec=None, handles_continuation=False,
         name = func.func_name
     funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
     code = ["def %s(engine, query, continuation):" % (funcname, )]
+    code.append("    heap = engine.heap")
     if not translatable:
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
-    subargs = ["engine"]
+    subargs = ["engine", "heap"]
     if len(unwrap_spec):
         code.append("    assert isinstance(query, term.Term)")
     else:
@@ -42,10 +48,10 @@ def expose_builtin(func, name, unwrap_spec=None, handles_continuation=False,
         varname = "var%s" % (i, )
         subargs.append(varname)
         if spec in ("obj", "callable", "int", "atom", "arithmetic"):
-            code.append("    %s = query.args[%s].dereference(engine.heap)" %
+            code.append("    %s = query.args[%s].dereference(heap)" %
                         (varname, i))
         elif spec in ("concrete", "list"):
-            code.append("    %s = query.args[%s].getvalue(engine.heap)" %
+            code.append("    %s = query.args[%s].getvalue(heap)" %
                         (varname, i))
         if spec in ("int", "atom", "arithmetic", "list"):
             code.append(
@@ -90,7 +96,5 @@ def expose_builtin(func, name, unwrap_spec=None, handles_continuation=False,
         b = Builtin(miniglobals[funcname], funcname, len(unwrap_spec),
                     signature)
         builtins[signature] = b
-        if signature in [",/2", "is/2"]:
-            builtins_list.insert(0, (signature, b))
-        else:
-            builtins_list.append((signature, b))
+        builtins_list.append((signature, b))
+    return func

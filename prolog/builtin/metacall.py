@@ -5,17 +5,17 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # meta-call predicates
 
-def impl_call(engine, call, continuation):
+@expose_builtin("call", unwrap_spec=["callable"],
+                handles_continuation=True)
+def impl_call(engine, heap, call, continuation):
     try:
         return engine.call(call, continuation)
     except error.CutException, e:
         return e.continuation.call(engine, choice_point=False)
-expose_builtin(impl_call, "call", unwrap_spec=["callable"],
-               handles_continuation=True)
 
-def impl_once(engine, clause, continuation):
+@expose_builtin("once", unwrap_spec=["callable"],
+                handles_continuation=True)
+def impl_once(engine, heap, clause, continuation):
     engine.call(clause)
     return continuation.call(engine, choice_point=False)
-expose_builtin(impl_once, "once", unwrap_spec=["callable"],
-               handles_continuation=True)
 

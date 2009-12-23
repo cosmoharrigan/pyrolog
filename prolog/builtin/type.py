@@ -5,60 +5,60 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # type verifications
 
-def impl_nonvar(engine, var):
+@expose_builtin("nonvar", unwrap_spec=["obj"])
+def impl_nonvar(engine, heap, var):
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
-expose_builtin(impl_nonvar, "nonvar", unwrap_spec=["obj"])
 
-def impl_var(engine, var):
+@expose_builtin("var", unwrap_spec=["obj"])
+def impl_var(engine, heap, var):
     if not isinstance(var, term.Var):
         raise error.UnificationFailed()
-expose_builtin(impl_var, "var", unwrap_spec=["obj"])
 
-def impl_integer(engine, var):
+@expose_builtin("integer", unwrap_spec=["obj"])
+def impl_integer(engine, heap, var):
     if isinstance(var, term.Var) or not isinstance(var, term.Number):
         raise error.UnificationFailed()
-expose_builtin(impl_integer, "integer", unwrap_spec=["obj"])
 
-def impl_float(engine, var):
+@expose_builtin("float", unwrap_spec=["obj"])
+def impl_float(engine, heap, var):
     if isinstance(var, term.Var) or not isinstance(var, term.Float):
         raise error.UnificationFailed()
-expose_builtin(impl_float, "float", unwrap_spec=["obj"])
 
-def impl_number(engine, var):
+@expose_builtin("number", unwrap_spec=["obj"])
+def impl_number(engine, heap, var):
     if (isinstance(var, term.Var) or
         (not isinstance(var, term.Number) and not
          isinstance(var, term.Float))):
         raise error.UnificationFailed()
-expose_builtin(impl_number, "number", unwrap_spec=["obj"])
 
-def impl_atom(engine, var):
+@expose_builtin("atom", unwrap_spec=["obj"])
+def impl_atom(engine, heap, var):
     if isinstance(var, term.Var) or not isinstance(var, term.Atom):
         raise error.UnificationFailed()
-expose_builtin(impl_atom, "atom", unwrap_spec=["obj"])
 
-def impl_atomic(engine, var):
+@expose_builtin("atomic", unwrap_spec=["obj"])
+def impl_atomic(engine, heap, var):
     if helper.is_atomic(var):
         return
     raise error.UnificationFailed()
-expose_builtin(impl_atomic, "atomic", unwrap_spec=["obj"])
 
-def impl_compound(engine, var):
+@expose_builtin("compound", unwrap_spec=["obj"])
+def impl_compound(engine, heap, var):
     if isinstance(var, term.Var) or not isinstance(var, term.Term):
         raise error.UnificationFailed()
-expose_builtin(impl_compound, "compound", unwrap_spec=["obj"])
 
-def impl_callable(engine, var):
+@expose_builtin("callable", unwrap_spec=["obj"])
+def impl_callable(engine, heap, var):
     if not helper.is_callable(var, engine):
         raise error.UnificationFailed()
-expose_builtin(impl_callable, "callable", unwrap_spec=["obj"])
 
-def impl_ground(engine, var):
+@expose_builtin("ground", unwrap_spec=["concrete"])
+def impl_ground(engine, heap, var):
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
     if isinstance(var, term.Term):
         for arg in var.args:
-            impl_ground(engine, arg)
-expose_builtin(impl_ground, "ground", unwrap_spec=["concrete"])
+            impl_ground(engine, heap, arg)
 
 

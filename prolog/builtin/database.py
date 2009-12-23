@@ -5,7 +5,8 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # database
 
-def impl_abolish(engine, predicate):
+@expose_builtin("abolish", unwrap_spec=["obj"])
+def impl_abolish(engine, heap, predicate):
     from prolog.builtin import builtins
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
@@ -16,18 +17,18 @@ def impl_abolish(engine, predicate):
                                      predicate)
     if signature in engine.signature2function:
         del engine.signature2function[signature]
-expose_builtin(impl_abolish, "abolish", unwrap_spec=["obj"])
 
-def impl_assert(engine, rule):
-    engine.add_rule(rule.getvalue(engine.heap))
-expose_builtin(impl_assert, ["assert", "assertz"], unwrap_spec=["callable"])
+@expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
+def impl_assert(engine, heap, rule):
+    engine.add_rule(rule.getvalue(heap))
 
-def impl_asserta(engine, rule):
-    engine.add_rule(rule.getvalue(engine.heap), end=False)
-expose_builtin(impl_asserta, "asserta", unwrap_spec=["callable"])
+@expose_builtin("asserta", unwrap_spec=["callable"])
+def impl_asserta(engine, heap, rule):
+    engine.add_rule(rule.getvalue(heap), end=False)
 
 
-def impl_retract(engine, pattern):
+@expose_builtin("retract", unwrap_spec=["callable"])
+def impl_retract(engine, heap, pattern):
     from prolog.builtin import builtins
     if isinstance(pattern, term.Term) and pattern.name == ":-":
         head = helper.ensure_callable(pattern.args[0])
@@ -44,16 +45,16 @@ def impl_retract(engine, pattern):
         raise error.UnificationFailed
     #import pdb; pdb.set_trace()
     rulechain = function.rulechain
-    oldstate = engine.heap.branch()
+    oldstate = heap.branch()
     while rulechain:
         rule = rulechain.rule
         # standardizing apart
         try:
-            deleted_body = rule.clone_and_unify_head(engine.heap, head)
+            deleted_body = rule.clone_and_unify_head(heap, head)
             if body is not None:
-                body.unify(deleted_body, engine.heap)
+                body.unify(deleted_body, heap)
         except error.UnificationFailed:
-            engine.heap.revert(oldstate)
+            heap.revert(oldstate)
         else:
             if function.rulechain is rulechain:
                 if rulechain.next is None:
@@ -66,8 +67,7 @@ def impl_retract(engine, pattern):
         rulechain = rulechain.next
     else:
         raise error.UnificationFailed()
-    engine.heap.discard(oldstate)
+    heap.discard(oldstate)
 
-expose_builtin(impl_retract, "retract", unwrap_spec=["callable"])
 
 
