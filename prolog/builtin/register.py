@@ -13,8 +13,8 @@ class Builtin(object):
         self.numargs = numargs
         self.signature = signature
 
-    def call(self, engine, query, continuation):
-        return self.function(engine, query, continuation)
+    def call(self, engine, query, scont, fcont, heap):
+        return self.function(engine, query, scont, fcont, heap)
         
     def _freeze_(self):
         return True
@@ -34,8 +34,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     if not name.isalnum():
         name = func.func_name
     funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
-    code = ["def %s(engine, query, continuation):" % (funcname, )]
-    code.append("    heap = engine.heap")
+    code = ["def %s(engine, query, scont, fcont, heap):" % (funcname, )]
     if not translatable:
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
@@ -81,11 +80,12 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         else:
             assert 0, "not implemented " + spec
     if handles_continuation:
-        subargs.append("continuation")
+        subargs.append("scont")
+        subargs.append("fcont")
     call = "    result = %s(%s)" % (func.func_name, ", ".join(subargs))
     code.append(call)
     if not handles_continuation:
-        code.append("    return continuation.call(engine, choice_point=False)")
+        code.append("    return scont, fcont, heap")
     else:
         code.append("    return result")
     miniglobals = globals().copy()

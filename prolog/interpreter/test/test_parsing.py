@@ -50,7 +50,17 @@ def test_quoted_atoms():
         g('ASa0%!!231@~!@#%', a, []). /* /* /* * * * / a mean comment */
     """)
     builder = TermBuilder()
-    facts = builder.build(t)
+    fact, = builder.build(t)
+    assert fact.args[0].name == 'ASa0%!!231@~!@#%'
+    assert fact.args[1].name == 'a'
+    assert fact.args[2].name == '[]'
+    t = parse_file("""
+        'a'.
+        a.
+    """)
+    builder = TermBuilder()
+    fact1, fact2, = builder.build(t)
+    assert fact1.name == fact2.name
 
 def test_parenthesis():
     t = parse_file("""

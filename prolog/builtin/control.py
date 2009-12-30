@@ -1,5 +1,4 @@
-import py
-from prolog.interpreter import engine, helper, term, error
+from prolog.interpreter import engine, helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________
@@ -25,35 +24,44 @@ def impl_repeat(engine, heap, continuation):
 def impl_cut(engine, heap, continuation):
     raise error.CutException(continuation)
 
-class AndContinuation(engine.Continuation):
-    def __init__(self, next_call, continuation):
-        self.next_call = next_call
-        self.continuation = continuation
-
-    def _call(self, engine):
-        next_call = self.next_call.dereference(engine.heap)
-        next_call = helper.ensure_callable(next_call)
-        return engine.call(next_call, self.continuation, choice_point=False)
-
 @expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)
-def impl_and(engine, heap, call1, call2, continuation):
+def impl_and(engine, heap, call1, call2, scont, fcont):
     if not isinstance(call2, term.Var) and not isinstance(call2, term.Callable):
         error.throw_type_error('callable', call2)
-    and_continuation = AndContinuation(call2, continuation)
-    return engine.call(call1, and_continuation, choice_point=False)
+    scont = continuation.BodyContinuation(engine, scont, call2)
+    return engine.call(call1, scont, fcont, heap)
 
+class OrContinuation(continuation.FailureContinuation):
+    def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
+        continuation.Continuation.__init__(self, engine, nextcont)
+        self.altcall = altcall
+        self.undoheap = undoheap
+        self.orig_fcont = orig_fcont
+
+    def activate(self, fcont, heap):
+        assert self.undoheap is None
+        scont = continuation.BodyContinuation(self.engine, self.nextcont,
+                                              self.altcall)
+        return scont, fcont, heap
+
+    def fail(self, heap):
+        assert self.undoheap is not None
+        heap = heap.revert_upto(self.undoheap)
+        self.undoheap = None
+        return self, self.orig_fcont, heap
+
+            
 @expose_builtin(";", unwrap_spec=["callable", "callable"],
                 handles_continuation=True)
-def impl_or(engine, heap, call1, call2, continuation):
-    oldstate = heap.branch()
-    try:
-        return engine.call(call1, continuation, choice_point=True)
-    except error.UnificationFailed:
-        heap.revert_and_discard(oldstate)
-    return engine.call(call2, continuation, choice_point=False)
+def impl_or(engine, heap, call1, call2, scont, fcont):
+    newscont = continuation.BodyContinuation(engine, scont, call1)
+    fcont = OrContinuation(engine, scont, heap, fcont, call2)
+    return newscont, fcont, heap.branch()
 
-@expose_builtin(["not", "\\+"], unwrap_spec=["callable"])
-def impl_not(engine, heap, call):
+@expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
+                handles_continuation=True)
+def impl_not(engine, heap, call, scont, fcont):
+    newscont = continuation.BodyContinuation(engine, XXX(scont), call1)
     try:
         try:
             engine.call(call)

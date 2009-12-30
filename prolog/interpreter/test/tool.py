@@ -26,8 +26,8 @@ class CollectAllContinuation(Continuation):
         self.heaps = []
         self.vars = vars
 
-    def _call(self, engine):
-        self.heaps.append(dict([(name, var.dereference(engine.heap))
+    def activate(self, fcont, heap):
+        self.heaps.append(dict([(name, var.dereference(heap))
                                     for name, var in self.vars.iteritems()]))
         print "restarting computation"
         raise UnificationFailed

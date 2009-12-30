@@ -19,6 +19,7 @@ class UnificationFailed(PrologError):
 
 class CutException(PrologError):
     def __init__(self, continuation):
+        assert 0, "shouldn't be used any more"
         self.continuation = continuation
 
 def throw_instantiation_error():

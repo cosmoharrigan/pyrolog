@@ -1,9 +1,8 @@
 import math
-from prolog.interpreter.error import UnificationFailed, UncatchableError
+from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter import error
 from pypy.rlib.objectmodel import we_are_translated, UnboxedValue
 from pypy.rlib.objectmodel import compute_unique_id
-from pypy.rlib.rarithmetic import intmask
 from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
 from pypy.rlib import jit
@@ -48,20 +47,11 @@ class PrologObject(object):
     def contains_var(self, var, heap):
         return False
 
-    #def __eq__(self, other):
-    #    # for testing
-    #    return (self.__class__ == other.__class__ and
-    #            self.__dict__ == other.__dict__)
-
-    #def __ne__(self, other):
-    #    # for testing
-    #    return not (self == other)
-
     def eval_arithmetic(self, engine):
         error.throw_type_error("evaluable", self)
 
 class Var(PrologObject):
-    STANDARD_ORDER = 0
+    TYPE_STANDARD_ORDER = 0
 
     created_after_choice_point = None
 
@@ -166,6 +156,7 @@ class NumberedVar(PrologObject):
     def __repr__(self):
         return "NumberedVar(%s)" % (self.num, )
 
+
 class NonVar(PrologObject):
     __slots__ = ()
 
@@ -222,7 +213,7 @@ class Callable(NonVar):
 
 
 class Atom(Callable):
-    STANDARD_ORDER = 1
+    TYPE_STANDARD_ORDER = 1
 
     cache = {}
     _immutable_ = True
@@ -272,7 +263,7 @@ class Atom(Callable):
 
 
 class Number(NonVar): #, UnboxedValue):
-    STANDARD_ORDER = 2
+    TYPE_STANDARD_ORDER = 2
     _immutable_ = True
     __slots__ = ("num", )
 
@@ -303,7 +294,7 @@ class Number(NonVar): #, UnboxedValue):
 NUMBER_0 = Number(0)
 
 class Float(NonVar):
-    STANDARD_ORDER = 2
+    TYPE_STANDARD_ORDER = 2
     _immutable_ = True
     def __init__(self, floatval):
         self.floatval = floatval
@@ -336,7 +327,7 @@ Float.pi = Float(math.pi)
 
 class BlackBox(NonVar):
     # meant to be subclassed
-    STANDARD_ORDER = 4
+    TYPE_STANDARD_ORDER = 4
     def __init__(self):
         pass
 
@@ -371,7 +362,7 @@ def _term_unify_and_standardize_apart(obj, i, other, heap, memo):
     obj.unify_and_standardize_apart(other.args[i], heap, memo)
 
 class Term(Callable):
-    STANDARD_ORDER = 3
+    TYPE_STANDARD_ORDER = 3
     _immutable_ = True
     _immutable_fields_ = ["args[*]"]
 
@@ -519,7 +510,7 @@ def rcmp(a, b): # RPython does not support cmp...
     return 1
 
 def cmp_standard_order(obj1, obj2, heap):
-    c = rcmp(obj1.STANDARD_ORDER, obj2.STANDARD_ORDER)
+    c = rcmp(obj1.TYPE_STANDARD_ORDER, obj2.TYPE_STANDARD_ORDER)
     if c != 0:
         return c
     if isinstance(obj1, Var):

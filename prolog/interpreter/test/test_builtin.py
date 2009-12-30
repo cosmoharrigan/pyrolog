@@ -204,6 +204,73 @@ def test_call_cut():
     heaps = collect_all(e, "f(!).")
     assert len(heaps) == 1
 
+def test_or_and_call_with_cut():
+    assert_false("(!, fail); true.")
+    assert_true("(call(!), fail); true.")
+
+
+def test_cut1():
+    e = get_engine("""
+        g(a).
+        g(b).
+        a(a).
+        b(b).
+        f(X) :- g(X),!,b(X).
+        f(x).
+        f(y).
+    """)
+    heaps = collect_all(e, "f(X).")
+    assert len(heaps) == 0
+    assert_true("!.")
+
+def test_cut2():
+    e = get_engine("""
+        g(a).
+        g(b).
+        h(a, x).
+        h(a, y).
+        f(X, Y) :- g(X), !, !, !, !, !, h(X, Y).
+    """)
+    heaps = collect_all(e, "f(X, Y).")
+    assert len(heaps) == 2
+
+def test_cut3():
+    e = get_engine("""
+        member(H, [H | _]).
+        member(H, [_ | T]) :- member(H, T).
+
+        s(a, L) :- !, fail.
+        s(b, L).
+        s(X, L) :-
+            member(Y, L),
+            L = [_| S],
+            s(Y, S).
+    """)
+    #    import pdb; pdb.set_trace()
+    assert_true("s(d, [a, b]).", e)
+
+def test_rule_with_cut_calling_rule_with_cut():
+    e = get_engine("""
+        f(b) :- !.
+        f(c).
+        g(X) :- f(X), !.
+        g(a).
+    """)
+    heaps = collect_all(e, "g(X).")
+    assert len(heaps) == 1
+
+def test_not_with_cut():
+    e = get_engine("""
+    p1 :- \\+ q1.
+    q1 :- fail.
+    q1 :- true.
+    
+    p2:- \\+ q2.
+    q2 :- !, fail.
+    q2 :- true.
+    """)
+    assert_false("p1.", e)
+    assert_true("p2.", e)
 
 def test_term_construction():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
