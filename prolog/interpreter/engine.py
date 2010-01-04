@@ -360,4 +360,4 @@ class Engine(object):
 
 
 
-from prolog.interpreter.continuation import Heap, Engine
+from prolog.interpreter.continuation import Heap, Engine, Continuation

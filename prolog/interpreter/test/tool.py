@@ -22,6 +22,7 @@ def prolog_raises(exc, query, e=None):
                        (query, exc), e)
 
 class CollectAllContinuation(Continuation):
+    nextcont = None
     def __init__(self, vars):
         self.heaps = []
         self.vars = vars

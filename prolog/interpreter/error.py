@@ -47,13 +47,6 @@ def throw_domain_error(valid_domain, obj):
     raise CatchableError(
         term.Term("domain_error", [term.Atom.newatom(valid_domain), obj]))
 
-def throw_existence_error(object_type, obj):
-    from prolog.interpreter import term
-    # valid types are:
-    # procedure, source_sink, stream
-    raise CatchableError(
-        term.Term("existence_error", [term.Atom.newatom(object_type), obj]))
-
 def throw_permission_error(operation, permission_type, obj):
     from prolog.interpreter import term
     # valid operations are:

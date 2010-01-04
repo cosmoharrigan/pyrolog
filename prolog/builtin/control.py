@@ -12,7 +12,7 @@ def impl_fail(engine, heap):
 def impl_true(engine, heap):
     return
 
-@expose_builtin("repeat", unwrap_spec=[], handles_continuation=True)
+#@expose_builtin("repeat", unwrap_spec=[], handles_continuation=True)
 def impl_repeat(engine, heap, continuation):
     while 1:
         try:
@@ -21,13 +21,15 @@ def impl_repeat(engine, heap, continuation):
             pass
 
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
-def impl_cut(engine, heap, continuation):
-    raise error.CutException(continuation)
+def impl_cut(engine, heap, scont, fcont):
+    if fcont:
+        fcont = fcont.cut()
+    return scont, fcont, heap
 
 @expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)
 def impl_and(engine, heap, call1, call2, scont, fcont):
     if not isinstance(call2, term.Var) and not isinstance(call2, term.Callable):
-        error.throw_type_error('callable', call2)
+        return engine.throw_type_error('callable', call2, scont, fcont, heap)
     scont = continuation.BodyContinuation(engine, scont, call2)
     return engine.call(call1, scont, fcont, heap)
 
@@ -44,11 +46,18 @@ class OrContinuation(continuation.FailureContinuation):
                                               self.altcall)
         return scont, fcont, heap
 
+    def cut(self):
+        assert self.undoheap is not None
+        return self.orig_fcont.cut()
+
     def fail(self, heap):
         assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap)
         self.undoheap = None
         return self, self.orig_fcont, heap
+
+    def __repr__(self):
+        return "<OrContinuation altcall=%s" % (self.altcall, )
 
             
 @expose_builtin(";", unwrap_spec=["callable", "callable"],
@@ -58,8 +67,8 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
     fcont = OrContinuation(engine, scont, heap, fcont, call2)
     return newscont, fcont, heap.branch()
 
-@expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
-                handles_continuation=True)
+#@expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
+#                handles_continuation=True)
 def impl_not(engine, heap, call, scont, fcont):
     newscont = continuation.BodyContinuation(engine, XXX(scont), call1)
     try:
@@ -71,8 +80,8 @@ def impl_not(engine, heap, call, scont, fcont):
         return None
     raise error.UnificationFailed()
 
-@expose_builtin("->", unwrap_spec=["callable", "raw"],
-                handles_continuation=True)
+#@expose_builtin("->", unwrap_spec=["callable", "raw"],
+#                handles_continuation=True)
 def impl_if(engine, heap, if_clause, then_clause, continuation):
     oldstate = heap.branch()
     try:

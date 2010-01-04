@@ -66,9 +66,7 @@ def test_consult():
     assert_true("g(c, c).", e)
     assert_true("g(a, a).", e)
     assert_true("g(a, b).", e)
-    py.test.raises(
-        error.CatchableError,
-        assert_true, "consult('/hopefully/does/not/exist').")
+    prolog_raises("_", "consult('/hopefully/does/not/exist')")
 
 def test_assert_retract():
     e = get_engine("g(b, b).")
@@ -183,10 +181,6 @@ def test_call():
     assert_true("withcut(a).", e)
     assert_true("call((!, true)).")
 
-def test_or_with_cut():
-    assert_false("((X = 1, !); X = 2), X = 2.")
-    assert_true("((X = 1, !); X = 2), X = 1.")
-
 def test_cut():
     e = get_engine("""
         f(0).
@@ -205,8 +199,20 @@ def test_call_cut():
     assert len(heaps) == 1
 
 def test_or_and_call_with_cut():
-    assert_false("(!, fail); true.")
-    assert_true("(call(!), fail); true.")
+    e = get_engine("""
+        f :- (!, fail); true.
+        g :- (call(!), fail); true.
+    """)
+    assert_false("f.", e)
+    assert_true("g.", e)
+
+def test_or_with_cut():
+    e = get_engine("""
+        f(X) :- ((X = 1, !); X = 2), X = 2.
+        g(X) :- ((X = 1, !); X = 2), X = 1.
+    """)
+    assert_false("f(X).", e)
+    assert_true("g(X).", e)
 
 
 def test_cut1():
@@ -251,7 +257,9 @@ def test_cut3():
 
 def test_rule_with_cut_calling_rule_with_cut():
     e = get_engine("""
-        f(b) :- !.
+        e(a).
+        e(b).
+        f(b) :- e(_), !.
         f(c).
         g(X) :- f(X), !.
         g(a).
@@ -345,10 +353,8 @@ def test_repeat():
 def test_exception_handling():
     assert_true("catch(f, E, true).")
     assert_true("catch(throw(error), E, true).")
-    py.test.raises(error.CatchableError,
-                   assert_true, "catch(true, E, fail), f.")
-    py.test.raises(error.CatchableError,
-                   assert_true, "catch(throw(error), failure, fail).")
+    prolog_raises("_", "catch(true, E, fail), f")
+    prolog_raises("_", "catch(throw(error), failure, fail)")
     assert_true("catch(catch(throw(error), failure, fail), error, true).")
 
 def test_between():

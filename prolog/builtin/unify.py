@@ -18,13 +18,12 @@ def impl_unify_with_occurs_check(engine, heap, obj1, obj2):
 
 @expose_builtin("\\=", unwrap_spec=["raw", "raw"])
 def impl_does_not_unify(engine, heap, obj1, obj2):
-    branch = heap.branch()
+    new_heap = heap.branch()
     try:
-        obj1.unify(obj2, heap)
+        obj1.unify(obj2, new_heap)
     except error.UnificationFailed:
-        heap.revert_and_discard(branch)
+        new_heap.revert_upto(heap)
         return
-    heap.discard(branch)
     raise error.UnificationFailed()
 
 

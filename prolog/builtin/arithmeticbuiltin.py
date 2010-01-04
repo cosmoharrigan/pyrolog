@@ -6,8 +6,8 @@ from prolog.builtin.register import expose_builtin
 # arithmetic
 
 
-@expose_builtin("between", unwrap_spec=["int", "int", "obj"],
-                handles_continuation=True)
+#@expose_builtin("between", unwrap_spec=["int", "int", "obj"],
+#                handles_continuation=True)
 def impl_between(engine, heap, lower, upper, varorint, continuation):
     if isinstance(varorint, term.Var):
         for i in range(lower, upper):

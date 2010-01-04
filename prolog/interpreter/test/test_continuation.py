@@ -4,6 +4,7 @@ from prolog.interpreter.continuation import *
 def test_driver():
     order = []
     class FakeC(object):
+        rule = None
         def __init__(self, next, val):
             self.next = next
             self.val = val
@@ -32,6 +33,7 @@ def test_failure_continuation():
     order = []
     h = Heap()
     class FakeC(object):
+        rule = None
         def __init__(self, next, val):
             self.next = next
             self.val = val
@@ -81,13 +83,16 @@ def test_heap():
     assert v2.binding is None
     assert h3 is h2
 
+    h1 = Heap()
+    h2 = h1.revert_upto(h1)
+    assert h2 is h1
 
 
-    
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
     all = []
     class CollectContinuation(object):
+        rule = None
         def activate(self, fcont, heap):
             all.append(query.getvalue(heap))
             raise error.UnificationFailed

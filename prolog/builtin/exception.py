@@ -1,5 +1,5 @@
 import py
-from prolog.interpreter import engine as enginemod, helper, term, error
+from prolog.interpreter import continuation, helper, term, error
 from prolog.builtin.register import expose_builtin
 from prolog.builtin.type import impl_ground
 
@@ -8,11 +8,11 @@ from prolog.builtin.type import impl_ground
 
 @expose_builtin("catch", unwrap_spec=["callable", "obj", "callable"],
                 handles_continuation=True)
-def impl_catch(engine, heap, goal, catcher, recover, continuation):
-    catching_continuation = enginemod.LimitedScopeContinuation(continuation)
-    old_state = heap.branch()
+def impl_catch(engine, heap, goal, catcher, recover, scont, fcont):
+    new_heap = heap.branch()
+    scont = continuation.CatchingDelimiter(engine, scont, fcont, catcher, recover, heap)
+    return engine.call(goal, scont, fcont, heap)
     try:
-        result = engine.call(goal, catching_continuation)
         heap.discard(old_state)
         return result
     except error.CatchableError, e:
@@ -36,13 +36,7 @@ def impl_catch(engine, heap, goal, catcher, recover, continuation):
                 raise error.CatchableError(exc_term)
         return engine.call(recover, continuation, choice_point=False)
 
-@expose_builtin("throw", unwrap_spec=["obj"])
-def impl_throw(engine, heap, exc):
-    try:
-        impl_ground(engine, heap, exc)
-    except error.UnificationFailed:
-        raise error.UncatchableError(
-            "not implemented: raising of non-ground terms")
-    raise error.UserError(exc)
-
+@expose_builtin("throw", unwrap_spec=["obj"], handles_continuation=True)
+def impl_throw(engine, heap, exc, scont, fcont):
+    return engine.throw(exc, scont, fcont, heap)
 
