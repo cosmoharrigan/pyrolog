@@ -40,6 +40,8 @@ jitdriver = jit.JitDriver(
 
 
 def driver(scont, fcont, heap):
+    if scont is None:
+        return
     oldrule = scont.rule
     while scont is not None:
         rule = scont.rule
