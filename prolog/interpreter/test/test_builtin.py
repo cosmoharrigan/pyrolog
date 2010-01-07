@@ -349,6 +349,10 @@ def test_repeat():
     py.test.raises(UnificationFailed,
         Engine().run, parse_query_term("repeat, !, fail."))
     # hard to test repeat differently
+    e = get_engine('f :- repeat, !, fail.')
+    assert_false('f.', e)
+    assert_true('f; true.', e)
+    
 
 def test_exception_handling():
     assert_true("catch(f, E, true).")

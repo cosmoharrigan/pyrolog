@@ -12,14 +12,28 @@ def impl_fail(engine, heap):
 def impl_true(engine, heap):
     return
 
-#@expose_builtin("repeat", unwrap_spec=[], handles_continuation=True)
-def impl_repeat(engine, heap, continuation):
-    while 1:
-        try:
-            return continuation.call(engine, choice_point=True)
-        except error.UnificationFailed:
-            pass
+@expose_builtin("repeat", unwrap_spec=[], handles_continuation=True)
+def impl_repeat(engine, heap, scont, fcont):
+    return scont, RepeatContinuation(engine, scont, fcont, heap), heap.branch()
 
+class RepeatContinuation(continuation.FailureContinuation):
+    def __init__(self, engine, scont, fcont, heap):
+        continuation.FailureContinuation.__init__(self, engine, scont)
+        self.fcont = fcont
+        self.undoheap = heap
+        
+    def activate(self, fcont, heap):
+        assert 0, "Unreachable"
+        
+    def fail(self, heap):
+        heap = heap.revert_upto(self.undoheap)
+        return self.nextcont, self, heap
+    
+    def cut(self):
+        if self.fcont is not None:
+            return self.fcont.cut()
+        return None
+        
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
     if fcont:
@@ -35,7 +49,7 @@ def impl_and(engine, heap, call1, call2, scont, fcont):
 
 class OrContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
-        continuation.Continuation.__init__(self, engine, nextcont)
+        continuation.FailureContinuation.__init__(self, engine, nextcont)
         self.altcall = altcall
         self.undoheap = undoheap
         self.orig_fcont = orig_fcont
