@@ -1,30 +1,35 @@
 class PrologError(Exception):
     pass
 
-class CatchableError(PrologError):
-    def __init__(self, errorterm):
-        from prolog.interpreter import term
-        self.term = term.Term("error", [errorterm])
-
-class UserError(CatchableError):
-    def __init__(self, errorterm):
-        self.term = errorterm
-
 class UncatchableError(PrologError):
     def __init__(self, message):
         self.message = message
 
+class CatchableError(PrologError):
+    def __init__(self, term):
+        self.term = term
+
+class UncaughtError(PrologError):
+    def __init__(self, term):
+        self.term = term
+
+def wrap_error(t):
+    from prolog.interpreter import term
+    t = term.Term("error", [t])
+    return CatchableError(t)
+
 class UnificationFailed(PrologError):
     pass
 
-class CutException(PrologError):
-    def __init__(self, continuation):
-        assert 0, "shouldn't be used any more"
-        self.continuation = continuation
+
+def throw_existence_error(object_type, obj):
+    from prolog.interpreter import term
+    t = term.Term("existence_error", [term.Atom.newatom(object_type), obj])
+    raise wrap_error(t)
 
 def throw_instantiation_error():
     from prolog.interpreter import term
-    raise CatchableError(term.Atom.newatom("instantiation_error"))
+    raise wrap_error(term.Atom.newatom("instantiation_error"))
 
 def throw_type_error(valid_type, obj):
     from prolog.interpreter import term
@@ -33,7 +38,7 @@ def throw_type_error(valid_type, obj):
     # evaluable, in_byte, in_character, integer, list
     # number, predicate_indicator, variable
     from prolog.interpreter import term
-    raise CatchableError(
+    raise wrap_error(
         term.Term("type_error", [term.Atom.newatom(valid_type), obj]))
 
 def throw_domain_error(valid_domain, obj):
@@ -44,7 +49,7 @@ def throw_domain_error(valid_domain, obj):
     # operator_specifier, prolog_flag, read_option, source_sink,
     # stream, stream_option, stream_or_alias, stream_position,
     # stream_property, write_option
-    raise CatchableError(
+    raise wrap_error(
         term.Term("domain_error", [term.Atom.newatom(valid_domain), obj]))
 
 def throw_permission_error(operation, permission_type, obj):
@@ -55,7 +60,7 @@ def throw_permission_error(operation, permission_type, obj):
     # valid permission_types are:
     # binary_stream, flag, operator, past_end_of_stream, private_procedure,
     # static_procedure, source_sink, stream, text_stream. 
-    raise CatchableError(
+    raise wrap_error(
         term.Term("permission_error", [term.Atom.newatom(operation),
                                        term.Atom.newatom(permission_type),
                                        obj]))

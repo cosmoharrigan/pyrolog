@@ -5,8 +5,8 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # analysing and construction atoms
 
-@expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"],
-                handles_continuation=True)
+#@expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"],
+#                handles_continuation=True)
 def impl_atom_concat(engine, heap, a1, a2, result, continuation):
     if isinstance(a1, term.Var):
         if isinstance(a2, term.Var):
@@ -51,8 +51,8 @@ def impl_atom_length(engine, heap, s, length):
         error.throw_type_error("integer", length)
     term.Number(len(s)).unify(length, heap)
 
-@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
-                handles_continuation=True)
+#@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
+#                handles_continuation=True)
 def impl_sub_atom(engine, heap, s, before, length, after, sub, continuation):
     # XXX can possibly be optimized
     if isinstance(length, term.Var):

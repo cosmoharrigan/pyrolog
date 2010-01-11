@@ -11,9 +11,17 @@ def impl_call(engine, heap, call, scont, fcont):
     scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
     return engine.call(call, scont, fcont, heap)
 
-#@expose_builtin("once", unwrap_spec=["callable"],
-#                handles_continuation=True)
-def impl_once(engine, heap, clause, continuation):
-    engine.call(clause)
-    return continuation.call(engine, choice_point=False)
+class OnceContinuation(continuation.Continuation):
+    def __init__(self, engine, nextcont, fcont):
+        continuation.Continuation.__init__(self, engine, nextcont)
+        self.fcont = fcont
+
+    def activate(self, fcont, heap):
+        return self.nextcont, self.fcont, heap
+
+@expose_builtin("once", unwrap_spec=["callable"],
+                handles_continuation=True)
+def impl_once(engine, heap, clause, scont, fcont):
+    scont = OnceContinuation(engine, scont, fcont)
+    return engine.call(clause, scont, fcont, heap)
 

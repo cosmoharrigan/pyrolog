@@ -40,10 +40,8 @@ jitdriver = jit.JitDriver(
 
 
 def driver(scont, fcont, heap):
-    if scont is None:
-        return
     oldrule = scont.rule
-    while scont is not None:
+    while not scont.is_done():
         rule = scont.rule
         if rule is None:
             rule = oldrule
@@ -54,11 +52,13 @@ def driver(scont, fcont, heap):
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
         except error.UnificationFailed:
-            if fcont is None:
-                raise
             scont, fcont, heap = fcont.fail(heap)
-            if scont is None:
-                raise
+        except error.CatchableError, e:
+            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+    assert isinstance(scont, DoneContinuation)
+    if scont.failed:
+        raise error.UnificationFailed
+
 
 class Engine(object):
     def __init__(self):
@@ -137,7 +137,9 @@ class Engine(object):
     # Prolog execution
 
     def run_query(self, query, continuation=None):
-        driver(*self.call(query, continuation, None, Heap()))
+        if continuation is None:
+            continuation = DoneContinuation(self)
+        driver(*self.call(query, continuation, DoneContinuation(self), Heap()))
     run = run_query
 
     def call(self, query, scont, fcont, heap):
@@ -146,14 +148,14 @@ class Engine(object):
         signature = query.signature
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return builtin.call(self, query, scont, fcont, heap)
+            return BuiltinContinuation(self, scont, builtin, query), fcont, heap
 
         # do a real call
         function = self._lookup(signature)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
-            return self.throw_existence_error(
-                "procedure", query.get_prolog_signature(), scont, fcont, heap)
+            return error.throw_existence_error(
+                "procedure", query.get_prolog_signature())
         rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             raise error.UnificationFailed
@@ -166,7 +168,7 @@ class Engine(object):
 
     def throw(self, exc, scont, fcont, heap):
         # XXX write tests for catching non-ground things
-        while scont is not None:
+        while not scont.is_done():
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont
                 continue
@@ -179,45 +181,49 @@ class Engine(object):
                 # XXX discard the heap?
                 return self.call(
                     scont.recover, scont.nextcont, scont.fcont, heap)
-        return None, None, None
+        raise error.UncaughtError(exc)
 
-    def throw_existence_error(self, object_type, obj, scont, fcont, heap):
-        term = Term("existence_error", [Atom.newatom(object_type), obj])
-        return self.throw(term, scont, fcont, heap)
-
-    def throw_instantiation_error(self, scont, fcont, heap):
-        term = Atom.newatom("instantiation_error")
-        return self.throw(term, scont, fcont, heap)
-
-    def throw_type_error(self, valid_type, obj, scont, fcont, heap):
-        # valid types are:
-        # atom, atomic, byte, callable, character
-        # evaluable, in_byte, in_character, integer, list
-        # number, predicate_indicator, variable
-        term = Term("type_error", [Atom.newatom(valid_type), obj])
-        return self.throw(term, scont, fcont, heap)
-
-    def throw_domain_error(self, valid_domain, obj, scont, fcont, heap):
-        # valid domains are:
-        # character_code_list, close_option, flag_value, io_mode,
-        # not_empty_list, not_less_than_zero, operator_priority,
-        # operator_specifier, prolog_flag, read_option, source_sink,
-        # stream, stream_option, stream_or_alias, stream_position,
-        # stream_property, write_option
-        term = Term("domain_error", [Atom.newatom(valid_domain), obj])
-        return self.throw(term, scont, fcont, heap)
-
-    def throw_permission_error(self, operation, permission_type, obj, scont, fcont, heap):
-        # valid operations are:
-        # access, create, input, modify, open, output, reposition 
-
-        # valid permission_types are:
-        # binary_stream, flag, operator, past_end_of_stream, private_procedure,
-        # static_procedure, source_sink, stream, text_stream. 
-        term = Term("permission_error", [term.Atom.newatom(operation),
-                                         term.Atom.newatom(permission_type),
-                                         obj])
-        return self.throw(term, scont, fcont, heap)
+#    def throw_system_error(self, term, scont, fcont, heap):
+#        term = Term("error", [term])
+#        return self.throw(term, scont, fcont, heap)
+#
+#    def throw_existence_error(self, object_type, obj, scont, fcont, heap):
+#        term = Term("existence_error", [Atom.newatom(object_type), obj])
+#        return self.throw_system_error(term, scont, fcont, heap)
+#
+#    def throw_instantiation_error(self, scont, fcont, heap):
+#        term = Atom.newatom("instantiation_error")
+#        return self.throw_system_error(term, scont, fcont, heap)
+#
+#    def throw_type_error(self, valid_type, obj, scont, fcont, heap):
+#        # valid types are:
+#        # atom, atomic, byte, callable, character
+#        # evaluable, in_byte, in_character, integer, list
+#        # number, predicate_indicator, variable
+#        term = Term("type_error", [Atom.newatom(valid_type), obj])
+#        return self.throw_system_error(term, scont, fcont, heap)
+#
+#    def throw_domain_error(self, valid_domain, obj, scont, fcont, heap):
+#        # valid domains are:
+#        # character_code_list, close_option, flag_value, io_mode,
+#        # not_empty_list, not_less_than_zero, operator_priority,
+#        # operator_specifier, prolog_flag, read_option, source_sink,
+#        # stream, stream_option, stream_or_alias, stream_position,
+#        # stream_property, write_option
+#        term = Term("domain_error", [Atom.newatom(valid_domain), obj])
+#        return self.throw_system_error(term, scont, fcont, heap)
+#
+#    def throw_permission_error(self, operation, permission_type, obj, scont, fcont, heap):
+#        # valid operations are:
+#        # access, create, input, modify, open, output, reposition 
+#
+#        # valid permission_types are:
+#        # binary_stream, flag, operator, past_end_of_stream, private_procedure,
+#        # static_procedure, source_sink, stream, text_stream. 
+#        term = Term("permission_error", [term.Atom.newatom(operation),
+#                                         term.Atom.newatom(permission_type),
+#                                         obj])
+#        return self.throw_system_error(term, scont, fcont, heap)
 
 
 # ___________________________________________________________________
@@ -307,6 +313,9 @@ class Continuation(object):
         The method should return a triple (next cont, failure cont, heap)"""
         raise NotImplementedError("abstract base class")
 
+    def is_done(self):
+        return False
+
     def _dot(self):
         yield '%s [label="%r", shape=box]' % (id(self), self)
         if self.nextcont is not None:
@@ -343,6 +352,22 @@ class FailureContinuation(Continuation):
         Slightly subtle. """
         return self
 
+class DoneContinuation(FailureContinuation):
+    def __init__(self, engine):
+        Continuation.__init__(self, engine, None)
+        self.failed = False
+
+    def activate(self, fcont, heap):
+        assert 0, "unreachable"
+
+    def fail(self, heap):
+        self.failed = True
+        return self, self, heap
+
+    def is_done(self):
+        return True
+
+
 class BodyContinuation(Continuation):
     """ Represents a bit of Prolog code that is still to be called. """
     def __init__(self, engine, nextcont, body):
@@ -354,6 +379,19 @@ class BodyContinuation(Continuation):
 
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
+
+class BuiltinContinuation(Continuation):
+    """ Rerpresents the call to a builtin. """
+    def __init__(self, engine, nextcont, builtin, query):
+        Continuation.__init__(self, engine, nextcont)
+        self.builtin = builtin
+        self.query = query
+
+    def activate(self, fcont, heap):
+        return self.builtin.call(self.engine, self.query, self.nextcont, fcont, heap)
+
+    def __repr__(self):
+        return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
 
 class ChoiceContinuation(FailureContinuation):
     """ An abstract base class for Continuations that represent a choice point,
@@ -463,9 +501,7 @@ class CutDelimiter(FailureContinuation):
 
     def fail(self, heap):
         self.activated = False
-        if self.fcont:
-            return self.fcont.fail(heap)
-        return None, None, None
+        return self.fcont.fail(heap)
 
     def cut(self):
         if not self.activated:
@@ -479,10 +515,9 @@ class CutDelimiter(FailureContinuation):
     def _dot(self):
         for line in FailureContinuation._dot(self):
             yield line
-        if self.fcont is not None:
-            yield "%s -> %s [label=fcont]" % (id(self), id(self.fcont))
-            for line in self.fcont._dot():
-                yield line
+        yield "%s -> %s [label=fcont]" % (id(self), id(self.fcont))
+        for line in self.fcont._dot():
+            yield line
 
 
 class CatchingDelimiter(Continuation):

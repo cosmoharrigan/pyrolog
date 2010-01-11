@@ -29,8 +29,8 @@ def impl_functor(engine, heap, t, functor, arity):
                     term.Term(name, [term.Var() for i in range(a)]),
                     heap)
 
-@expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
-                handles_continuation=True)
+#@expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
+#handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, continuation):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()

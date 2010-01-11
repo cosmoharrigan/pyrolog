@@ -1,7 +1,7 @@
 from prolog.interpreter.term import Var, Term, Rule, Atom, debug_print, \
     Callable
 from prolog.interpreter.function import Function
-from prolog.interpreter.error import UnificationFailed, CutException
+from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter import error
 from pypy.rlib import jit
 

@@ -17,6 +17,8 @@ def test_fail():
     assert len(heaps) == 1
 
 def test_not():
+    assert_true("not(fail).")
+    assert_false("not(true).")
     e = get_engine("""
         g(a, a).
         g(b, a).
@@ -29,12 +31,10 @@ def test_not():
 
         sibling(X, Y) :- m(Z, X), m(Z, Y), \\+same(X, Y).
     """)
-    assert_true("not((!, fail)).", e)
     assert_true("not(g(b, c)).", e)
     assert_false("not(g(a, a)).", e)
     assert_true("\\+(g(b, c)).", e)
     assert_false("\\+(g(a, a)).", e)
-    assert_false("not(!).", e)
 
     heaps = collect_all(e, "sibling(a, X).")
     assert len(heaps) == 2
@@ -273,6 +273,9 @@ def test_rule_with_cut_calling_rule_with_cut():
     assert len(heaps) == 1
 
 def test_not_with_cut():
+    assert_true("not((!, fail)).")
+    assert_false("not(!).")
+
     e = get_engine("""
     p1 :- \\+ q1.
     q1 :- fail.
@@ -285,10 +288,13 @@ def test_not_with_cut():
     assert_false("p1.", e)
     assert_true("p2.", e)
 
-def test_term_construction():
+def test_univ():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
+
+@py.test.mark.xfail
+def test_arg():
     assert_true("arg(1, g(a, b, c), a).")
     assert_true("arg(2, g(a, b, c), b).")
     assert_true("arg(3, g(a, b, c), c).")
@@ -307,6 +313,8 @@ def test_term_construction():
     assert len(heaps) == 3
     assert_true("arg(X, h(a, b, c), b), X = 2.")
     assert_true("arg(X, h(a, b, g(X, b)), g(3, B)), X = 3, B = b.")
+
+def test_copy_term():
     assert_true("copy_term(X, Y), X = 1, Y = 2.")
     assert_true("copy_term(a, a).")
     assert_false("copy_term(f(X), g(X)).")
@@ -363,7 +371,7 @@ def test_exception_handling():
     assert_true("catch(f, E, true).")
     assert_true("catch(throw(error), E, true).")
     prolog_raises("_", "catch(true, E, fail), f")
-    prolog_raises("_", "catch(throw(error), failure, fail)")
+    prolog_raises("_", "catch(throw(error(x)), error(failure), fail)")
     assert_true("catch(catch(throw(error), failure, fail), error, true).")
 
 @py.test.mark.xfail
@@ -379,6 +387,7 @@ def test_between():
 def test_is():
     assert_true("5 is 1 + 1 + 1 + 1 + 1.")
 
+@py.test.mark.xfail
 def test_parser_access():
     assert_true("current_op(200, xfx, **).")
     f = collect_all(Engine(), "current_op(200, Form, X).")
@@ -449,14 +458,21 @@ def test_findall():
 
 
 def test_ifthenelse():
+    assert_false("true -> fail.")
+    assert_false("true -> fail ; true.")
+    assert_true("fail -> fail ; true.")
+    assert_true("fail -> true ; true.")
+    assert_true("(true -> fail ; true) ; true.")
+
     e = get_engine("f(x). f(y). f(z).")
     assert_false("f(c) -> true.", e)
-    assert_true("f(X) -> X \\= x; f(z).", e)
-    assert_false("true -> fail.", e)
+    assert_false("f(X) -> X \\= x; f(z).", e)
+    assert_true("f(X) -> X == x; f(z).", e)
 
 def test_once():
     assert_true("once(repeat).")
 
+@py.test.mark.xfail
 def test_write_term():
     prolog_raises("domain_error(write_option, E)",
                   "write_term(a, [quoted(af)])")
