@@ -16,7 +16,7 @@ class Rule(object):
         if isinstance(h, Term):
             self.headargs = h.args
         else:
-            self.headargs = []
+            self.headargs = None
         if body is not None:
             body = helper.ensure_callable(body)
             self.body = body.enumerate_vars(memo)
@@ -46,7 +46,7 @@ class Rule(object):
     @jit.unroll_safe
     def clone_and_unify_head(self, heap, head):
         env = [None] * self.size_env
-        if self.headargs:
+        if self.headargs is not None:
             assert isinstance(head, Term)
             for i in range(len(self.headargs)):
                 arg2 = self.headargs[i]
