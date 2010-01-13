@@ -97,8 +97,6 @@ class Rule(object):
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
     def __ne__(self, other):
         return not self == other
-LinkedRules = Rule    
-
 
 
 class Function(object):
@@ -106,7 +104,7 @@ class Function(object):
         if firstrule is None:
             self.rulechain = self.last = None
         else:
-            self.rulechain = LinkedRules(firstrule)
+            self.rulechain = Rule(firstrule)
             self.last = self.rulechain
 
     def add_rule(self, rule, atend):
