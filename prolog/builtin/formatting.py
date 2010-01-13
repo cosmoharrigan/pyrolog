@@ -150,7 +150,7 @@ def impl_write_term(engine, heap, term, options):
     os.write(1, f.format(term)) # XXX use streams
 
 @expose_builtin("nl", unwrap_spec=[])
-def impl_nl(engine):
+def impl_nl(engine, heap):
     os.write(1, "\n") # XXX use streams
 
 @expose_builtin("write", unwrap_spec=["raw"])
