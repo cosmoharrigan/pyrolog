@@ -47,7 +47,7 @@ def impl_retract(engine, heap, pattern):
     rulechain = function.rulechain
     oldstate = heap.branch()
     while rulechain:
-        rule = rulechain.rule
+        rule = rulechain
         # standardizing apart
         try:
             deleted_body = rule.clone_and_unify_head(heap, head)

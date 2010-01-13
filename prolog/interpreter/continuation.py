@@ -1,8 +1,8 @@
 import py
 from pypy.rlib import jit
 from prolog.interpreter import error
-from prolog.interpreter.term import Term, Atom, Rule, Var, Callable
-from prolog.interpreter.function import Function
+from prolog.interpreter.term import Term, Atom, Var, Callable
+from prolog.interpreter.function import Function, Rule
 
 # ___________________________________________________________________
 # JIT stuff
@@ -443,7 +443,7 @@ class UserCallContinuation(ChoiceContinuation):
 
     def activate(self, fcont, heap):
         rulechain = jit.hint(self.rulechain, promote=True)
-        rule = rulechain.rule
+        rule = rulechain
         nextcont = self.nextcont
         if rule.contains_cut:
             nextcont = fcont = CutDelimiter(self.engine, nextcont, fcont)

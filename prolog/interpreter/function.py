@@ -1,19 +1,81 @@
+from prolog.interpreter.term import Atom, Callable, Term
+from pypy.rlib import jit, objectmodel, unroll
 # XXX needs tests
 
-class LinkedRules(object):
+class Rule(object):
     _immutable_ = True
-    def __init__(self, rule, next=None):
-        self.rule = rule
+    _immutable_fields_ = ["headargs[*]"]
+    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature']
+    unrolling_attrs = unroll.unrolling_iterable(_attrs_)
+    
+    def __init__(self, head, body, next = None):
+        from prolog.interpreter import helper
+        assert isinstance(head, Callable)
+        memo = {}
+        self.head = h = head.enumerate_vars(memo)
+        if isinstance(h, Term):
+            self.headargs = h.args
+        else:
+            self.headargs = []
+        if body is not None:
+            body = helper.ensure_callable(body)
+            self.body = body.enumerate_vars(memo)
+        else:
+            self.body = None
+        self.size_env = len(memo)
+        self.signature = head.signature
+        self._does_contain_cut()
+
         self.next = next
 
+    def _does_contain_cut(self):
+        if self.body is None:
+            self.contains_cut = False
+            return
+        stack = [self.body]
+        while stack:
+            current = stack.pop()
+            if isinstance(current, Atom):
+                if current.name == "!":
+                    self.contains_cut = True
+                    return
+            elif isinstance(current, Term):
+                stack.extend(current.args)
+        self.contains_cut = False
+
+    @jit.unroll_safe
+    def clone_and_unify_head(self, heap, head):
+        env = [None] * self.size_env
+        if self.headargs:
+            assert isinstance(head, Term)
+            for i in range(len(self.headargs)):
+                arg2 = self.headargs[i]
+                arg1 = head.args[i]
+                arg2.unify_and_standardize_apart(arg1, heap, env)
+        body = self.body
+        if body is None:
+            return None
+        return body.copy_standardize_apart(heap, env)
+
+    def __repr__(self):
+        if self.body is None:
+            return "%s." % (self.head, )
+        return "%s :- %s." % (self.head, self.body)
+
+    def instance_copy(self):
+        other = objectmodel.instantiate(Rule)
+        for f in Rule.unrolling_attrs:
+            setattr(other, f, getattr(self, f))
+        return other
+        
     def copy(self, stopat=None):
-        first = LinkedRules(self.rule)
+        first = self.instance_copy()
         curr = self.next
         copy = first
         while curr is not stopat:
             # if this is None, the stopat arg was invalid
             assert curr is not None
-            new = LinkedRules(curr.rule)
+            new = curr.instance_copy()
             copy.next = new
             copy = new
             curr = curr.next
@@ -30,9 +92,12 @@ class LinkedRules(object):
         if self.next is None:
             return None
         return self.next.find_applicable_rule(query)
-
-    def __repr__(self):
-        return "LinkedRules(%r, %r)" % (self.rule, self.next)
+    
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
+    def __ne__(self, other):
+        return not self == other
+LinkedRules = Rule    
 
 
 
@@ -46,13 +111,14 @@ class Function(object):
 
     def add_rule(self, rule, atend):
         if self.rulechain is None:
-            self.rulechain = self.last = LinkedRules(rule)
+            self.rulechain = self.last = rule
         elif atend:
             self.rulechain, last = self.rulechain.copy()
-            self.last = LinkedRules(rule)
+            self.last = rule
             last.next = self.last
         else:
-            self.rulechain = LinkedRules(rule, self.rulechain)
+            rule.next = self.rulechain
+            self.rulechain = rule
 
     def remove(self, rulechain):
         self.rulechain, last = self.rulechain.copy(rulechain)

@@ -444,62 +444,6 @@ class Term(Callable):
             error.throw_type_error("evaluable", self.get_prolog_signature())
         return func(engine, self)
 
-class Rule(object):
-    _immutable_ = True
-    _immutable_fields_ = ["headargs[*]"]
-
-    def __init__(self, head, body):
-        from prolog.interpreter import helper
-        assert isinstance(head, Callable)
-        memo = {}
-        self.head = h = head.enumerate_vars(memo)
-        if isinstance(h, Term):
-            self.headargs = h.args
-        else:
-            self.headargs = []
-        if body is not None:
-            body = helper.ensure_callable(body)
-            self.body = body.enumerate_vars(memo)
-        else:
-            self.body = None
-        self.size_env = len(memo)
-        self.signature = head.signature
-        self._does_contain_cut()
-
-    def _does_contain_cut(self):
-        if self.body is None:
-            self.contains_cut = False
-            return
-        stack = [self.body]
-        while stack:
-            current = stack.pop()
-            if isinstance(current, Atom):
-                if current.name == "!":
-                    self.contains_cut = True
-                    return
-            elif isinstance(current, Term):
-                stack.extend(current.args)
-        self.contains_cut = False
-
-    @jit.unroll_safe
-    def clone_and_unify_head(self, heap, head):
-        env = [None] * self.size_env
-        if self.headargs:
-            assert isinstance(head, Term)
-            for i in range(len(self.headargs)):
-                arg2 = self.headargs[i]
-                arg1 = head.args[i]
-                arg2.unify_and_standardize_apart(arg1, heap, env)
-        body = self.body
-        if body is None:
-            return None
-        return body.copy_standardize_apart(heap, env)
-
-    def __repr__(self):
-        if self.body is None:
-            return "%s." % (self.head, )
-        return "%s :- %s." % (self.head, self.body)
-
 
 @specialize.argtype(0)
 def rcmp(a, b): # RPython does not support cmp...
