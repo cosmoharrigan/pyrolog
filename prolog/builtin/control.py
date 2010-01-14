@@ -1,4 +1,4 @@
-from prolog.interpreter import engine, helper, term, error, continuation
+from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________

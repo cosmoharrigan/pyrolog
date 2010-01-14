@@ -2,7 +2,7 @@ import py
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.term import Atom, Var, Number, Term, BlackBox
 from prolog.interpreter.term import NumberedVar
-from prolog.interpreter.engine import Heap, Engine
+from prolog.interpreter.continuation import Heap, Engine
 
 def test_atom():
     a = Atom.newatom("hallo")

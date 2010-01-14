@@ -7,8 +7,8 @@ from prolog.interpreter.translatedmain import repl, execute
 
 # __________  Entry point  __________
 
-from prolog.interpreter.engine import Engine
-from prolog.interpreter import engine, term
+from prolog.interpreter.continuation import Engine
+from prolog.interpreter import term
 e = Engine()
 engine.DEBUG = False
 term.DEBUG = False

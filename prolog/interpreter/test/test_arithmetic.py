@@ -2,7 +2,7 @@ import py
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.error import UnificationFailed
-from prolog.interpreter.engine import Heap, Engine
+from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
 

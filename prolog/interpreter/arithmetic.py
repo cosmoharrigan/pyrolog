@@ -1,7 +1,7 @@
 import py
 import math
 from prolog.interpreter.parsing import parse_file, TermBuilder
-from prolog.interpreter import engine, helper, term, error
+from prolog.interpreter import helper, term, error
 from prolog.interpreter.error import UnificationFailed
 from pypy.rlib.rarithmetic import intmask
 from pypy.rlib.unroll import unrolling_iterable

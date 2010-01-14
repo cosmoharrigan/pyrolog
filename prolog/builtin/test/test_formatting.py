@@ -1,6 +1,6 @@
 from prolog.builtin import formatting
 from prolog.interpreter.parsing import parse_query_term
-from prolog.interpreter.engine import Engine
+from prolog.interpreter.continuation import Engine
 
 def test_list():
     f = formatting.TermFormatter(Engine(), quoted=False, ignore_ops=False)

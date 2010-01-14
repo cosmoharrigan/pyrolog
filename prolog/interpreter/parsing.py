@@ -440,7 +440,7 @@ def unescape(s):
     return "".join(result)
 
 def get_engine(source):
-    from prolog.interpreter.engine import Engine
+    from prolog.interpreter.continuation import Engine
     trees = parse_file(source)
     builder = TermBuilder()
     e = Engine()

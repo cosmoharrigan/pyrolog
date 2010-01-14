@@ -12,7 +12,7 @@ h(X, Y, Z) :- -Y = Z.
 
 def test_numeral():
     from prolog.interpreter.term import Term, Atom, Var
-    from prolog.interpreter.engine import Engine
+    from prolog.interpreter.continuation import Engine
     t = parse_file("""
 numeral(null). % end of line comment
 numeral(succ(X)) :- numeral(X). % another one
