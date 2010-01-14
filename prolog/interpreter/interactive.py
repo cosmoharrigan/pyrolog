@@ -8,8 +8,8 @@ from pypy.rlib.parsing.parsing import ParseError
 from pypy.rlib.parsing.deterministic import LexerError
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
-from prolog.interpreter.engine import Engine
-from prolog.interpreter.engine import Continuation
+from prolog.interpreter.continuation import Engine
+from prolog.interpreter.continuation import Continuation, Engine
 from prolog.interpreter import error
 import prolog.interpreter.term
 prolog.interpreter.term.DEBUG = False
@@ -27,13 +27,14 @@ class StopItNow(Exception):
     pass
 
 class ContinueContinuation(Continuation):
-    def __init__(self, var_to_pos, write):
+    def __init__(self, engine, var_to_pos, write):
+        Continuation.__init__(self, engine, None)
         self.var_to_pos = var_to_pos
         self.write = write
 
-    def _call(self, engine):
+    def activate(self, fcont, heap):
         self.write("yes\n")
-        var_representation(self.var_to_pos, engine, self.write)
+        var_representation(self.engine, self.var_to_pos, self.write)
         while 1:
             res = getch()
             self.write(res+"\n")
@@ -45,11 +46,11 @@ class ContinueContinuation(Continuation):
             elif res in "h?":
                 self.write(helptext)
             elif res in "p":
-                var_representation(self.var_to_pos, engine, self.write)
+                var_representation(self.engine, self.var_to_pos, self.write)
             else:
                 self.write('unknown action. press "h" for help\n')
 
-def var_representation(var_to_pos, engine, write):
+def var_representation(engine, var_to_pos, write):
     from prolog.builtin.formatting import TermFormatter
     f = TermFormatter(engine, quoted=True, max_depth=10)
     vars = var_to_pos.items()
@@ -57,7 +58,7 @@ def var_representation(var_to_pos, engine, write):
     heap = engine.heap
     for var, real_var in vars:
         if var.startswith("_"):
-            continue
+            continue    
         val = real_var.getvalue(heap)
         write("%s = %s\n" % (var, f.format(val)))
 
@@ -84,7 +85,7 @@ class PrologConsole(code.InteractiveConsole):
             query, var_to_pos = code
             if query is None:
                 return
-            self.engine.run(query, ContinueContinuation(var_to_pos, self.write))
+            self.engine.run(query, ContinueContinuation(self.engine, var_to_pos, self.write))
         except error.UnificationFailed:
             self.write("no\n")
         except error.CatchableError, e:
