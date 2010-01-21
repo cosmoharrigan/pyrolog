@@ -1,31 +1,28 @@
 import os, sys
 from pypy.rlib.parsing.parsing import ParseError
 from pypy.rlib.parsing.deterministic import LexerError
-from prolog.interpreter.interactive import helptext
+from prolog.interpreter.interactive import helptext, StopItNow, \
+ContinueContinuation
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
-from prolog.interpreter.engine import Engine
-from prolog.interpreter.engine import Continuation
+from prolog.interpreter.continuation import Continuation, Engine
 from prolog.interpreter import error, term
 import prolog.interpreter.term
 prolog.interpreter.term.DEBUG = False
 
-
-class StopItNow(Exception):
-    pass
-
 class ContinueContinuation(Continuation):
-    def __init__(self, var_to_pos, write):
+    def __init__(self, engine, var_to_pos, write):
+        Continuation.__init__(self, engine, None)
         self.var_to_pos = var_to_pos
         self.write = write
 
-    def _call(self, engine):
+    def activate(self, fcont, heap):
         self.write("yes\n")
-        var_representation(self.var_to_pos, engine, self.write)
+        var_representation(self.var_to_pos, self.engine, self.write)
         while 1:
             res = getch()
-            #self.write(res+"\n")
-            if res in "\r\x04\n":
+            # self.write(res+"\n")
+            if res in "\r\x04":
                 self.write("\n")
                 raise StopItNow()
             if res in ";nr":
@@ -33,10 +30,10 @@ class ContinueContinuation(Continuation):
             elif res in "h?":
                 self.write(helptext)
             elif res in "p":
-                var_representation(self.var_to_pos, engine, self.write)
+                var_representation(self.var_to_pos, self.engine, self.write)
             else:
                 self.write('unknown action. press "h" for help\n')
-
+                
 def var_representation(var_to_pos, engine, write):
     from prolog.builtin import formatting
     f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
@@ -45,7 +42,7 @@ def var_representation(var_to_pos, engine, write):
             continue
         val = f.format(real_var.getvalue(engine.heap))
         write("%s = %s\n" % (var, val))
-
+        
 def getch():
     line = readline()
     return line[0]
@@ -69,23 +66,16 @@ def readline():
             raise SystemExit
     return "".join(result)
 
-def run(goal, var_to_pos, e):
-    from prolog.interpreter.error import UnificationFailed, CatchableError
-    from prolog.interpreter.error import UncatchableError, UserError
+def run(query, var_to_pos, engine):
     from prolog.builtin import formatting
-    f = formatting.TermFormatter(e, quoted=True, max_depth=20)
+    f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
     try:
-        e.run(goal, ContinueContinuation(var_to_pos, printmessage))
-    except UnificationFailed:
+        if query is None:
+            return
+        engine.run(query, ContinueContinuation(engine, var_to_pos, printmessage))
+    except error.UnificationFailed:
         printmessage("no\n")
-    except UncatchableError, e:
-        printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
-    except UserError, e:
-        printmessage("ERROR: ")
-        f._make_reverse_op_mapping()
-        printmessage("Unhandled exception: ")
-        printmessage(f.format(e.term))
-    except CatchableError, e:
+    except error.CatchableError, e:
         f._make_reverse_op_mapping()
         printmessage("ERROR: ")
         t = e.term
@@ -115,10 +105,9 @@ def run(goal, var_to_pos, e):
                             f.format(errorterm.args[0]),
                             f.format(errorterm.args[1])))
                         return
-        printmessage(" (but I cannot tell you which one)\n")
+    # except error.UncatchableError, e:
+    #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
     except StopItNow:
-        pass
-    else:
         printmessage("yes\n")
 
 def repl(engine):

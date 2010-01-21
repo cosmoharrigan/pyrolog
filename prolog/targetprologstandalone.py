@@ -10,7 +10,6 @@ from prolog.interpreter.translatedmain import repl, execute
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter import term
 e = Engine()
-engine.DEBUG = False
 term.DEBUG = False
 
 def entry_point(argv):
