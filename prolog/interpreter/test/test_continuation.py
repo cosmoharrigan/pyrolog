@@ -114,14 +114,14 @@ def test_full():
     query = Term(",", [Term("f", [Var()]), Term("g", [Var()])])
     py.test.raises(error.UnificationFailed,
                    e.run_query, query, CollectContinuation())
-    assert all[0].args[0].args[0].name == "x"
-    assert all[0].args[1].args[0].name == "a"
-    assert all[1].args[0].args[0].name == "x"
-    assert all[1].args[1].args[0].name == "b"
-    assert all[2].args[0].args[0].name == "y"
-    assert all[2].args[1].args[0].name == "a"
-    assert all[3].args[0].args[0].name == "y"
-    assert all[3].args[1].args[0].name == "b"
+    assert all[0].argument_at(0).argument_at(0).name == "x"
+    assert all[0].argument_at(1).argument_at(0).name == "a"
+    assert all[1].argument_at(0).argument_at(0).name == "x"
+    assert all[1].argument_at(1).argument_at(0).name == "b"
+    assert all[2].argument_at(0).argument_at(0).name == "y"
+    assert all[2].argument_at(1).argument_at(0).name == "a"
+    assert all[3].argument_at(0).argument_at(0).name == "y"
+    assert all[3].argument_at(1).argument_at(0).name == "b"
 
 # ___________________________________________________________________
 # integration tests

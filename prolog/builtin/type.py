@@ -58,7 +58,7 @@ def impl_ground(engine, heap, var):
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
     if isinstance(var, term.Term):
-        for arg in var.args:
+        for arg in var.arguments():
             impl_ground(engine, heap, arg)
 
 

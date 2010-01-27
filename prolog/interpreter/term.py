@@ -121,6 +121,7 @@ class Var(PrologObject):
 
     def __eq__(self, other):
         # for testing
+        # XXX delete
         return self is other
 
     def eval_arithmetic(self, engine):
@@ -210,8 +211,16 @@ class Callable(NonVar):
 
     def get_prolog_signature(self):
         raise NotImplementedError("abstract base")
+        
+    def arguments(self):
+        raise NotImplementedError("abstract base")
+        
+    def argument_at(self, i):
+        raise NotImplementedError("abstract base")
 
-
+    def argument_count(self):
+        raise NotImplementedError("abstract base")
+        
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
 
@@ -260,6 +269,15 @@ class Atom(Callable):
         if self.name == "e":
             return Float.e
         error.throw_type_error("evaluable", self.get_prolog_signature())
+        
+    def arguments(self):
+        return []
+
+    def argument_at(self, i):
+        raise IndexError
+    
+    def argument_count(self):
+        return 0
 
 
 class Number(NonVar): #, UnboxedValue):
@@ -359,34 +377,35 @@ def _term_getvalue(obj, i, heap):
     return obj.getvalue(heap)
 
 def _term_unify_and_standardize_apart(obj, i, other, heap, memo):
-    obj.unify_and_standardize_apart(other.args[i], heap, memo)
+    obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)
 
 class Term(Callable):
     TYPE_STANDARD_ORDER = 3
     _immutable_ = True
-    _immutable_fields_ = ["args[*]"]
+    _immutable_fields_ = ["_args[*]"]
 
     def __init__(self, name, args, signature=None):
+
         self.name = name
-        self.args = make_sure_not_resized(args)
+        self._args = make_sure_not_resized(args)
         if signature is None:
             self.signature = name + "/" + str(len(args))
         else:
             self.signature = signature
-
+                    
     def __repr__(self):
-        return "Term(%r, %r)" % (self.name, self.args)
+        return "Term(%r, %r)" % (self.name, self.arguments())
 
     def __str__(self):
-        return "%s(%s)" % (self.name, ", ".join([str(a) for a in self.args]))
+        return "%s(%s)" % (self.name, ", ".join([str(a) for a in self.arguments()]))
 
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
         if (isinstance(other, Term) and
             self.name == other.name and
-            len(self.args) == len(other.args)):
-            for i in range(len(self.args)):
-                self.args[i].unify(other.args[i], heap, occurs_check)
+            self.argument_count() == other.argument_count()):
+            for i in range(self.argument_count()):
+                self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
         else:
             raise UnificationFailed
 
@@ -413,11 +432,11 @@ class Term(Callable):
     @specialize.arg(1)
     @jit.unroll_safe
     def _copy_term(self, copy_individual, *extraargs):
-        args = [None] * len(self.args)
+        args = [None] * self.argument_count()
         newinstance = False
         i = 0
-        while i < len(self.args):
-            arg = self.args[i]
+        while i < self.argument_count():
+            arg = self.argument_at(i)
             cloned = copy_individual(arg, i, *extraargs)
             newinstance = newinstance or cloned is not arg
             args[i] = cloned
@@ -428,10 +447,11 @@ class Term(Callable):
             return self
 
     def get_prolog_signature(self):
-        return Term("/", [Atom.newatom(self.name), Number(len(self.args))])
+        return Term("/", [Atom.newatom(self.name),
+                                                Number(self.argument_count())])
     
     def contains_var(self, var, heap):
-        for arg in self.args:
+        for arg in self.arguments():
             if arg.contains_var(var, heap):
                 return True
         return False
@@ -443,8 +463,15 @@ class Term(Callable):
         if func is None:
             error.throw_type_error("evaluable", self.get_prolog_signature())
         return func(engine, self)
+    
+    def arguments(self):
+        return self._args
 
-
+    def argument_at(self, i):
+        return self._args[i]
+        
+    def argument_count(self):
+        return len(self._args)
 @specialize.argtype(0)
 def rcmp(a, b): # RPython does not support cmp...
     if a == b:
@@ -465,15 +492,15 @@ def cmp_standard_order(obj1, obj2, heap):
         return rcmp(obj1.name, obj2.name)
     if isinstance(obj1, Term):
         assert isinstance(obj2, Term)
-        c = rcmp(len(obj1.args), len(obj2.args))
+        c = rcmp(obj1.argument_count(), obj2.argument_count())
         if c != 0:
             return c
         c = rcmp(obj1.name, obj2.name)
         if c != 0:
             return c
-        for i in range(len(obj1.args)):
-            a1 = obj1.args[i].dereference(heap)
-            a2 = obj2.args[i].dereference(heap)
+        for i in range(obj1.argument_count()):
+            a1 = obj1.argument_at(i).dereference(heap)
+            a2 = obj2.argument_at(i).dereference(heap)
             c = cmp_standard_order(a1, a2, heap)
             if c != 0:
                 return c

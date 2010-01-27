@@ -12,7 +12,7 @@ def impl_functor(engine, heap, t, functor, arity):
         arity.unify(term.Number(0), heap)
     elif isinstance(t, term.Term):
         functor.unify(term.Atom(t.name), heap)
-        arity.unify(term.Number(len(t.args)), heap)
+        arity.unify(term.Number(t.argument_count()), heap)
     elif isinstance(t, term.Var):
         if isinstance(functor, term.Var):
             error.throw_instantiation_error()
@@ -40,8 +40,8 @@ def impl_arg(engine, heap, first, second, third, continuation):
         error.throw_type_error("compound", second)
     if isinstance(first, term.Var):
         oldstate = heap.branch()
-        for i in range(len(second.args)):
-            arg = second.args[i]
+        for i in range(second.argument_count()):
+            arg = second.argument_at(i)
             try:
                 third.unify(arg, heap)
                 first.unify(term.Number(i + 1), heap)
@@ -58,9 +58,9 @@ def impl_arg(engine, heap, first, second, third, continuation):
             raise error.UnificationFailed
         if num < 0:
             error.throw_domain_error("not_less_than_zero", first)
-        if num > len(second.args):
+        if num > second.argument_count():
             raise error.UnificationFailed()
-        arg = second.args[num - 1]
+        arg = second.argument_at(num - 1)
         third.unify(arg, heap)
     else:
         error.throw_type_error("integer", first)
@@ -70,7 +70,7 @@ def impl_arg(engine, heap, first, second, third, continuation):
 def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
         if isinstance(first, term.Term):
-            l = [term.Atom(first.name)] + first.args
+            l = [term.Atom(first.name)] + first.arguments()
         else:
             l = [first]
         u1 = helper.wrap_list(l)

@@ -47,10 +47,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         varname = "var%s" % (i, )
         subargs.append(varname)
         if spec in ("obj", "callable", "int", "atom", "arithmetic"):
-            code.append("    %s = query.args[%s].dereference(heap)" %
+            code.append("    %s = query.argument_at(%s).dereference(heap)" %
                         (varname, i))
         elif spec in ("concrete", "list"):
-            code.append("    %s = query.args[%s].getvalue(heap)" %
+            code.append("    %s = query.argument_at(%s).getvalue(heap)" %
                         (varname, i))
         if spec in ("int", "atom", "arithmetic", "list"):
             code.append(
@@ -67,7 +67,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
             code.append(
                 "        error.throw_type_error('callable', %s)" % (varname,))
         elif spec == "raw":
-            code.append("    %s = query.args[%s]" % (varname, i))
+            code.append("    %s = query.argument_at(%s)" % (varname, i))
         elif spec == "int":
             code.append("    %s = helper.unwrap_int(%s)" % (varname, varname))
         elif spec == "atom":

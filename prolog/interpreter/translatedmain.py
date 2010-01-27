@@ -80,7 +80,7 @@ def run(query, var_to_pos, engine):
         printmessage("ERROR: ")
         t = e.term
         if isinstance(t, term.Term):
-            errorterm = t.args[0]
+            errorterm = t.argument_at(0)
             if isinstance(errorterm, term.Callable):
                 if errorterm.name == "instantiation_error":
                     printmessage("arguments not sufficiently instantiated\n")
@@ -88,22 +88,22 @@ def run(query, var_to_pos, engine):
                 elif errorterm.name == "existence_error":
                     if isinstance(errorterm, term.Term):
                         printmessage("Undefined %s: %s\n" % (
-                            f.format(errorterm.args[0]),
-                            f.format(errorterm.args[1])))
+                            f.format(errorterm.argument_at(0)),
+                            f.format(errorterm.argument_at(1))))
                         return
                 elif errorterm.name == "domain_error":
                     if isinstance(errorterm, term.Term):
                         printmessage(
                             "Domain error: '%s' expected, found '%s'\n" % (
-                            f.format(errorterm.args[0]),
-                            f.format(errorterm.args[1])))
+                            f.format(errorterm.argument_at(0)),
+                            f.format(errorterm.argument_at(1))))
                         return
                 elif errorterm.name == "type_error":
                     if isinstance(errorterm, term.Term):
                         printmessage(
                             "Type error: '%s' expected, found '%s'\n" % (
-                            f.format(errorterm.args[0]),
-                            f.format(errorterm.args[1])))
+                            f.format(errorterm.argument_at(0)),
+                            f.format(errorterm.argument_at(1))))
                         return
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))

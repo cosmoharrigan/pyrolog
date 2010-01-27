@@ -31,8 +31,8 @@ def impl_asserta(engine, heap, rule):
 def impl_retract(engine, heap, pattern):
     from prolog.builtin import builtins
     if isinstance(pattern, term.Term) and pattern.name == ":-":
-        head = helper.ensure_callable(pattern.args[0])
-        body = helper.ensure_callable(pattern.args[1])
+        head = helper.ensure_callable(pattern.argument_at(0))
+        body = helper.ensure_callable(pattern.argument_at(1))
     else:
         head = pattern
         body = None

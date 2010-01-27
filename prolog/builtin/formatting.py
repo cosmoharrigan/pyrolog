@@ -23,9 +23,9 @@ class TermFormatter(object):
         ignore_ops = False
         number_vars = False
         for option in options:
-            if (not isinstance(option, Term) or len(option.args) != 1):
+            if (not isinstance(option, Term) or len(option.argument_count()) != 1):
                 error.throw_domain_error('write_option', option)
-            arg = option.args[0]
+            arg = option.argument_at(0)
             if option.name == "max_depth":
                 try:
                     max_depth = helper.unwrap_int(arg)
@@ -87,7 +87,7 @@ class TermFormatter(object):
 
     def format_term_normally(self, term):
         return "%s(%s)" % (self.format_atom(term.name),
-                           ", ".join([self.format(a) for a in term.args]))
+                           ", ".join([self.format(a) for a in term.arguments()]))
 
     def format_term(self, term):
         if self.ignore_ops:
@@ -101,8 +101,8 @@ class TermFormatter(object):
         if term.signature == "./2":
             result = ["["]
             while isinstance(term, Term) and term.signature == "./2":
-                first = term.args[0]
-                second = term.args[1]
+                first = term.argument_at(0)
+                second = term.argument_at(1)
                 result.append(self.format(first))
                 result.append(", ")
                 term = second
@@ -113,17 +113,17 @@ class TermFormatter(object):
                 result.append(self.format(term))
                 result.append("]")
             return (0, "".join(result))
-        if (len(term.args), term.name) not in self.op_mapping:
+        if (term.argument_count(), term.name) not in self.op_mapping:
             return (0, self.format_term_normally(term))
-        form, prec = self.op_mapping[(len(term.args), term.name)]
+        form, prec = self.op_mapping[(term.argument_count(), term.name)]
         result = []
-        assert 0 <= len(term.args) <= 2
+        assert 0 <= term.argument_count() <= 2
         curr_index = 0
         for c in form:
             if c == "f":
                 result.append(self.format_atom(term.name))
             else:
-                childprec, child = self.format_with_ops(term.args[curr_index])
+                childprec, child = self.format_with_ops(term.argument_at(curr_index))
                 parentheses = (c == "x" and childprec >= prec or
                                c == "y" and childprec > prec)
                 if parentheses:
@@ -133,7 +133,7 @@ class TermFormatter(object):
                 else:
                     result.append(child)
                 curr_index += 1
-        assert curr_index == len(term.args)
+        assert curr_index == term.argument_count()
         return (prec, "".join(result))
 
     def _make_reverse_op_mapping(self):

@@ -74,7 +74,7 @@ class Engine(object):
         from prolog import builtin
         if isinstance(rule, Term):
             if rule.name == ":-":
-                rule = Rule(rule.args[0], rule.args[1])
+                rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
                 rule = Rule(rule, None)
         elif isinstance(rule, Atom):
@@ -111,7 +111,7 @@ class Engine(object):
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Term) and term.signature == ":-/1":
-            self.run(term.args[0])
+            self.run(term.argument_at(0))
         else:
             self.add_rule(term)
         return self.parser

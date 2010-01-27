@@ -14,7 +14,7 @@ class Rule(object):
         memo = {}
         self.head = h = head.enumerate_vars(memo)
         if isinstance(h, Term):
-            self.headargs = h.args
+            self.headargs = h.arguments()
         else:
             self.headargs = None
         if body is not None:
@@ -40,7 +40,7 @@ class Rule(object):
                     self.contains_cut = True
                     return
             elif isinstance(current, Term):
-                stack.extend(current.args)
+                stack.extend(current.arguments())
         self.contains_cut = False
 
     @jit.unroll_safe
@@ -50,7 +50,7 @@ class Rule(object):
             assert isinstance(head, Term)
             for i in range(len(self.headargs)):
                 arg2 = self.headargs[i]
-                arg1 = head.args[i]
+                arg1 = head.argument_at(i)
                 arg2.unify_and_standardize_apart(arg1, heap, env)
         body = self.body
         if body is None:

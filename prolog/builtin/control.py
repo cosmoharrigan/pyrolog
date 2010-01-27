@@ -83,8 +83,8 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
         scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont, fcont, heap = impl_if(
-                engine, heap, helper.ensure_callable(call1.args[0]),
-                call1.args[1], scont, fcont, insert_cutdelimiter=False)
+                engine, heap, helper.ensure_callable(call1.argument_at(0)),
+                call1.argument_at(1), scont, fcont, insert_cutdelimiter=False)
         return newscont, fcont, heap.branch()
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)

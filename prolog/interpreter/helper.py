@@ -17,8 +17,8 @@ def unwrap_list(prolog_list):
     while isinstance(curr, term.Term):
         if not curr.name == ".":
             error.throw_type_error("list", prolog_list)
-        result.append(curr.args[0])
-        curr = curr.args[1]
+        result.append(curr.argument_at(0))
+        curr = curr.argument_at(1)
     if isinstance(curr, term.Atom) and curr.name == "[]":
         return result
     error.throw_type_error("list", prolog_list)
@@ -52,10 +52,10 @@ def unwrap_predicate_indicator(predicate):
     if not isinstance(predicate, term.Term):
         error.throw_type_error("predicate_indicator", predicate)
         assert 0, "unreachable"
-    if not predicate.name == "/" or len(predicate.args) != 2:
+    if not predicate.name == "/" or predicate.argument_count() != 2:
         error.throw_type_error("predicate_indicator", predicate)
-    name = unwrap_atom(predicate.args[0])
-    arity = unwrap_int(predicate.args[1])
+    name = unwrap_atom(predicate.argument_at(0))
+    arity = unwrap_int(predicate.argument_at(1))
     return name, arity
 
 def ensure_atomic(obj):

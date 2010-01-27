@@ -30,7 +30,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     for fact in facts:
         print fact
         e.add_rule(fact)
-    assert e.signature2function["add_numeral/3"].rulechain.head.args[1].name == "null"
+    assert e.signature2function["add_numeral/3"].rulechain.head.argument_at(1).name == "null"
     four = Term("succ", [Term("succ", [Term("succ",
                 [Term("succ", [Atom("null")])])])])
     e.run(parse_query_term("numeral(succ(succ(null)))."))
@@ -51,9 +51,9 @@ def test_quoted_atoms():
     """)
     builder = TermBuilder()
     fact, = builder.build(t)
-    assert fact.args[0].name == 'ASa0%!!231@~!@#%'
-    assert fact.args[1].name == 'a'
-    assert fact.args[2].name == '[]'
+    assert fact.argument_at(0).name == 'ASa0%!!231@~!@#%'
+    assert fact.argument_at(1).name == 'a'
+    assert fact.argument_at(2).name == '[]'
     t = parse_file("""
         'a'.
         a.
@@ -103,8 +103,8 @@ def test_number():
     builder = TermBuilder()
     facts = builder.build(t)
     assert len(facts) == 2
-    assert facts[0].args[1].num == -1
-    assert facts[1].args[1].floatval == -1.345
+    assert facts[0].argument_at(1).num == -1
+    assert facts[1].argument_at(1).floatval == -1.345
     t = parse_file("""
         X = -1.
         arg(X, h(a, b, c), b), X = 2.

@@ -39,7 +39,7 @@ def wrap_builtin_operation(name, pattern, unwrap_spec, can_overflow, intversion)
     code.start_block("def prolog_%s(engine, query):" % name)
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
-        code.emit("%s = eval_arithmetic(engine, query.args[%s])" %
+        code.emit("%s = eval_arithmetic(engine, query.argument_at(%s))" %
                   (varname, i))
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )

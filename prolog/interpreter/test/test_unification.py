@@ -60,9 +60,9 @@ def test_enumerate_vars():
     t2 = t1.enumerate_vars({})
     assert isinstance(t2, Term)
     assert t2.signature == t1.signature
-    assert t2.args[0] is t2.args[1]
-    assert t2.args[0].num == 0
-    assert t2.args[2].args[1].num == 0
+    assert t2.argument_at(0) is t2.argument_at(1)
+    assert t2.argument_at(0).num == 0
+    assert t2.argument_at(2).argument_at(1).num == 0
 
 def test_copy_and_unify():
     heap = Heap()
