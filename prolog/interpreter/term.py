@@ -220,7 +220,17 @@ class Callable(NonVar):
 
     def argument_count(self):
         raise NotImplementedError("abstract base")
-        
+
+    @specialize.arg(3)
+    def basic_unify(self, other, heap, occurs_check=False):
+        if (isinstance(other, Callable) and
+            self.name == other.name and
+            self.argument_count() == other.argument_count()):
+            for i in range(self.argument_count()):
+                self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
+        else:
+            raise UnificationFailed
+
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
 
@@ -237,12 +247,6 @@ class Atom(Callable):
     def __repr__(self):
         return "Atom(%r)" % (self.name,)
 
-    @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
-        if isinstance(other, Atom) and (self is other or
-                                        other.name == self.name):
-            return
-        raise UnificationFailed
 
     def copy_and_basic_unify(self, other, heap, env):
         if isinstance(other, Atom) and (self is other or
@@ -398,16 +402,6 @@ class Term(Callable):
 
     def __str__(self):
         return "%s(%s)" % (self.name, ", ".join([str(a) for a in self.arguments()]))
-
-    @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
-        if (isinstance(other, Term) and
-            self.name == other.name and
-            self.argument_count() == other.argument_count()):
-            for i in range(self.argument_count()):
-                self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
-        else:
-            raise UnificationFailed
 
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Term) and
