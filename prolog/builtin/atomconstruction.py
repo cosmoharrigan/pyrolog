@@ -1,28 +1,39 @@
 import py
 from prolog.interpreter import helper, term, error
+from prolog.interpreter import continuation
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________
 # analysing and construction atoms
 
-#@expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"],
-#                handles_continuation=True)
-def impl_atom_concat(engine, heap, a1, a2, result, continuation):
+
+class AtomConcatContinuation(continuation.ChoiceContinuation):
+    def __init__(self, engine, scont, fcont, heap, var1, var2, result):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        self.undoheap = heap
+        self.orig_fcont = fcont
+        self.var1 = var1
+        self.var2 = var2
+        self.r = helper.convert_to_str(result)
+        self.i = -1
+        
+    def activate(self, fcont, heap):
+        # nondeterministic splitting of result        
+        self.i += 1
+        if self.i < len(self.r) + 1:
+            fcont, heap = self.prepare_more_solutions(fcont, heap)
+            oldstate = heap.branch()
+            self.var1.unify(term.Atom(self.r[:self.i]), heap)
+            self.var2.unify(term.Atom(self.r[self.i:]), heap)
+            return self.nextcont, fcont, heap
+        raise error.UnificationFailed()
+
+@expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"], handles_continuation=True)
+def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
     if isinstance(a1, term.Var):
         if isinstance(a2, term.Var):
-            # nondeterministic splitting of result
-            r = helper.convert_to_str(result)
-            for i in range(len(r) + 1):
-                oldstate = heap.branch()
-                try:
-                    a1.unify(term.Atom(r[:i]), heap)
-                    a2.unify(term.Atom(r[i:]), heap)
-                    result = continuation.call(engine, choice_point=True)
-                    heap.discard(oldstate)
-                    return result
-                except error.UnificationFailed:
-                    heap.revert(oldstate)
-            raise error.UnificationFailed()
+            atom_concat_cont = AtomConcatContinuation(engine, scont, fcont, heap, a1, a2, result)
+            return atom_concat_cont, fcont, heap
         else:
             s2 = helper.convert_to_str(a2)
             r = helper.convert_to_str(result)
@@ -43,7 +54,7 @@ def impl_atom_concat(engine, heap, a1, a2, result, continuation):
         else:
             s2 = helper.convert_to_str(a2)
             result.unify(term.Atom(s1 + s2), heap)
-    return continuation.call(engine, choice_point=False)
+    return scont, fcont, heap
 
 @expose_builtin("atom_length", unwrap_spec = ["atom", "obj"])
 def impl_atom_length(engine, heap, s, length):

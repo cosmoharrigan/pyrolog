@@ -432,7 +432,6 @@ def test_atom_length():
     assert_true("atom_length('\\\\', 1).")
     assert_true("atom_length('abc', X), X = 3.")
 
-@py.test.mark.xfail
 def test_atom_concat():
     assert_true("atom_concat(ab, cdef, abcdef).")
     assert_true("atom_concat(ab, cdef, X), X = abcdef.")
