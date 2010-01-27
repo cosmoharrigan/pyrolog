@@ -39,8 +39,7 @@ class ASTTermBuilder(RPythonVisitor):
         token = None
         for child in node.children:
             if isinstance(child, Symbol):
-                name = self.general_symbol_visit(child).name
-                token = self.make_token(child)
+                name = self.general_symbol_visit(child).name()                token = self.make_token(child)
             else:
                 children.append(child)
         children = [self.visit(child) for child in children]
@@ -111,8 +110,7 @@ class ASTTermBuilder(RPythonVisitor):
             return result
 
     def visit_complexterm(self, node):
-        name = self.general_symbol_visit(node.children[0]).name
-        children = self.build_list(node.children[2])
+        name = self.general_symbol_visit(node.children[0]).name()        children = self.build_list(node.children[2])
         result = Term()
         result.setup(self.make_token(node.children[1]), children, name)
         return result
@@ -182,7 +180,7 @@ class Atom(Node):
         pass
     def setup(self, token, name):
         Node.setup(self, token)
-        self.name = name
+        self.name()= name
 
 class Number(Node):
     def __init__(self):
@@ -210,7 +208,7 @@ class Term(Node):
         pass
     def setup(self, token, children, name):
         Node.setup(self, token, children)
-        self.name = name
+        self.name()= name
 
 
 class Lines(object):
@@ -236,10 +234,10 @@ def _build_and_run(lines, tree):
     from prolog.interpreter.parsing import TermBuilder
     builder = ASTTermBuilder()
     term = builder.build_query(tree)
-    if (isinstance(term, Term) and term.name == ":-" and
+    if (isinstance(term, Term) and term.name()== ":-" and
             len(term.children) == 1):
         child = term.get_child(0)
-        if isinstance(child, Term) and child.name == "op":
+        if isinstance(child, Term) and child.name()== "op":
             if len(child.children) != 3:
                 raise ParseError(child.token.startpos, "expecting three arguments")
             precedence = child.children[0]
@@ -251,7 +249,7 @@ def _build_and_run(lines, tree):
                 raise ParseError(precedence.token.startpos, "second argument to op should be atom")
             if not isinstance(name, Atom):
                 raise ParseError(precedence.token.startpos, "third argument to op should be atom")
-            parser = impl_op(lines.operations, precedence.value, form.name, name.name)
+            parser = impl_op(lines.operations, precedence.value, form.name() name.name()
             lines.parser = parser
 
     lines.terms.append(term)

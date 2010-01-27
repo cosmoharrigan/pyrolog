@@ -82,23 +82,23 @@ def run(query, var_to_pos, engine):
         if isinstance(t, term.Term):
             errorterm = t.argument_at(0)
             if isinstance(errorterm, term.Callable):
-                if errorterm.name == "instantiation_error":
+                if errorterm.name()== "instantiation_error":
                     printmessage("arguments not sufficiently instantiated\n")
                     return
-                elif errorterm.name == "existence_error":
+                elif errorterm.name()== "existence_error":
                     if isinstance(errorterm, term.Term):
                         printmessage("Undefined %s: %s\n" % (
                             f.format(errorterm.argument_at(0)),
                             f.format(errorterm.argument_at(1))))
                         return
-                elif errorterm.name == "domain_error":
+                elif errorterm.name()== "domain_error":
                     if isinstance(errorterm, term.Term):
                         printmessage(
                             "Domain error: '%s' expected, found '%s'\n" % (
                             f.format(errorterm.argument_at(0)),
                             f.format(errorterm.argument_at(1))))
                         return
-                elif errorterm.name == "type_error":
+                elif errorterm.name()== "type_error":
                     if isinstance(errorterm, term.Term):
                         printmessage(
                             "Type error: '%s' expected, found '%s'\n" % (

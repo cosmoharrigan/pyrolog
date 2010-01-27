@@ -26,19 +26,19 @@ class TermFormatter(object):
             if (not isinstance(option, Term) or len(option.argument_count()) != 1):
                 error.throw_domain_error('write_option', option)
             arg = option.argument_at(0)
-            if option.name == "max_depth":
+            if option.name()== "max_depth":
                 try:
                     max_depth = helper.unwrap_int(arg)
                 except error.CatchableError:
                     error.throw_domain_error('write_option', option)
             elif (not isinstance(arg, Atom) or
-                (arg.name != "true" and arg.name != "false")):
+                (arg.name()!= "true" and arg.name()!= "false")):
                 error.throw_domain_error('write_option', option)
                 assert 0, "unreachable"
-            elif option.name == "quoted":
-                quoted = arg.name == "true"
-            elif option.name == "ignore_ops":
-                ignore_ops = arg.name == "true"
+            elif option.name()== "quoted":
+                quoted = arg.name()== "true"
+            elif option.name()== "ignore_ops":
+                ignore_ops = arg.name()== "true"
         return TermFormatter(engine, quoted, max_depth, ignore_ops)
     from_option_list = staticmethod(from_option_list)
 
@@ -47,7 +47,7 @@ class TermFormatter(object):
         if self.max_depth > 0 and self.curr_depth > self.max_depth:
             return "..."
         if isinstance(term, Atom):
-            return self.format_atom(term.name)
+            return self.format_atom(term.name())
         elif isinstance(term, Number):
             return self.format_number(term)
         elif isinstance(term, Float):
@@ -86,7 +86,7 @@ class TermFormatter(object):
         return "_G%s" % (num, )
 
     def format_term_normally(self, term):
-        return "%s(%s)" % (self.format_atom(term.name),
+        return "%s(%s)" % (self.format_atom(term.name()),
                            ", ".join([self.format(a) for a in term.arguments()]))
 
     def format_term(self, term):
@@ -98,30 +98,30 @@ class TermFormatter(object):
     def format_with_ops(self, term):
         if not isinstance(term, Term):
             return (0, self.format(term))
-        if term.signature == "./2":
+        if term.signature()== "./2":
             result = ["["]
-            while isinstance(term, Term) and term.signature == "./2":
+            while isinstance(term, Term) and term.signature()== "./2":
                 first = term.argument_at(0)
                 second = term.argument_at(1)
                 result.append(self.format(first))
                 result.append(", ")
                 term = second
-            if isinstance(term, Atom) and term.name == "[]":
+            if isinstance(term, Atom) and term.name()== "[]":
                 result[-1] = "]"
             else:
                 result[-1] = "|"
                 result.append(self.format(term))
                 result.append("]")
             return (0, "".join(result))
-        if (term.argument_count(), term.name) not in self.op_mapping:
+        if (term.argument_count(), term.name()) not in self.op_mapping:
             return (0, self.format_term_normally(term))
-        form, prec = self.op_mapping[(term.argument_count(), term.name)]
+        form, prec = self.op_mapping[(term.argument_count(), term.name())]
         result = []
         assert 0 <= term.argument_count() <= 2
         curr_index = 0
         for c in form:
             if c == "f":
-                result.append(self.format_atom(term.name))
+                result.append(self.format_atom(term.name()))
             else:
                 childprec, child = self.format_with_ops(term.argument_at(curr_index))
                 parentheses = (c == "x" and childprec >= prec or

@@ -78,7 +78,7 @@ class OrContinuation(continuation.FailureContinuation):
                 handles_continuation=True)
 def impl_or(engine, heap, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
-    if call1.signature == "->/2":
+    if call1.signature()== "->/2":
         assert isinstance(call1, term.Term)
         scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
         fcont = OrContinuation(engine, scont, heap, fcont, call2)

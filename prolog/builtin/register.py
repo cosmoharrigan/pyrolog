@@ -9,9 +9,9 @@ class Builtin(object):
     _immutable_ = True
     def __init__(self, function, name, numargs, signature):
         self.function = function
-        self.name = name
+        self.name= name
         self.numargs = numargs
-        self.signature = signature
+        self.signature= signature
 
     def call(self, engine, query, scont, fcont, heap):
         return self.function(engine, query, scont, fcont, heap)

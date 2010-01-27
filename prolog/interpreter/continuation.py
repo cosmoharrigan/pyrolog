@@ -12,7 +12,7 @@ def can_inline(*args):
 
 def get_printable_location(rule):
     if rule:
-        s = rule.signature
+        s = rule.signature()    
     else:
         s = "No rule"
     return s
@@ -73,7 +73,7 @@ class Engine(object):
     def add_rule(self, rule, end=True):
         from prolog import builtin
         if isinstance(rule, Term):
-            if rule.name == ":-":
+            if rule.name()== ":-":
                 rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
                 rule = Rule(rule, None)
@@ -82,7 +82,7 @@ class Engine(object):
         else:
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
-        signature = rule.signature
+        signature = rule.signature        
         if signature in builtin.builtins:
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
@@ -110,7 +110,7 @@ class Engine(object):
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
-        if isinstance(term, Term) and term.signature == ":-/1":
+        if isinstance(term, Term) and term.signature()== ":-/1":
             self.run(term.argument_at(0))
         else:
             self.add_rule(term)
@@ -145,7 +145,7 @@ class Engine(object):
     def call(self, query, scont, fcont, heap):
         if not isinstance(query, Callable):
             raise error.throw_type_error('callable', query)
-        signature = query.signature
+        signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
             return BuiltinContinuation(self, scont, builtin, query), fcont, heap
@@ -438,7 +438,7 @@ class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, nextcont, query, rulechain):
         ChoiceContinuation.__init__(self, engine, nextcont)
         self.query = query
-        signature = query.signature
+        signature = query.signature()        
         self.rulechain = rulechain
 
     def activate(self, fcont, heap):

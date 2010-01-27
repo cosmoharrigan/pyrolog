@@ -15,11 +15,11 @@ def unwrap_list(prolog_list):
     result = []
     curr = prolog_list
     while isinstance(curr, term.Term):
-        if not curr.name == ".":
+        if not curr.name()== ".":
             error.throw_type_error("list", prolog_list)
         result.append(curr.argument_at(0))
         curr = curr.argument_at(1)
-    if isinstance(curr, term.Atom) and curr.name == "[]":
+    if isinstance(curr, term.Atom) and curr.name()== "[]":
         return result
     error.throw_type_error("list", prolog_list)
 
@@ -45,14 +45,14 @@ def unwrap_int(obj):
 
 def unwrap_atom(obj):
     if isinstance(obj, term.Atom):
-        return obj.name
+        return obj.name()    
     error.throw_type_error('atom', obj)
 
 def unwrap_predicate_indicator(predicate):
     if not isinstance(predicate, term.Term):
         error.throw_type_error("predicate_indicator", predicate)
         assert 0, "unreachable"
-    if not predicate.name == "/" or predicate.argument_count() != 2:
+    if not predicate.name()== "/" or predicate.argument_count() != 2:
         error.throw_type_error("predicate_indicator", predicate)
     name = unwrap_atom(predicate.argument_at(0))
     arity = unwrap_int(predicate.argument_at(1))
@@ -72,7 +72,7 @@ def convert_to_str(obj):
     if isinstance(obj, term.Var):
         error.throw_instantiation_error()
     if isinstance(obj, term.Atom):
-        return obj.name
+        return obj.name()    
     elif isinstance(obj, term.Number):
         return str(obj.num)
     elif isinstance(obj, term.Float):

@@ -90,10 +90,10 @@ class PrologConsole(code.InteractiveConsole):
             self.write("no\n")
         except error.CatchableError, e:
             self.write("ERROR: ")
-            if e.term.argument_at(0).name == "instantiation_error":
+            if e.term.argument_at(0).name()== "instantiation_error":
                 print e.term
                 self.write("arguments not sufficiently instantiated\n")
-            elif e.term.argument_at(0).name == "existence_error":
+            elif e.term.argument_at(0).name()== "existence_error":
                 print e.term
                 self.write("Undefined %s: %s\n" % (e.term.argument_at(0).argument_at(0),
                                                    e.term.argument_at(0).argument_at(1)))

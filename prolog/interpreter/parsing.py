@@ -154,7 +154,6 @@ class PrologParseTable(LazyParseTable):
         if input.name == "ATOM":
             return symbol == "ATOM" or symbol == input.source
         return symbol == input.name
-
 class PrologPackratParser(PackratParser):
     def __init__(self, rules, startsymbol):
         PackratParser.__init__(self, rules, startsymbol, PrologParseTable,
@@ -191,7 +190,7 @@ def parse_file(s, parser=None, callback=_dummyfunc, arg=None):
     line = []
     for tok in tokens:
         line.append(tok)
-        if tok.name == ".":
+        if tok.name== ".":
             lines.append(line)
             line = []
     if parser is None:
@@ -306,7 +305,7 @@ class TermBuilder(RPythonVisitor):
         name = ""
         for child in node.children:
             if isinstance(child, Symbol):
-                name = self.general_symbol_visit(child).name
+                name = self.general_symbol_visit(child).name()            
             else:
                 children.append(child)
         children = [self.visit(child) for child in children]
@@ -375,7 +374,7 @@ class TermBuilder(RPythonVisitor):
 
     def visit_complexterm(self, node):
         from prolog.interpreter.term import Term
-        name = self.general_symbol_visit(node.children[0]).name
+        name = self.general_symbol_visit(node.children[0]).name()
         children = self.build_list(node.children[2])
         return Term(name, children[:])
 

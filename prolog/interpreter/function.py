@@ -23,7 +23,7 @@ class Rule(object):
         else:
             self.body = None
         self.size_env = len(memo)
-        self.signature = head.signature
+        self.signature = head.signature()        
         self._does_contain_cut()
 
         self.next = next
@@ -36,7 +36,7 @@ class Rule(object):
         while stack:
             current = stack.pop()
             if isinstance(current, Atom):
-                if current.name == "!":
+                if current.name()== "!":
                     self.contains_cut = True
                     return
             elif isinstance(current, Term):

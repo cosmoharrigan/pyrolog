@@ -14,7 +14,7 @@ def impl_consult(engine, heap, var):
     import os
     if isinstance(var, term.Atom):
         try:
-            fd = os.open(var.name, os.O_RDONLY, 0777)
+            fd = os.open(var.name() os.O_RDONLY, 0777)
         except OSError, e:
             error.throw_existence_error("source_sink", var)
             assert 0, "unreachable" # make the flow space happy

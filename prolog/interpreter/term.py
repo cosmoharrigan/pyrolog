@@ -204,11 +204,15 @@ class NonVar(PrologObject):
         return self
 
 class Callable(NonVar):
-    __slots__ = ("name", "signature")
     _immutable_ = True
-    name = ""
-    signature = ""
-
+    __slots__ = ()
+    
+    def name(self):
+        raise NotImplementedError("abstract base")
+        
+    def signature(self):
+        raise NotImplementedError("abstract base")
+        
     def get_prolog_signature(self):
         raise NotImplementedError("abstract base")
         
@@ -224,7 +228,7 @@ class Callable(NonVar):
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
         if (isinstance(other, Callable) and
-            self.name == other.name and
+            self.name() == other.name() and
             self.argument_count() == other.argument_count()):
             for i in range(self.argument_count()):
                 self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
@@ -233,24 +237,24 @@ class Callable(NonVar):
 
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
-
+    # __slots__ = ('_name', '_signature')
     cache = {}
     _immutable_ = True
 
     def __init__(self, name):
-        self.name = name
-        self.signature = self.name + "/0"
+        self._name = name
+        self._signature = self._name + "/0"
 
     def __str__(self):
-        return self.name
+        return self.name()
 
     def __repr__(self):
-        return "Atom(%r)" % (self.name,)
+        return "Atom(%r)" % (self.name(),)
 
 
     def copy_and_basic_unify(self, other, heap, env):
         if isinstance(other, Atom) and (self is other or
-                                        other.name == self.name):
+                                        other.name() == self.name()):
             return self
         else:
             raise UnificationFailed
@@ -268,9 +272,9 @@ class Atom(Callable):
 
     def eval_arithmetic(self, engine):
         #XXX beautify that
-        if self.name == "pi":
+        if self.name() == "pi":
             return Float.pi
-        if self.name == "e":
+        if self.name() == "e":
             return Float.e
         error.throw_type_error("evaluable", self.get_prolog_signature())
         
@@ -282,7 +286,12 @@ class Atom(Callable):
     
     def argument_count(self):
         return 0
-
+        
+    def name(self):
+        return self._name
+        
+    def signature(self):
+        return self._signature
 
 class Number(NonVar): #, UnboxedValue):
     TYPE_STANDARD_ORDER = 2
@@ -387,25 +396,25 @@ class Term(Callable):
     TYPE_STANDARD_ORDER = 3
     _immutable_ = True
     _immutable_fields_ = ["_args[*]"]
-
-    def __init__(self, name, args, signature=None):
-
-        self.name = name
+    __slots__ = ('_name', '_signature', '_args')
+    
+    def __init__(self, term_name, args, signature=None):
+        self._name = term_name
         self._args = make_sure_not_resized(args)
         if signature is None:
-            self.signature = name + "/" + str(len(args))
+            self._signature = term_name + "/" + str(len(args))
         else:
-            self.signature = signature
+            self._signature = signature
                     
     def __repr__(self):
-        return "Term(%r, %r)" % (self.name, self.arguments())
+        return "Term(%r, %r)" % (self.name(), self.arguments())
 
     def __str__(self):
-        return "%s(%s)" % (self.name, ", ".join([str(a) for a in self.arguments()]))
+        return "%s(%s)" % (self.name(), ", ".join([str(a) for a in self.arguments()]))
 
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Term) and
-                self.signature == other.signature):
+                self.signature() == other.signature()):
             return self._copy_term(_term_unify_and_standardize_apart,
                                    other, heap, env)
         else:
@@ -436,12 +445,12 @@ class Term(Callable):
             args[i] = cloned
             i += 1
         if newinstance:
-            return Term(self.name, args, self.signature)
+            return Term(self.name(), args, self.signature())
         else:
             return self
 
     def get_prolog_signature(self):
-        return Term("/", [Atom.newatom(self.name),
+        return Term("/", [Atom.newatom(self.name()),
                                                 Number(self.argument_count())])
     
     def contains_var(self, var, heap):
@@ -453,7 +462,7 @@ class Term(Callable):
     def eval_arithmetic(self, engine):
         from prolog.interpreter.arithmetic import get_arithmetic_function
 
-        func = get_arithmetic_function(self.signature)
+        func = get_arithmetic_function(self.signature())
         if func is None:
             error.throw_type_error("evaluable", self.get_prolog_signature())
         return func(engine, self)
@@ -466,6 +475,13 @@ class Term(Callable):
         
     def argument_count(self):
         return len(self._args)
+        
+    def name(self):
+        return self._name
+        
+    def signature(self):
+        return self._signature
+        
 @specialize.argtype(0)
 def rcmp(a, b): # RPython does not support cmp...
     if a == b:
@@ -483,13 +499,13 @@ def cmp_standard_order(obj1, obj2, heap):
         return rcmp(compute_unique_id(obj1), compute_unique_id(obj2))
     if isinstance(obj1, Atom):
         assert isinstance(obj2, Atom)
-        return rcmp(obj1.name, obj2.name)
+        return rcmp(obj1.name(), obj2.name())
     if isinstance(obj1, Term):
         assert isinstance(obj2, Term)
         c = rcmp(obj1.argument_count(), obj2.argument_count())
         if c != 0:
             return c
-        c = rcmp(obj1.name, obj2.name)
+        c = rcmp(obj1.name(), obj2.name())
         if c != 0:
             return c
         for i in range(obj1.argument_count()):

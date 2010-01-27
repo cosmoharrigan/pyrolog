@@ -106,12 +106,12 @@ def test_assert_at_right_end():
     assert_true("assertz(f(a, a)).", e)
     assert_true("A = a, asserta(h(A, A)).", e)
     f = assert_true("g(B, B).", e)
-    assert f['B'].name == "b"
+    assert f['B'].name()== "b"
     f = assert_true("f(B, B).", e)
-    assert f['B'].name == "b"
+    assert f['B'].name()== "b"
     assert_false("h(c, c).", e)
     f = assert_true("h(B, B).", e)
-    assert f['B'].name == "a"
+    assert f['B'].name()== "a"
 
 @py.test.mark.xfail
 def test_assert_logical_update_view():

@@ -15,13 +15,13 @@ def test_var():
     b = Var()
     heap = Heap()
     b.unify(Atom.newatom("hallo"), heap)
-    assert b.getvalue(heap).name == "hallo"
+    assert b.getvalue(heap).name()== "hallo"
     a = Var()
     b = Var()
     a.unify(b, heap)
     a.unify(Atom.newatom("hallo"), heap)
-    assert a.getvalue(heap).name == "hallo"
-    assert b.getvalue(heap).name == "hallo"
+    assert a.getvalue(heap).name()== "hallo"
+    assert b.getvalue(heap).name()== "hallo"
 
 def test_unify_var():
     b = Var()
@@ -43,8 +43,8 @@ def test_term():
     heap = Heap()
     print t1, t2
     t1.unify(t2, heap)
-    assert X.getvalue(heap).name == "HALLO"
-    assert Y.getvalue(heap).name == "hallo"
+    assert X.getvalue(heap).name()== "HALLO"
+    assert Y.getvalue(heap).name()== "hallo"
 
 def test_blackbox():
     bl1 = BlackBox()
@@ -59,7 +59,7 @@ def test_enumerate_vars():
     t1 = Term("f", [X, X, Term("g", [Y, X])])
     t2 = t1.enumerate_vars({})
     assert isinstance(t2, Term)
-    assert t2.signature == t1.signature
+    assert t2.signature()== t1.signature()    
     assert t2.argument_at(0) is t2.argument_at(1)
     assert t2.argument_at(0).num == 0
     assert t2.argument_at(2).argument_at(1).num == 0
@@ -84,6 +84,6 @@ def test_run():
                            Term("f", [Y, X])]))
     X = e.heap.newvar()
     e.run(Term("f", [Atom.newatom("b"), X]))
-    assert X.dereference(e.heap).name == "b"
+    assert X.dereference(e.heap).name()== "b"
     query = Term("f", [Atom.newatom("b"), Atom.newatom("a")]) 
     e.run(query)

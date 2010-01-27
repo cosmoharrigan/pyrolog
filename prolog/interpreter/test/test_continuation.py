@@ -114,14 +114,14 @@ def test_full():
     query = Term(",", [Term("f", [Var()]), Term("g", [Var()])])
     py.test.raises(error.UnificationFailed,
                    e.run_query, query, CollectContinuation())
-    assert all[0].argument_at(0).argument_at(0).name == "x"
-    assert all[0].argument_at(1).argument_at(0).name == "a"
-    assert all[1].argument_at(0).argument_at(0).name == "x"
-    assert all[1].argument_at(1).argument_at(0).name == "b"
-    assert all[2].argument_at(0).argument_at(0).name == "y"
-    assert all[2].argument_at(1).argument_at(0).name == "a"
-    assert all[3].argument_at(0).argument_at(0).name == "y"
-    assert all[3].argument_at(1).argument_at(0).name == "b"
+    assert all[0].argument_at(0).argument_at(0).name()== "x"
+    assert all[0].argument_at(1).argument_at(0).name()== "a"
+    assert all[1].argument_at(0).argument_at(0).name()== "x"
+    assert all[1].argument_at(1).argument_at(0).name()== "b"
+    assert all[2].argument_at(0).argument_at(0).name()== "y"
+    assert all[2].argument_at(1).argument_at(0).name()== "a"
+    assert all[3].argument_at(0).argument_at(0).name()== "y"
+    assert all[3].argument_at(1).argument_at(0).name()== "b"
 
 # ___________________________________________________________________
 # integration tests
@@ -137,7 +137,7 @@ def test_trivial():
     """)
     t, vars = get_query_and_vars("f(X).")
     e.run(t)
-    assert vars['X'].dereference(e.heap).name == "a"
+    assert vars['X'].dereference(e.heap).name()== "a"
 
 def test_and():
     e = get_engine("""
@@ -149,7 +149,7 @@ def test_and():
     e.run(parse_query_term("f(a, c)."))
     t, vars = get_query_and_vars("f(X, c).")
     e.run(t)
-    assert vars['X'].dereference(e.heap).name == "a"
+    assert vars['X'].dereference(e.heap).name()== "a"
 
 def test_and_long():
     e = get_engine("""
@@ -203,7 +203,7 @@ def test_or_backtrack():
         """)
     t, vars = get_query_and_vars("f(a, b, Z).")
     e.run(t)
-    assert vars['Z'].dereference(e.heap).name == "a"
+    assert vars['Z'].dereference(e.heap).name()== "a"
     f = collect_all(e, "X = 1; X = 2.")
     assert len(f) == 2
 
@@ -226,9 +226,9 @@ def test_collect_all():
     """)
     heaps = collect_all(e, "g(X).")
     assert len(heaps) == 3
-    assert heaps[0]['X'].name == "a"
-    assert heaps[1]['X'].name == "b"
-    assert heaps[2]['X'].name == "c"
+    assert heaps[0]['X'].name()== "a"
+    assert heaps[1]['X'].name()== "b"
+    assert heaps[2]['X'].name()== "c"
 
 def test_lists():
     e = get_engine("""

@@ -3,11 +3,15 @@ from prolog.interpreter.term import Callable
 
 class C(Callable):
     def __init__(self, name):
-        self.name = name
+        self._name = name
     def __eq__(self, other):
-        return self.name == other.name
+        return self.name()== other.name()    
     def __str__(self):
-        return 'C(%s)' % self.name
+        return 'C(%s)' % self.name()    
+    def signature(self):
+        return self.name() + '/123'
+    def name(self):
+        return 'C'
     __repr__ = __str__
 def test_copy():
             

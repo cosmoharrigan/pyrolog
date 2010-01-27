@@ -30,17 +30,17 @@ def impl_asserta(engine, heap, rule):
 @expose_builtin("retract", unwrap_spec=["callable"])
 def impl_retract(engine, heap, pattern):
     from prolog.builtin import builtins
-    if isinstance(pattern, term.Term) and pattern.name == ":-":
+    if isinstance(pattern, term.Term) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
     else:
         head = pattern
         body = None
-    if head.signature in builtins:
+    if head.signature()in builtins:
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = engine.signature2function.get(head.signature, None)
+    function = engine.signature2function.get(head.signature() None)
     if function is None:
         raise error.UnificationFailed
     #import pdb; pdb.set_trace()
@@ -58,7 +58,7 @@ def impl_retract(engine, heap, pattern):
         else:
             if function.rulechain is rulechain:
                 if rulechain.next is None:
-                    del engine.signature2function[head.signature]
+                    del engine.signature2function[head.signature()
                 else:
                     function.rulechain = rulechain.next
             else:

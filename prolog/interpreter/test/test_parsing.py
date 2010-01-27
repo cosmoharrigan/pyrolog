@@ -30,7 +30,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     for fact in facts:
         print fact
         e.add_rule(fact)
-    assert e.signature2function["add_numeral/3"].rulechain.head.argument_at(1).name == "null"
+    assert e.signature2function["add_numeral/3"].rulechain.head.argument_at(1).name()== "null"
     four = Term("succ", [Term("succ", [Term("succ",
                 [Term("succ", [Atom("null")])])])])
     e.run(parse_query_term("numeral(succ(succ(null)))."))
@@ -51,17 +51,16 @@ def test_quoted_atoms():
     """)
     builder = TermBuilder()
     fact, = builder.build(t)
-    assert fact.argument_at(0).name == 'ASa0%!!231@~!@#%'
-    assert fact.argument_at(1).name == 'a'
-    assert fact.argument_at(2).name == '[]'
+    assert fact.argument_at(0).name()== 'ASa0%!!231@~!@#%'
+    assert fact.argument_at(1).name()== 'a'
+    assert fact.argument_at(2).name()== '[]'
     t = parse_file("""
         'a'.
         a.
     """)
     builder = TermBuilder()
     fact1, fact2, = builder.build(t)
-    assert fact1.name == fact2.name
-
+    assert fact1.name()== fact2.name()
 def test_parenthesis():
     t = parse_file("""
         g(X, Y) :- (g(x, y); g(a, b)), /* this too is a comment

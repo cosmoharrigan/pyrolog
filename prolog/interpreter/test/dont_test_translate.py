@@ -41,8 +41,7 @@ def test_engine():
         e.run(t2)
         v0 = e.heap.getvar(0)
         if isinstance(v0, Atom):
-            return v0.name
-        return "no!"
+            return v0.name()        return "no!"
     assert run() == "a"
     t = Translation(run)
     t.annotate()
