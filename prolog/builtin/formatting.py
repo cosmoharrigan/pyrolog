@@ -23,7 +23,7 @@ class TermFormatter(object):
         ignore_ops = False
         number_vars = False
         for option in options:
-            if (not isinstance(option, Term) or len(option.argument_count()) != 1):
+            if (not isinstance(option, Term) or option.argument_count() != 1):
                 error.throw_domain_error('write_option', option)
             arg = option.argument_at(0)
             if option.name()== "max_depth":

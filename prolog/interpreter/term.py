@@ -134,6 +134,7 @@ class Var(PrologObject):
 
         return self.eval_arithmetic(engine)
 
+    @jit.dont_look_inside
     def cmp_standard_order(self, other, heap):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))

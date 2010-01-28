@@ -15,16 +15,16 @@ class AtomConcatContinuation(continuation.ChoiceContinuation):
         self.var1 = var1
         self.var2 = var2
         self.r = helper.convert_to_str(result)
-        self.i = -1
+        self.i = 0
         
     def activate(self, fcont, heap):
         # nondeterministic splitting of result        
-        self.i += 1
-        if self.i < len(self.r) + 1:
+        if self.i < len(self.r):
             fcont, heap = self.prepare_more_solutions(fcont, heap)
             oldstate = heap.branch()
             self.var1.unify(term.Callable.build(self.r[:self.i]), heap)
             self.var2.unify(term.Callable.build(self.r[self.i:]), heap)
+            self.i += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
 

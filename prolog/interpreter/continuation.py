@@ -12,7 +12,7 @@ def can_inline(*args):
 
 def get_printable_location(rule):
     if rule:
-        s = rule.signature()    
+        s = rule.signature
     else:
         s = "No rule"
     return s
