@@ -12,6 +12,8 @@ class C(Callable):
         return self.name() + '/123'
     def name(self):
         return 'C'
+    def argument_count(self):
+        return 0
     __repr__ = __str__
 def test_copy():
             

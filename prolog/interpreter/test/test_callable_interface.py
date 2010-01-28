@@ -1,5 +1,5 @@
 from prolog.interpreter.parsing import parse_file, TermBuilder
-from prolog.interpreter.term import Atom, Number, Term, Callable
+from prolog.interpreter.term import Atom, Number, Term, Callable, specialized_term_classes
 import py
 
 def parse(inp):
@@ -80,3 +80,13 @@ def test_callable_factory_for_term():
     r = Callable.build('foo', [1, 2])
     assert isinstance(r, Term)
     assert r.signature() == 'foo/2'
+    
+def test_callable_factory_for_cons():
+    r = Callable.build('.', [1, Callable.build('[]')])
+    assert isinstance(r, specialized_term_classes['.', 2])
+    assert r.signature() == './2'
+    assert r.name() == '.'
+    assert r.argument_count() == 2
+    assert r.arguments() == [1, Callable.build('[]')]
+    assert r.argument_at(0) == 1
+    assert r.argument_at(1) == Callable.build('[]')

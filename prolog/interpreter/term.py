@@ -50,6 +50,9 @@ class PrologObject(object):
     def eval_arithmetic(self, engine):
         error.throw_type_error("evaluable", self)
 
+    def cmp_standard_order(self, other, heap):
+        raise NotImplementedError("abstract base class")
+        
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
 
@@ -131,6 +134,11 @@ class Var(PrologObject):
 
         return self.eval_arithmetic(engine)
 
+    def cmp_standard_order(self, other, heap):
+        assert isinstance(other, Var)
+        return rcmp(compute_unique_id(self), compute_unique_id(other))
+        
+
 
 class NumberedVar(PrologObject):
     _immutable_ = True
@@ -202,7 +210,7 @@ class NonVar(PrologObject):
 
     def enumerate_vars(self, memo):
         return self
-
+    
 class Callable(NonVar):
     _immutable_ = True
     __slots__ = ()
@@ -214,8 +222,8 @@ class Callable(NonVar):
         raise NotImplementedError("abstract base")
         
     def get_prolog_signature(self):
-        raise NotImplementedError("abstract base")
-        
+        return Term("/", [Callable.build(self.name()),
+                                                Number(self.argument_count())])        
     def arguments(self):
         raise NotImplementedError("abstract base")
         
@@ -234,6 +242,65 @@ class Callable(NonVar):
                 self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
         else:
             raise UnificationFailed
+    def copy_and_basic_unify(self, other, heap, env):
+        if (isinstance(other, Callable) and 
+            self.signature() == other.signature()):
+            return self._copy_term(_term_unify_and_standardize_apart,
+                                   other, heap, env)
+        else:
+            raise UnificationFailed
+
+    def copy(self, heap, memo):
+        return self._copy_term(_term_copy, heap, memo)
+
+    def copy_standardize_apart(self, heap, env):
+        return self._copy_term(_term_copy_standardize_apart, heap, env)
+
+    def enumerate_vars(self, memo):
+        return self._copy_term(_term_enumerate_vars, memo)
+
+    def getvalue(self, heap):
+        return self._copy_term(_term_getvalue, heap)
+
+    @specialize.arg(1)
+    @jit.unroll_safe
+    def _copy_term(self, copy_individual, *extraargs):
+        args = [None] * self.argument_count()
+        newinstance = False
+        i = 0
+        while i < self.argument_count():
+            arg = self.argument_at(i)
+            cloned = copy_individual(arg, i, *extraargs)
+            newinstance = newinstance or cloned is not arg
+            args[i] = cloned
+            i += 1
+        if newinstance:
+            # XXX construct the right class directly
+            return Callable.build(self.name(), args, self.signature())
+        else:
+            return self
+    
+    def contains_var(self, var, heap):
+        for arg in self.arguments():
+            if arg.contains_var(var, heap):
+                return True
+        return False
+        
+    def cmp_standard_order(self, other, heap):
+        assert isinstance(other, Callable)
+        c = rcmp(self.argument_count(), other.argument_count())
+        if c != 0:
+            return c
+        c = rcmp(self.name(), other.name())
+        if c != 0:
+            return c
+        for i in range(self.argument_count()):
+            a1 = self.argument_at(i).dereference(heap)
+            a2 = other.argument_at(i).dereference(heap)
+            c = cmp_standard_order(a1, a2, heap)
+            if c != 0:
+                return c
+        return 0
     
     @staticmethod
     def build(term_name, args=None, signature=None):
@@ -242,6 +309,9 @@ class Callable(NonVar):
         if len(args) == 0:
             return Atom.newatom(term_name)
         else:
+            cls = specialized_term_classes.get((term_name, len(args)), None)
+            if cls is not None:
+                return cls(args)
             return Term(term_name, args, signature)
         
 class Atom(Callable):
@@ -259,17 +329,6 @@ class Atom(Callable):
 
     def __repr__(self):
         return "Atom(%r)" % (self.name(),)
-
-
-    def copy_and_basic_unify(self, other, heap, env):
-        if isinstance(other, Atom) and (self is other or
-                                        other.name() == self.name()):
-            return self
-        else:
-            raise UnificationFailed
-
-    def get_prolog_signature(self):
-        return Term("/", [self, NUMBER_0])
 
     @staticmethod
     def newatom(name):
@@ -331,8 +390,14 @@ class Number(NonVar): #, UnboxedValue):
     def eval_arithmetic(self, engine):
         return self
 
-NUMBER_0 = Number(0)
-
+    def cmp_standard_order(self, other, heap):
+        # XXX looks a bit terrible
+        if isinstance(other, Number):
+            return rcmp(self.num, other.num)
+        elif isinstance(other, Float):
+            return rcmp(self.num, other.floatval)
+        assert 0
+        
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True
@@ -360,7 +425,15 @@ class Float(NonVar):
     def eval_arithmetic(self, engine):
         from prolog.interpreter.arithmetic import norm_float
         return norm_float(self)
-
+        
+    def cmp_standard_order(self, other, heap):
+        # XXX looks a bit terrible
+        if isinstance(other, Number):
+            return rcmp(self.floatval, other.num)
+        elif isinstance(other, Float):
+            return rcmp(self.floatval, other.floatval)
+        assert 0
+        
 Float.e = Float(math.e)
 Float.pi = Float(math.pi)
 
@@ -420,54 +493,7 @@ class Term(Callable):
 
     def __str__(self):
         return "%s(%s)" % (self.name(), ", ".join([str(a) for a in self.arguments()]))
-
-    def copy_and_basic_unify(self, other, heap, env):
-        if (isinstance(other, Term) and
-                self.signature() == other.signature()):
-            return self._copy_term(_term_unify_and_standardize_apart,
-                                   other, heap, env)
-        else:
-            raise UnificationFailed
-
-    def copy(self, heap, memo):
-        return self._copy_term(_term_copy, heap, memo)
-
-    def copy_standardize_apart(self, heap, env):
-        return self._copy_term(_term_copy_standardize_apart, heap, env)
-
-    def enumerate_vars(self, memo):
-        return self._copy_term(_term_enumerate_vars, memo)
-
-    def getvalue(self, heap):
-        return self._copy_term(_term_getvalue, heap)
-
-    @specialize.arg(1)
-    @jit.unroll_safe
-    def _copy_term(self, copy_individual, *extraargs):
-        args = [None] * self.argument_count()
-        newinstance = False
-        i = 0
-        while i < self.argument_count():
-            arg = self.argument_at(i)
-            cloned = copy_individual(arg, i, *extraargs)
-            newinstance = newinstance or cloned is not arg
-            args[i] = cloned
-            i += 1
-        if newinstance:
-            return Term(self.name(), args, self.signature())
-        else:
-            return self
-
-    def get_prolog_signature(self):
-        return Term("/", [Callable.build(self.name()),
-                                                Number(self.argument_count())])
-    
-    def contains_var(self, var, heap):
-        for arg in self.arguments():
-            if arg.contains_var(var, heap):
-                return True
-        return False
-        
+            
     def eval_arithmetic(self, engine):
         from prolog.interpreter.arithmetic import get_arithmetic_function
 
@@ -503,36 +529,47 @@ def cmp_standard_order(obj1, obj2, heap):
     c = rcmp(obj1.TYPE_STANDARD_ORDER, obj2.TYPE_STANDARD_ORDER)
     if c != 0:
         return c
-    if isinstance(obj1, Var):
-        assert isinstance(obj2, Var)
-        return rcmp(compute_unique_id(obj1), compute_unique_id(obj2))
-    if isinstance(obj1, Atom):
-        assert isinstance(obj2, Atom)
-        return rcmp(obj1.name(), obj2.name())
-    if isinstance(obj1, Term):
-        assert isinstance(obj2, Term)
-        c = rcmp(obj1.argument_count(), obj2.argument_count())
-        if c != 0:
-            return c
-        c = rcmp(obj1.name(), obj2.name())
-        if c != 0:
-            return c
-        for i in range(obj1.argument_count()):
-            a1 = obj1.argument_at(i).dereference(heap)
-            a2 = obj2.argument_at(i).dereference(heap)
-            c = cmp_standard_order(a1, a2, heap)
-            if c != 0:
-                return c
-        return 0
-    # XXX hum
-    if isinstance(obj1, Number):
-        if isinstance(obj2, Number):
-            return rcmp(obj1.num, obj2.num)
-        elif isinstance(obj2, Float):
-            return rcmp(obj1.num, obj2.floatval)
-    if isinstance(obj1, Float):
-        if isinstance(obj2, Number):
-            return rcmp(obj1.floatval, obj2.num)
-        elif isinstance(obj2, Float):
-            return rcmp(obj1.floatval, obj2.floatval)
-    assert 0
+    return obj1.cmp_standard_order(obj2, heap)
+
+def generate_class(cname, fname, n_args):
+    from pypy.rlib.unroll import unrolling_iterable
+    arg_iter = unrolling_iterable(range(n_args))
+    signature = fname + '/' + str(n_args)
+    class cls(Callable):
+        if n_args == 0:
+            TYPE_STANDARD_ORDER = Atom.TYPE_STANDARD_ORDER
+        else:
+            TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
+            
+        def __init__(self, args):
+            assert len(args) == n_args
+            for x in arg_iter:
+                setattr(self, 'val_%d' % x, args[x])
+                
+        def name(self):
+            return fname
+        
+        def signature(self):
+            return signature
+        
+        def arguments(self):
+            result = [None] * n_args
+            for x in arg_iter:
+                result[x] = getattr(self, 'val_%d' % x)
+            return result
+
+        def argument_at(self, i):
+            for x in arg_iter:
+                if x == i:
+                    return getattr(self, 'val_%d' % x)
+
+        def argument_count(self):
+            return n_args
+            
+    cls.__name__ = cname
+    return cls
+    
+specialized_term_classes = {}
+classes = [('Cons', '.', 2)]
+for cname, fname, numargs in classes:
+    specialized_term_classes[fname, numargs] = generate_class(cname, fname, numargs)

@@ -14,12 +14,10 @@ def wrap_list(python_list):
 def unwrap_list(prolog_list):
     result = []
     curr = prolog_list
-    while isinstance(curr, term.Term):
-        if not curr.name()== ".":
-            error.throw_type_error("list", prolog_list)
+    while isinstance(curr, term.Callable) and curr.signature() == './2':
         result.append(curr.argument_at(0))
         curr = curr.argument_at(1)
-    if isinstance(curr, term.Atom) and curr.name()== "[]":
+    if isinstance(curr, term.Callable) and curr.name()== "[]":
         return result
     error.throw_type_error("list", prolog_list)
 
