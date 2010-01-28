@@ -23,8 +23,8 @@ class AtomConcatContinuation(continuation.ChoiceContinuation):
         if self.i < len(self.r) + 1:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
             oldstate = heap.branch()
-            self.var1.unify(term.Atom(self.r[:self.i]), heap)
-            self.var2.unify(term.Atom(self.r[self.i:]), heap)
+            self.var1.unify(term.Callable.build(self.r[:self.i]), heap)
+            self.var2.unify(term.Callable.build(self.r[self.i:]), heap)
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
 
@@ -40,7 +40,7 @@ def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
             if r.endswith(s2):
                 stop = len(r) - len(s2)
                 assert stop > 0
-                a1.unify(term.Atom(r[:stop]), heap)
+                a1.unify(term.Callable.build(r[:stop]), heap)
             else:
                 raise error.UnificationFailed()
     else:
@@ -48,12 +48,12 @@ def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
         if isinstance(a2, term.Var):
             r = helper.convert_to_str(result)
             if r.startswith(s1):
-                a2.unify(term.Atom(r[len(s1):]), heap)
+                a2.unify(term.Callable.build(r[len(s1):]), heap)
             else:
                 raise error.UnificationFailed()
         else:
             s2 = helper.convert_to_str(a2)
-            result.unify(term.Atom(s1 + s2), heap)
+            result.unify(term.Callable.build(s1 + s2), heap)
     return scont, fcont, heap
 
 @expose_builtin("atom_length", unwrap_spec = ["atom", "obj"])
@@ -115,7 +115,7 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, continuation):
                     before.unify(term.Number(b), heap)
                     after.unify(term.Number(len(s) - l - b), heap)
                     length.unify(term.Number(l), heap)
-                    sub.unify(term.Atom(s[b:b + l]), heap)
+                    sub.unify(term.Callable.build(s[b:b + l]), heap)
                     result = continuation.call(engine, choice_point=True)
                     heap.discard(oldstate)
                     return result
@@ -132,7 +132,7 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, continuation):
                 before.unify(term.Number(b), heap)
                 after.unify(term.Number(a), heap)
                 length.unify(term.Number(l), heap)
-                sub.unify(term.Atom(s[b:b + l]), heap)
+                sub.unify(term.Callable.build(s[b:b + l]), heap)
                 result = continuation.call(engine, choice_point=True)
                 heap.discard(oldstate)
                 return result

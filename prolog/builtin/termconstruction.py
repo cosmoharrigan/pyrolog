@@ -11,7 +11,7 @@ def impl_functor(engine, heap, t, functor, arity):
         functor.unify(t, heap)
         arity.unify(term.Number(0), heap)
     elif isinstance(t, term.Term):
-        functor.unify(term.Atom(t.name()), heap)
+        functor.unify(term.Callable.build(t.name()), heap)
         arity.unify(term.Number(t.argument_count()), heap)
     elif isinstance(t, term.Var):
         if isinstance(functor, term.Var):
@@ -70,7 +70,7 @@ def impl_arg(engine, heap, first, second, third, continuation):
 def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
         if isinstance(first, term.Term):
-            l = [term.Atom(first.name())] + first.arguments()
+            l = [term.Callable.build(first.name())] + first.arguments()
         else:
             l = [first]
         u1 = helper.wrap_list(l)

@@ -12,7 +12,7 @@ term = parse('t(a, b, c, d, f).')[0]
 def test_atom_get_signature():
     r = atom.get_prolog_signature() 
     r.name() == '/'
-    r._args[0] == Atom('a')
+    r._args[0] == Callable.build('a')
     r._args[1] == Number(0)
 
 def test_atom_get_arguments():
