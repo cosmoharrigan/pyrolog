@@ -129,7 +129,7 @@ def repl(engine):
             run(goal, var_to_pos, engine)
  
 def execute(e, filename):
-    e.run(term.Term("consult", [term.Atom(filename)]))
+    e.run(term.Callable.build("consult", [term.Callable.build(filename)]))
 
 if __name__ == '__main__':
     e = Engine()

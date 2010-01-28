@@ -184,11 +184,11 @@ class Engine(object):
         raise error.UncaughtError(exc)
 
 #    def throw_system_error(self, term, scont, fcont, heap):
-#        term = Term("error", [term])
+#        term = Callable.build("error", [term])
 #        return self.throw(term, scont, fcont, heap)
 #
 #    def throw_existence_error(self, object_type, obj, scont, fcont, heap):
-#        term = Term("existence_error", [Atom.newatom(object_type), obj])
+#        term = Callable.build("existence_error", [Atom.newatom(object_type), obj])
 #        return self.throw_system_error(term, scont, fcont, heap)
 #
 #    def throw_instantiation_error(self, scont, fcont, heap):
@@ -200,7 +200,7 @@ class Engine(object):
 #        # atom, atomic, byte, callable, character
 #        # evaluable, in_byte, in_character, integer, list
 #        # number, predicate_indicator, variable
-#        term = Term("type_error", [Atom.newatom(valid_type), obj])
+#        term = Callable.build("type_error", [Atom.newatom(valid_type), obj])
 #        return self.throw_system_error(term, scont, fcont, heap)
 #
 #    def throw_domain_error(self, valid_domain, obj, scont, fcont, heap):
@@ -210,7 +210,7 @@ class Engine(object):
 #        # operator_specifier, prolog_flag, read_option, source_sink,
 #        # stream, stream_option, stream_or_alias, stream_position,
 #        # stream_property, write_option
-#        term = Term("domain_error", [Atom.newatom(valid_domain), obj])
+#        term = Callable.build("domain_error", [Atom.newatom(valid_domain), obj])
 #        return self.throw_system_error(term, scont, fcont, heap)
 #
 #    def throw_permission_error(self, operation, permission_type, obj, scont, fcont, heap):
@@ -220,7 +220,7 @@ class Engine(object):
 #        # valid permission_types are:
 #        # binary_stream, flag, operator, past_end_of_stream, private_procedure,
 #        # static_procedure, source_sink, stream, text_stream. 
-#        term = Term("permission_error", [term.Atom.newatom(operation),
+#        term = Callable.build("permission_error", [term.Atom.newatom(operation),
 #                                         term.Atom.newatom(permission_type),
 #                                         obj])
 #        return self.throw_system_error(term, scont, fcont, heap)

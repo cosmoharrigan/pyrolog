@@ -8,7 +8,7 @@ emptylist = term.Atom.newatom("[]")
 def wrap_list(python_list):
     curr = emptylist
     for i in range(len(python_list) - 1, -1, -1):
-        curr = term.Term(".", [python_list[i], curr])
+        curr = term.Callable.build(".", [python_list[i], curr])
     return curr
 
 def unwrap_list(prolog_list):

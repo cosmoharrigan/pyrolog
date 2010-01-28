@@ -133,5 +133,5 @@ def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
     scont = continuation.BodyContinuation(engine, scont, then_clause)
     if insert_cutdelimiter:
         scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
-    body = term.Term(",", [if_clause, CUTATOM])
+    body = term.Callable.build(",", [if_clause, CUTATOM])
     return continuation.BodyContinuation(engine, scont, body), fcont, heap

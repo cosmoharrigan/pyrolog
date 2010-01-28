@@ -15,7 +15,7 @@ class UncaughtError(PrologError):
 
 def wrap_error(t):
     from prolog.interpreter import term
-    t = term.Term("error", [t])
+    t = term.Callable.build("error", [t])
     return CatchableError(t)
 
 class UnificationFailed(PrologError):
@@ -24,7 +24,7 @@ class UnificationFailed(PrologError):
 
 def throw_existence_error(object_type, obj):
     from prolog.interpreter import term
-    t = term.Term("existence_error", [term.Atom.newatom(object_type), obj])
+    t = term.Callable.build("existence_error", [term.Atom.newatom(object_type), obj])
     raise wrap_error(t)
 
 def throw_instantiation_error():
@@ -39,7 +39,7 @@ def throw_type_error(valid_type, obj):
     # number, predicate_indicator, variable
     from prolog.interpreter import term
     raise wrap_error(
-        term.Term("type_error", [term.Atom.newatom(valid_type), obj]))
+        term.Callable.build("type_error", [term.Atom.newatom(valid_type), obj]))
 
 def throw_domain_error(valid_domain, obj):
     from prolog.interpreter import term
@@ -50,7 +50,7 @@ def throw_domain_error(valid_domain, obj):
     # stream, stream_option, stream_or_alias, stream_position,
     # stream_property, write_option
     raise wrap_error(
-        term.Term("domain_error", [term.Atom.newatom(valid_domain), obj]))
+        term.Callable.build("domain_error", [term.Atom.newatom(valid_domain), obj]))
 
 def throw_permission_error(operation, permission_type, obj):
     from prolog.interpreter import term
@@ -61,6 +61,6 @@ def throw_permission_error(operation, permission_type, obj):
     # binary_stream, flag, operator, past_end_of_stream, private_procedure,
     # static_procedure, source_sink, stream, text_stream. 
     raise wrap_error(
-        term.Term("permission_error", [term.Atom.newatom(operation),
+        term.Callable.build("permission_error", [term.Atom.newatom(operation),
                                        term.Atom.newatom(permission_type),
                                        obj]))

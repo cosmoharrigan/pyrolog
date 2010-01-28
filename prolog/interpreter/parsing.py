@@ -300,7 +300,7 @@ class TermBuilder(RPythonVisitor):
         return self.dispatch(node)
 
     def general_nonterminal_visit(self, node):
-        from prolog.interpreter.term import Term, Number, Float
+        from prolog.interpreter.term import Callable, Number, Float
         children = []
         name = ""
         for child in node.children:
@@ -319,7 +319,7 @@ class TermBuilder(RPythonVisitor):
                 return Number(factor * child.num)
             if isinstance(child, Float):
                 return Float(factor * child.floatval)
-        return Term(name, children)
+        return Callable.build(name, children)
 
     def build_list(self, node):
         result = []
@@ -373,10 +373,10 @@ class TermBuilder(RPythonVisitor):
             return Float(float(s))
 
     def visit_complexterm(self, node):
-        from prolog.interpreter.term import Term
+        from prolog.interpreter.term import Callable
         name = self.general_symbol_visit(node.children[0]).name()
         children = self.build_list(node.children[2])
-        return Term(name, children[:])
+        return Callable.build(name, children[:])
 
     def visit_expr(self, node):
         from prolog.interpreter.term import Number, Float
@@ -389,18 +389,18 @@ class TermBuilder(RPythonVisitor):
         return self.visit(node.children[1])
 
     def visit_listexpr(self, node):
-        from prolog.interpreter.term import Atom, Term
+        from prolog.interpreter.term import Callable
         node = node.children[1]
         if len(node.children) == 1:
             l = self.build_list(node)
-            start = Atom.newatom("[]")
+            start = Callable.build("[]")
         else:
             l = self.build_list(node.children[0])
             start = self.visit(node.children[2])
         l.reverse()
         curr = start
         for elt in l:
-            curr = Term(".", [elt, curr])
+            curr = Callable.build(".", [elt, curr])
         return curr
 
 

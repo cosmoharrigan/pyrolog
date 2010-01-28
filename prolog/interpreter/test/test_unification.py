@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter.error import UnificationFailed
-from prolog.interpreter.term import Atom, Var, Number, Term, BlackBox
+from prolog.interpreter.term import Atom, Var, Number, Callable, Term, BlackBox
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 
@@ -33,13 +33,13 @@ def test_unify_var():
 def test_recursive():
     b = Var()
     heap = Heap()
-    b.unify(Term("hallo", [b]), heap)
+    b.unify(Callable.build("hallo", [b]), heap)
 
 def test_term():
     X = Var()
     Y = Var()
-    t1 = Term("f", [Atom.newatom("hallo"), X])
-    t2 = Term("f", [Y, Atom.newatom("HALLO")])
+    t1 = Callable.build("f", [Atom.newatom("hallo"), X])
+    t2 = Callable.build("f", [Y, Atom.newatom("HALLO")])
     heap = Heap()
     print t1, t2
     t1.unify(t2, heap)
@@ -56,7 +56,7 @@ def test_blackbox():
 def test_enumerate_vars():
     X = Var()
     Y = Var()
-    t1 = Term("f", [X, X, Term("g", [Y, X])])
+    t1 = Callable.build("f", [X, X, Callable.build("g", [Y, X])])
     t2 = t1.enumerate_vars({})
     assert isinstance(t2, Term)
     assert t2.signature()== t1.signature()    
@@ -69,21 +69,21 @@ def test_copy_and_unify():
     X = Var()
     Y = Var()
     Z = NumberedVar(0)
-    t1 = Term("f", [Z, Term("g", [Z, Atom.newatom("h")]), Z])
-    t2 = Term("f", [Atom.newatom("i"), X, Y])
+    t1 = Callable.build("f", [Z, Callable.build("g", [Z, Callable.build("h")]), Z])
+    t2 = Callable.build("f", [Callable.build("i"), X, Y])
     env = [None]
     t1.unify_and_standardize_apart(t2, heap, env)
 
 def test_run():
     e = Engine()
-    e.add_rule(Term("f", [Atom.newatom("a"), Atom.newatom("b")]))
+    e.add_rule(Callable.build("f", [Callable.build("a"), Callable.build("b")]))
     X = Var()
     Y = Var()
-    e.add_rule(Term("f", [X, X]))
-    e.add_rule(Term(":-", [Term("f", [X, Y]),
-                           Term("f", [Y, X])]))
+    e.add_rule(Callable.build("f", [X, X]))
+    e.add_rule(Callable.build(":-", [Callable.build("f", [X, Y]),
+                           Callable.build("f", [Y, X])]))
     X = e.heap.newvar()
-    e.run(Term("f", [Atom.newatom("b"), X]))
+    e.run(Callable.build("f", [Callable.build("b"), X]))
     assert X.dereference(e.heap).name()== "b"
-    query = Term("f", [Atom.newatom("b"), Atom.newatom("a")]) 
+    query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
     e.run(query)

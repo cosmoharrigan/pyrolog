@@ -11,7 +11,7 @@ h(X, Y, Z) :- -Y = Z.
     assert len(facts) == 1
 
 def test_numeral():
-    from prolog.interpreter.term import Term, Atom, Var
+    from prolog.interpreter.term import Callable, Atom, Var
     from prolog.interpreter.continuation import Engine
     t = parse_file("""
 numeral(null). % end of line comment
@@ -31,8 +31,8 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
         print fact
         e.add_rule(fact)
     assert e.signature2function["add_numeral/3"].rulechain.head.argument_at(1).name()== "null"
-    four = Term("succ", [Term("succ", [Term("succ",
-                [Term("succ", [Atom("null")])])])])
+    four = Callable.build("succ", [Callable.build("succ", [Callable.build("succ",
+                [Callable.build("succ", [Callable.build("null")])])])])
     e.run(parse_query_term("numeral(succ(succ(null)))."))
     term = parse_query_term(
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")

@@ -106,12 +106,12 @@ def test_full():
             all.append(query.getvalue(heap))
             raise error.UnificationFailed
     e = Engine()
-    e.add_rule(Term("f", [Atom.newatom("x")]), True)
-    e.add_rule(Term("f", [Atom.newatom("y")]), True)
-    e.add_rule(Term("g", [Atom.newatom("a")]), True)
-    e.add_rule(Term("g", [Atom.newatom("b")]), True)
+    e.add_rule(Callable.build("f", [Atom.newatom("x")]), True)
+    e.add_rule(Callable.build("f", [Atom.newatom("y")]), True)
+    e.add_rule(Callable.build("g", [Atom.newatom("a")]), True)
+    e.add_rule(Callable.build("g", [Atom.newatom("b")]), True)
             
-    query = Term(",", [Term("f", [Var()]), Term("g", [Var()])])
+    query = Callable.build(",", [Callable.build("f", [Var()]), Callable.build("g", [Var()])])
     py.test.raises(error.UnificationFailed,
                    e.run_query, query, CollectContinuation())
     assert all[0].argument_at(0).argument_at(0).name()== "x"

@@ -26,7 +26,7 @@ def impl_functor(engine, heap, t, functor, arity):
             else:
                 name = helper.unwrap_atom(functor)
                 t.unify(
-                    term.Term(name, [term.Var() for i in range(a)]),
+                    term.Callable.build(name, [term.Var() for i in range(a)]),
                     heap)
 
 #@expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
@@ -86,7 +86,7 @@ def impl_univ(engine, heap, first, second):
             head = l[0]
             if not isinstance(head, term.Atom):
                 error.throw_type_error("atom", head)
-            term.Term(head.name(), l[1:]).unify(first, heap)
+            term.Callable.build(head.name(), l[1:]).unify(first, heap)
 
 @expose_builtin("copy_term", unwrap_spec=["obj", "obj"])
 def impl_copy_term(engine, heap, interm, outterm):

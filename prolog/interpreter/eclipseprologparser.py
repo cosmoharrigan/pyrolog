@@ -110,7 +110,8 @@ class ASTTermBuilder(RPythonVisitor):
             return result
 
     def visit_complexterm(self, node):
-        name = self.general_symbol_visit(node.children[0]).name()        children = self.build_list(node.children[2])
+        name = self.general_symbol_visit(node.children[0]).name()        
+        children = self.build_list(node.children[2])
         result = Term()
         result.setup(self.make_token(node.children[1]), children, name)
         return result

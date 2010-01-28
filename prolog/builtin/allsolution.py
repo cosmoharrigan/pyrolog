@@ -30,5 +30,5 @@ def impl_findall(engine, heap, template, goal, bag):
         copy = collector.found[i]
         d = {}
         copy = copy.copy(heap, d)
-        result = term.Term(".", [copy, result])
+        result = term.Callable.build(".", [copy, result])
     bag.unify(result, heap)
