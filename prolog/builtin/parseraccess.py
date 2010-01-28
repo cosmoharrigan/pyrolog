@@ -14,7 +14,7 @@ def impl_current_op(engine, heap, precedence, typ, name, continuation):
             for op in ops:
                 try:
                     precedence.unify(term.Number(prec), heap)
-                    typ.unify(term.Atom.newatom(form), heap)
+                    typ.unify(term.Callable.build(form), heap)
                     name.unify(term.Atom(op), heap)
                     return continuation.call(engine, choice_point=True)
                 except error.UnificationFailed:

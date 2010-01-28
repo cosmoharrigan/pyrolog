@@ -25,7 +25,7 @@ def impl_findall(engine, heap, template, goal, bag):
         heap.revert_and_discard(oldstate)
     else:
         assert 0, "unreachable"
-    result = term.Atom.newatom("[]")
+    result = term.Callable.build("[]")
     for i in range(len(collector.found) - 1, -1, -1):
         copy = collector.found[i]
         d = {}

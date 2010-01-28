@@ -344,14 +344,14 @@ class TermBuilder(RPythonVisitor):
         return node
 
     def general_symbol_visit(self, node):
-        from prolog.interpreter.term import Atom
+        from prolog.interpreter.term import Callable
         if node.additional_info.startswith("'"):
             end = len(node.additional_info) - 1
             assert end >= 0
             name = unescape(node.additional_info[1:end])
         else:
             name = node.additional_info
-        return Atom.newatom(name)
+        return Callable.build(name)
 
     def visit_VAR(self, node):
         from prolog.interpreter.term import Var

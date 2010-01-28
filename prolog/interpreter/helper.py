@@ -3,7 +3,7 @@
 from prolog.interpreter import term
 from prolog.interpreter import error
 
-emptylist = term.Atom.newatom("[]")
+emptylist = term.Callable.build("[]")
 
 def wrap_list(python_list):
     curr = emptylist

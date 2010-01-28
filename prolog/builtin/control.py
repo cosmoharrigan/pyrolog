@@ -124,7 +124,7 @@ def impl_not(engine, heap, call, scont, fcont):
     newscont = continuation.BodyContinuation(engine, notscont, call)
     return newscont, notfcont, heap.branch()
 
-CUTATOM = term.Atom.newatom("!")
+CUTATOM = term.Callable.build("!")
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
                 handles_continuation=True)

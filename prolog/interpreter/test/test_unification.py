@@ -5,21 +5,21 @@ from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 
 def test_atom():
-    a = Atom.newatom("hallo")
-    b = Atom.newatom("hallo")
+    a = Callable.build("hallo")
+    b = Callable.build("hallo")
     # does not raise
     a.unify(b, None)
-    py.test.raises(UnificationFailed, "a.unify(Atom.newatom('xxx'), None)")
+    py.test.raises(UnificationFailed, "a.unify(Callable.build('xxx'), None)")
 
 def test_var():
     b = Var()
     heap = Heap()
-    b.unify(Atom.newatom("hallo"), heap)
+    b.unify(Callable.build("hallo"), heap)
     assert b.getvalue(heap).name()== "hallo"
     a = Var()
     b = Var()
     a.unify(b, heap)
-    a.unify(Atom.newatom("hallo"), heap)
+    a.unify(Callable.build("hallo"), heap)
     assert a.getvalue(heap).name()== "hallo"
     assert b.getvalue(heap).name()== "hallo"
 
@@ -27,8 +27,8 @@ def test_unify_var():
     b = Var()
     heap = Heap()
     b.unify(b, heap)
-    b.unify(Atom.newatom("hallo"), heap)
-    py.test.raises(UnificationFailed, b.unify, Atom.newatom("bye"), heap)
+    b.unify(Callable.build("hallo"), heap)
+    py.test.raises(UnificationFailed, b.unify, Callable.build("bye"), heap)
 
 def test_recursive():
     b = Var()
@@ -38,8 +38,8 @@ def test_recursive():
 def test_term():
     X = Var()
     Y = Var()
-    t1 = Callable.build("f", [Atom.newatom("hallo"), X])
-    t2 = Callable.build("f", [Y, Atom.newatom("HALLO")])
+    t1 = Callable.build("f", [Callable.build("hallo"), X])
+    t2 = Callable.build("f", [Y, Callable.build("HALLO")])
     heap = Heap()
     print t1, t2
     t1.unify(t2, heap)

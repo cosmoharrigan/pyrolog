@@ -459,7 +459,7 @@ class Term(Callable):
             return self
 
     def get_prolog_signature(self):
-        return Term("/", [Atom.newatom(self.name()),
+        return Term("/", [Callable.build(self.name()),
                                                 Number(self.argument_count())])
     
     def contains_var(self, var, heap):
