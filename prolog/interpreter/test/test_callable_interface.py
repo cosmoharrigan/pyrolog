@@ -65,3 +65,18 @@ def test_term_name():
     
 def test_term_signature():
     assert term.signature() == 't/5'
+    
+def test_callable_factory_for_atom():
+    r = Callable.build('foo')
+    assert isinstance(r, Atom)
+    assert r.signature() == 'foo/0'
+
+def test_callable_factory_for_term_with_empty_args():
+    r = Callable.build('bar', [])
+    assert isinstance(r, Atom)
+    assert r.signature() == 'bar/0'
+
+def test_callable_factory_for_term():
+    r = Callable.build('foo', [1, 2])
+    assert isinstance(r, Term)
+    assert r.signature() == 'foo/2'

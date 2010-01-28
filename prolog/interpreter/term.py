@@ -234,7 +234,16 @@ class Callable(NonVar):
                 self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
         else:
             raise UnificationFailed
-
+    
+    @staticmethod
+    def build(term_name, args=None, signature=None):
+        if args is None:
+            args = []
+        if len(args) == 0:
+            return Atom.newatom(term_name)
+        else:
+            return Term(term_name, args, signature)
+        
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
     # __slots__ = ('_name', '_signature')
