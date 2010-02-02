@@ -39,10 +39,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
     subargs = ["engine", "heap"]
-    if len(unwrap_spec):
-        code.append("    assert isinstance(query, term.Term)")
-    else:
-        code.append("    assert isinstance(query, term.Atom)")
+    code.append("    assert isinstance(query, term.Callable)")
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
         subargs.append(varname)
