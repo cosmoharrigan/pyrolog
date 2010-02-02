@@ -310,10 +310,17 @@ class Callable(NonVar):
         if len(args) == 0:
             return Atom.newatom(term_name)
         else:
-            cls = specialized_term_classes.get((term_name, len(args)), None)
+            cls = Callable._find_specialized_class(term_name, len(args))
             if cls is not None:
                 return cls(args)
             return Term(term_name, args, signature)
+
+    @staticmethod
+    @jit.purefunction
+    def _find_specialized_class(term_name, numargs):
+        return specialized_term_classes.get((term_name, numargs), None)
+
+
         
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
@@ -537,6 +544,7 @@ def generate_class(cname, fname, n_args):
     arg_iter = unrolling_iterable(range(n_args))
     signature = fname + '/' + str(n_args)
     class cls(Callable):
+        _immutable_ = True
         if n_args == 0:
             TYPE_STANDARD_ORDER = Atom.TYPE_STANDARD_ORDER
         else:
