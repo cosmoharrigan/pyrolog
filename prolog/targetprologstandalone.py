@@ -26,7 +26,6 @@ def entry_point(argv):
 
 # _____ Define and setup target ___
 
-# XXX this should suggest --stackless somehow
 
 def target(driver, args):
     driver.exe_name = 'pyrolog-%(backend)s'
@@ -35,6 +34,10 @@ def target(driver, args):
 def portal(driver):
     from prolog.interpreter.portal import get_portal
     return get_portal(driver)
+
+def jitpolicy(self):
+    from pypy.jit.metainterp.policy import JitPolicy
+    return JitPolicy()
 
 if __name__ == '__main__':
     entry_point(sys.argv)
