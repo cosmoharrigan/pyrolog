@@ -12,6 +12,6 @@ import prolog.builtin.exception
 import prolog.builtin.formatting
 import prolog.builtin.metacall
 #import prolog.builtin.parseraccess
-#import prolog.builtin.source
+import prolog.builtin.source
 import prolog.builtin.termconstruction
 import prolog.builtin.unify
