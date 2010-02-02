@@ -50,6 +50,10 @@ def driver(scont, fcont, heap):
         try:
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
+            if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
+                rule = scont.rule
+                jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+                                        heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
         except error.UnificationFailed:
             scont, fcont, heap = fcont.fail(heap)
@@ -243,6 +247,8 @@ class Heap(object):
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
+        if self is var.created_after_choice_point:
+            return
         if self.i >= len(self.trail_var):
             self._double_size()
         self.trail_var[self.i] = var
@@ -262,6 +268,7 @@ class Heap(object):
         """ Make a new variable. Should return a Var instance, possibly with
         interesting attributes set that e.g. add_trail can inspect."""
         result = Var()
+        result.created_after_choice_point = self
         return result
 
     # _____________________________________________________
@@ -476,11 +483,6 @@ class RuleContinuation(Continuation):
         nextcont = self.nextcont
         nextcall = self.rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            # note that it is ok to put the can_enter_jit here in the middle of the
-            # function: jumping from here back to the driver loop won't change the
-            # semantics
-            jitdriver.can_enter_jit(rule=self.rule, scont=self, fcont=fcont,
-                                    heap=heap)
             cont = BodyContinuation(self.engine, nextcont, nextcall)
         else:
             cont = nextcont

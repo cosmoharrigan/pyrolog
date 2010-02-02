@@ -94,6 +94,23 @@ def test_heap():
     h2 = h1.revert_upto(h1)
     assert h2 is h1
 
+def test_heap_dont_trail_new():
+    h1 = Heap()
+    v1 = h1.newvar()
+    h1.add_trail(v1)
+    v1.binding = 1
+    h2 = h1.branch()
+    v2 = h2.newvar()
+    h2.add_trail(v1)
+    v1.binding = 2
+    h2.add_trail(v2)
+    v2.binding = 3
+
+    h3 = h2.revert_upto(h1)
+    assert v1.binding == 1
+    assert v2.binding == 3 # wasn't undone, because v2 dies
+    assert h3 is h2
+
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
