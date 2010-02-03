@@ -17,6 +17,7 @@ def test_statistics_runtime_total():
     clock = clock_time()
     vars = assert_true("statistics(runtime, [A,B]).")
     assert vars['A'].num == vars['B'].num
+    assert vars['A'] != 0
     assert clock <= vars['A'].num
     
 def test_statistics_runtime_since_last_call():
@@ -34,6 +35,7 @@ def test_statistics_walltime_total():
     clock = walltime()
     vars = assert_true("statistics(walltime, [A,B]).")
     assert vars['A'].num == vars['B'].num
+    assert vars['A'].num != 0
     assert clock <= vars['A'].num
 
 def test_statistics_walltime_since_last_call():
