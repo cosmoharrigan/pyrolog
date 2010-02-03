@@ -19,7 +19,7 @@ class AtomConcatContinuation(continuation.ChoiceContinuation):
         
     def activate(self, fcont, heap):
         # nondeterministic splitting of result        
-        if self.i < len(self.r):
+        if self.i < len(self.r)+1:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
             oldstate = heap.branch()
             self.var1.unify(term.Callable.build(self.r[:self.i]), heap)
