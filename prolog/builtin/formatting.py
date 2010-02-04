@@ -1,7 +1,7 @@
 import os
 import string
 
-from prolog.interpreter.term import Term, Float, Number, Var, Atom
+from prolog.interpreter.term import Float, Number, Var, Atom
 from prolog.interpreter import error, helper, parsing
 from prolog.builtin.register import expose_builtin
 
@@ -23,7 +23,7 @@ class TermFormatter(object):
         ignore_ops = False
         number_vars = False
         for option in options:
-            if (not isinstance(option, Term) or option.argument_count() != 1):
+            if (not helper.is_term(option) or option.argument_count() != 1):
                 error.throw_domain_error('write_option', option)
             arg = option.argument_at(0)
             if option.name()== "max_depth":
@@ -52,7 +52,7 @@ class TermFormatter(object):
             return self.format_number(term)
         elif isinstance(term, Float):
             return self.format_float(term)
-        elif isinstance(term, Term):
+        elif helper.is_term(term):
             return self.format_term(term)
         elif isinstance(term, Var):
             return self.format_var(term)
@@ -96,11 +96,11 @@ class TermFormatter(object):
             return self.format_with_ops(term)[1]
 
     def format_with_ops(self, term):
-        if not isinstance(term, Term):
+        if not helper.is_term(term):
             return (0, self.format(term))
         if term.signature()== "./2":
             result = ["["]
-            while isinstance(term, Term) and term.signature()== "./2":
+            while helper.is_term(term) and term.signature()== "./2":
                 first = term.argument_at(0)
                 second = term.argument_at(1)
                 result.append(self.format(first))

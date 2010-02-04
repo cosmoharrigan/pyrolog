@@ -3,7 +3,6 @@ from prolog.builtin import formatting
 from prolog.interpreter.parsing import parse_query_term
 from prolog.interpreter.continuation import Engine
 
-@py.test.mark.xfail
 def test_list():
     f = formatting.TermFormatter(Engine(), quoted=False, ignore_ops=False)
     t = parse_query_term("[1, 2, 3, 4, 5 | X].")
