@@ -56,7 +56,6 @@ def test_nonvar():
     assert_true("g(X, X).", e)
     assert_false("f(X, X).", e)
 
-@py.test.mark.xfail
 def test_consult():
     p = py.test.ensuretemp("prolog")
     f = p.join("test.pl")
