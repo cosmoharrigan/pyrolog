@@ -464,7 +464,7 @@ class UserCallContinuation(ChoiceContinuation):
 
     def __repr__(self):
         return "<UserCallContinuation query=%r rule=%r>" % (
-                self.query, self.rulechain.rule, )
+                self.query, self.rulechain)
     
 
 class RuleContinuation(Continuation):
