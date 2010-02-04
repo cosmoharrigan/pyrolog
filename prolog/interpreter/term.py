@@ -579,6 +579,6 @@ def generate_class(cname, fname, n_args):
     return cls
     
 specialized_term_classes = {}
-classes = [('Cons', '.', 2)]
+classes = [('Cons', '.', 2), ('Or', ';', 2)]
 for cname, fname, numargs in classes:
     specialized_term_classes[fname, numargs] = generate_class(cname, fname, numargs)
