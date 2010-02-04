@@ -65,7 +65,9 @@ def is_atomic(obj):
     return (isinstance(obj, term.Atom) or isinstance(obj, term.Float) or 
             isinstance(obj, term.Number))
 
-
+def is_term(obj):
+    return (not isinstance(obj, term.Atom) and isinstance(obj, term.Callable)
+            and obj.argument_count() > 0)
 def convert_to_str(obj):
     if isinstance(obj, term.Var):
         error.throw_instantiation_error()

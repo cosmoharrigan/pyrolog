@@ -1,6 +1,7 @@
 import py
 from pypy.rlib import jit
 from prolog.interpreter import error
+from prolog.interpreter import helper
 from prolog.interpreter.term import Term, Atom, Var, Callable
 from prolog.interpreter.function import Function, Rule
 
@@ -76,7 +77,7 @@ class Engine(object):
 
     def add_rule(self, rule, end=True):
         from prolog import builtin
-        if isinstance(rule, Term):
+        if helper.is_term(rule):
             if rule.name()== ":-":
                 rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
