@@ -237,12 +237,12 @@ class Callable(NonVar):
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
         if (isinstance(other, Callable) and
-            self.name() == other.name() and
-            self.argument_count() == other.argument_count()):
+                self.signature() == other.signature()):
             for i in range(self.argument_count()):
                 self.argument_at(i).unify(other.argument_at(i), heap, occurs_check)
         else:
             raise UnificationFailed
+
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Callable) and 
             self.signature() == other.signature()):
