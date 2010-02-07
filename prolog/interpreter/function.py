@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Atom, Callable, Term
+from prolog.interpreter.term import Callable
 from pypy.rlib import jit, objectmodel, unroll
 # XXX needs tests
 
@@ -13,7 +13,7 @@ class Rule(object):
         assert isinstance(head, Callable)
         memo = {}
         self.head = h = head.enumerate_vars(memo)
-        if isinstance(h, Term):
+        if h.argument_count() > 0:
             self.headargs = h.arguments()
         else:
             self.headargs = None
@@ -35,19 +35,19 @@ class Rule(object):
         stack = [self.body]
         while stack:
             current = stack.pop()
-            if isinstance(current, Atom):
-                if current.name()== "!":
+            if isinstance(current, Callable):
+                if current.signature() == "!/0":
                     self.contains_cut = True
                     return
-            elif isinstance(current, Term):
-                stack.extend(current.arguments())
+                else:
+                    stack.extend(current.arguments())
         self.contains_cut = False
 
     @jit.unroll_safe
     def clone_and_unify_head(self, heap, head):
         env = [None] * self.size_env
         if self.headargs is not None:
-            assert isinstance(head, Term)
+            assert isinstance(head, Callable)
             for i in range(len(self.headargs)):
                 arg2 = self.headargs[i]
                 arg1 = head.argument_at(i)

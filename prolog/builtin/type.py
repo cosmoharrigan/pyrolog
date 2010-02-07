@@ -45,8 +45,11 @@ def impl_atomic(engine, heap, var):
 
 @expose_builtin("compound", unwrap_spec=["obj"])
 def impl_compound(engine, heap, var):
-    if isinstance(var, term.Var) or not isinstance(var, term.Term):
+    if isinstance(var, term.Var):
         raise error.UnificationFailed()
+    if helper.is_term(var):
+        return
+    raise error.UnificationFailed()
 
 @expose_builtin("callable", unwrap_spec=["obj"])
 def impl_callable(engine, heap, var):
@@ -57,7 +60,7 @@ def impl_callable(engine, heap, var):
 def impl_ground(engine, heap, var):
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
-    if isinstance(var, term.Term):
+    if isinstance(var, term.Callable):
         for arg in var.arguments():
             impl_ground(engine, heap, arg)
 

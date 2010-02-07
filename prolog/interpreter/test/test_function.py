@@ -14,7 +14,10 @@ class C(Callable):
         return 'C'
     def argument_count(self):
         return 0
+    def arguments(self):
+        return []
     __repr__ = __str__
+
 def test_copy():
             
     l1 = Rule(C('a'), C('a1'), Rule(C('b'), C('b1'), Rule(C('c'), C('c1'))))
