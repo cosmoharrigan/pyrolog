@@ -93,6 +93,7 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
 
 class NotSuccessContinuation(continuation.Continuation):
     def __init__(self, engine, nextcont, heap):
+        assert isinstance(nextcont, continuation.FailureContinuation)
         continuation.Continuation.__init__(self, engine, nextcont)
         self.undoheap = heap
 
@@ -100,7 +101,9 @@ class NotSuccessContinuation(continuation.Continuation):
         heap.revert_upto(self.undoheap)
         if self.nextcont is None:
             raise error.UnificationFailed
-        return self.nextcont.fail(self.undoheap)
+        nextcont = self.nextcont
+        assert isinstance(nextcont, continuation.FailureContinuation)
+        return nextcont.fail(self.undoheap)
 
 class NotFailureContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap):
