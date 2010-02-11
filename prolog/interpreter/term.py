@@ -303,6 +303,14 @@ class Callable(NonVar):
                 return c
         return 0
     
+    def eval_arithmetic(self, engine):
+        from prolog.interpreter.arithmetic import get_arithmetic_function
+
+        func = get_arithmetic_function(self.signature())
+        if func is None:
+            error.throw_type_error("evaluable", self.get_prolog_signature())
+        return func(engine, self)
+        
     @staticmethod
     def build(term_name, args=None, signature=None):
         if args is None:
@@ -313,6 +321,10 @@ class Callable(NonVar):
             cls = Callable._find_specialized_class(term_name, len(args))
             if cls is not None:
                 return cls(args)
+            cls = Callable._find_specialized_class('Term', len(args))
+            if cls is not None:
+                print 'Using specialized term for %s/%d' % (term_name, len(args))
+                return cls(term_name, args)
             return Term(term_name, args, signature)
 
     @staticmethod
@@ -501,14 +513,6 @@ class Term(Callable):
 
     def __str__(self):
         return "%s(%s)" % (self.name(), ", ".join([str(a) for a in self.arguments()]))
-            
-    def eval_arithmetic(self, engine):
-        from prolog.interpreter.arithmetic import get_arithmetic_function
-
-        func = get_arithmetic_function(self.signature())
-        if func is None:
-            error.throw_type_error("evaluable", self.get_prolog_signature())
-        return func(engine, self)
     
     def arguments(self):
         return self._args
@@ -577,8 +581,50 @@ def generate_class(cname, fname, n_args):
             
     cls.__name__ = cname
     return cls
+
+def generate_term_class(n_args):
+    from pypy.rlib.unroll import unrolling_iterable
+    arg_iter = unrolling_iterable(range(n_args))
+    class term_cls(Callable):
+        # _immutable_ = True
+        TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
+
+        def __init__(self, term_name, args):
+            self._name = term_name
+            self._signature = term_name+"/"+str(n_args)
+            assert len(args) == n_args
+            for x in arg_iter:
+                setattr(self, 'val_%d' % x, args[x])
+
+        def name(self):
+            return self._name
+
+        def signature(self):
+            return self._signature
+
+        def arguments(self):
+            result = [None] * n_args
+            for x in arg_iter:
+                result[x] = getattr(self, 'val_%d' % x)
+            return result
+
+        def argument_at(self, i):
+            for x in arg_iter:
+                if x == i:
+                    return getattr(self, 'val_%d' % x)
+
+        def argument_count(self):
+            return n_args
+            
+        def __str__(self):
+            return "Term%d(%s, %r)" % (n_args, self.name(), self.arguments())
+        __repr__ = __str__
+    term_cls.__name__ = 'Term'+str(n_args)
+    return term_cls
     
 specialized_term_classes = {}
 classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2), ('Cut', '!', 0), ('Nil', '[]', 0)]
 for cname, fname, numargs in classes:
     specialized_term_classes[fname, numargs] = generate_class(cname, fname, numargs)
+for numargs in range(1,2):
+    specialized_term_classes['Term', numargs] = generate_term_class(numargs)
