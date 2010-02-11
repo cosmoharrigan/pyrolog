@@ -40,7 +40,7 @@ def impl_retract(engine, heap, pattern):
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = engine.signature2function.get(head.signature() None)
+    function = engine.signature2function.get(head.signature(), None)
     if function is None:
         raise error.UnificationFailed
     #import pdb; pdb.set_trace()
@@ -54,11 +54,11 @@ def impl_retract(engine, heap, pattern):
             if body is not None:
                 body.unify(deleted_body, heap)
         except error.UnificationFailed:
-            heap.revert(oldstate)
+            oldstate.revert_upto(heap)
         else:
             if function.rulechain is rulechain:
                 if rulechain.next is None:
-                    del engine.signature2function[head.signature()
+                    del engine.signature2function[head.signature()]
                 else:
                     function.rulechain = rulechain.next
             else:
@@ -67,7 +67,7 @@ def impl_retract(engine, heap, pattern):
         rulechain = rulechain.next
     else:
         raise error.UnificationFailed()
-    heap.discard(oldstate)
+    # heap.discard(oldstate)
 
 
 

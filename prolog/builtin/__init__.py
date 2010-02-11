@@ -7,7 +7,7 @@ builtins_list = []
 import prolog.builtin.arithmeticbuiltin
 import prolog.builtin.atomconstruction
 import prolog.builtin.control
-#import prolog.builtin.database
+import prolog.builtin.database
 import prolog.builtin.exception
 import prolog.builtin.formatting
 import prolog.builtin.metacall

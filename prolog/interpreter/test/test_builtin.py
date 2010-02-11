@@ -68,7 +68,6 @@ def test_consult():
     assert_true("g(a, b).", e)
     prolog_raises("_", "consult('/hopefully/does/not/exist')")
 
-@py.test.mark.xfail
 def test_assert_retract():
     e = get_engine("g(b, b).")
     assert_true("g(B, B).", e)
@@ -98,7 +97,6 @@ def test_assert_retract():
     assert_true("f(a).", e)
     prolog_raises("permission_error(X, Y, Z)", "retract(atom(X))")
 
-@py.test.mark.xfail
 def test_assert_at_right_end():
     e = get_engine("g(b, b). f(b, b). h(b, b).")
     assert_true("assert(g(a, a)).", e)
@@ -112,7 +110,6 @@ def test_assert_at_right_end():
     f = assert_true("h(B, B).", e)
     assert f['B'].name()== "a"
 
-@py.test.mark.xfail
 def test_assert_logical_update_view():
     e = get_engine("""
         g(a).
@@ -132,7 +129,6 @@ def test_assert_logical_update_view():
     """)
     assert_false("q.", e)
 
-@py.test.mark.xfail
 def test_retract_logical_update_view():
     e = get_engine("""
         p :- retract(p :- true), fail.
@@ -141,7 +137,6 @@ def test_retract_logical_update_view():
     assert_true("p.", e)
     assert_false("p.", e)
 
-@py.test.mark.xfail
 def test_abolish():
     e = get_engine("g(b, b). g(c, c). g(a). f(b, b). h(b, b).")
     assert_true("abolish(g/2).", e)
