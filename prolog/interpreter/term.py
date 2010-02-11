@@ -323,7 +323,6 @@ class Callable(NonVar):
                 return cls(args)
             cls = Callable._find_specialized_class('Term', len(args))
             if cls is not None:
-                print 'Using specialized term for %s/%d' % (term_name, len(args))
                 return cls(term_name, args)
             return Term(term_name, args, signature)
 
