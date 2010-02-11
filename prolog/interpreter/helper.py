@@ -47,7 +47,7 @@ def unwrap_atom(obj):
     error.throw_type_error('atom', obj)
 
 def unwrap_predicate_indicator(predicate):
-    if not isinstance(predicate, term.Term):
+    if not isinstance(predicate, term.Callable):
         error.throw_type_error("predicate_indicator", predicate)
         assert 0, "unreachable"
     if not predicate.name()== "/" or predicate.argument_count() != 2:

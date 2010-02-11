@@ -79,11 +79,14 @@ def test_run():
     e.add_rule(Callable.build("f", [Callable.build("a"), Callable.build("b")]))
     X = Var()
     Y = Var()
-    e.add_rule(Callable.build("f", [X, X]))
-    e.add_rule(Callable.build(":-", [Callable.build("f", [X, Y]),
-                           Callable.build("f", [Y, X])]))
+    c = Callable.build("f", [X, X])
+    e.add_rule(c)
+    c2 = Callable.build(":-", [Callable.build("f", [X, Y]),
+                           Callable.build("f", [Y, X])])
+    e.add_rule(c2)
     X = e.heap.newvar()
-    e.run(Callable.build("f", [Callable.build("b"), X]))
+    c3 = Callable.build("f", [Callable.build("b"), X])
+    e.run(c3)
     assert X.dereference(e.heap).name()== "b"
     query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
     e.run(query)

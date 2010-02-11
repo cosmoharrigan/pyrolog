@@ -10,7 +10,7 @@ def impl_functor(engine, heap, t, functor, arity):
     if helper.is_atomic(t):
         functor.unify(t, heap)
         arity.unify(term.Number(0), heap)
-    elif isinstance(t, term.Term):
+    elif helper.is_term(t):
         functor.unify(term.Callable.build(t.name()), heap)
         arity.unify(term.Number(t.argument_count()), heap)
     elif isinstance(t, term.Var):
@@ -69,7 +69,7 @@ def impl_arg(engine, heap, first, second, third, continuation):
 @expose_builtin("=..", unwrap_spec=["obj", "obj"])
 def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
-        if isinstance(first, term.Term):
+        if not isinstance(first, term.Atom):
             l = [term.Callable.build(first.name())] + first.arguments()
         else:
             l = [first]
