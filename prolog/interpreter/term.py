@@ -320,10 +320,10 @@ class Callable(NonVar):
         else:
             cls = Callable._find_specialized_class(term_name, len(args))
             if cls is not None:
-                return cls(args)
+                return cls(term_name, args, signature)
             cls = Callable._find_specialized_class('Term', len(args))
             if cls is not None:
-                return cls(term_name, args)
+                return cls(term_name, args, signature)
             return Term(term_name, args, signature)
 
     @staticmethod
@@ -553,7 +553,8 @@ def generate_class(cname, fname, n_args):
         else:
             TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
             
-        def __init__(self, args):
+        def __init__(self, term_name, args, signature):
+            assert self.name() == term_name
             assert len(args) == n_args
             for x in arg_iter:
                 setattr(self, 'val_%d' % x, args[x])
@@ -588,9 +589,12 @@ def generate_term_class(n_args):
         # _immutable_ = True
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
 
-        def __init__(self, term_name, args):
+        def __init__(self, term_name, args, signature=None):
             self._name = term_name
-            self._signature = term_name+"/"+str(n_args)
+            if signature is None:
+                self._signature = term_name+"/"+str(n_args)
+            else: 
+                self._signature = signature 
             assert len(args) == n_args
             for x in arg_iter:
                 setattr(self, 'val_%d' % x, args[x])
@@ -622,8 +626,10 @@ def generate_term_class(n_args):
     return term_cls
     
 specialized_term_classes = {}
-classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2), ('Cut', '!', 0), ('Nil', '[]', 0)]
+classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2)]
 for cname, fname, numargs in classes:
     specialized_term_classes[fname, numargs] = generate_class(cname, fname, numargs)
+
 for numargs in range(1,4):
+    assert ('Term', numargs) not in specialized_term_classes
     specialized_term_classes['Term', numargs] = generate_term_class(numargs)
