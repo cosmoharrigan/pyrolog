@@ -3,6 +3,7 @@ from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.term import Atom, Var, Number, Callable, Term, BlackBox
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
+from prolog.interpreter.helper import is_term
 
 def test_atom():
     a = Callable.build("hallo")
@@ -58,7 +59,7 @@ def test_enumerate_vars():
     Y = Var()
     t1 = Callable.build("f", [X, X, Callable.build("g", [Y, X])])
     t2 = t1.enumerate_vars({})
-    assert isinstance(t2, Term)
+    assert is_term(t2)
     assert t2.signature()== t1.signature()    
     assert t2.argument_at(0) is t2.argument_at(1)
     assert t2.argument_at(0).num == 0
