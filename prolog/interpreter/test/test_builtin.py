@@ -287,7 +287,6 @@ def test_univ():
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
 
-@py.test.mark.xfail
 def test_arg():
     assert_true("arg(1, g(a, b, c), a).")
     assert_true("arg(2, g(a, b, c), b).")

@@ -1,7 +1,6 @@
 import py
-from prolog.interpreter import helper, term, error
+from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
-
 # ___________________________________________________________________
 # analysing and construction terms
 
@@ -29,29 +28,42 @@ def impl_functor(engine, heap, t, functor, arity):
                     term.Callable.build(name, [term.Var() for i in range(a)]),
                     heap)
 
-#@expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
-#handles_continuation=True)
-def impl_arg(engine, heap, first, second, third, continuation):
+class ArgContinuation(continuation.ChoiceContinuation):
+    def __init__(self, engine, scont, fcont, heap, first, second, third):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        self.undoheap = heap
+        self.orig_fcont = fcont
+        self.first = first
+        self.second = second
+        self.third = third
+        self.i = 0
+        
+    def activate(self, fcont, heap):
+        if self.i < self.second.argument_count():
+            fcont, heap = self.prepare_more_solutions(fcont, heap)
+            oldstate = heap.branch()
+            arg = self.second.argument_at(self.i)
+            # try:
+            self.third.unify(arg, heap)
+            self.first.unify(term.Number(self.i + 1), heap)
+            self.i += 1
+            return self.nextcont, fcont, heap
+            # except error.UnificationFailed:
+                # oldstate.revert_upto(heap)
+        raise error.UnificationFailed()
+        
+@expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
+handles_continuation=True)
+def impl_arg(engine, heap, first, second, third, scont, fcont):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
-    if isinstance(second, term.Atom):
+    if helper.is_atomic(second):
         raise error.UnificationFailed()
-    if not isinstance(second, term.Term):
+    if not helper.is_term(second):
         error.throw_type_error("compound", second)
     if isinstance(first, term.Var):
-        oldstate = heap.branch()
-        for i in range(second.argument_count()):
-            arg = second.argument_at(i)
-            try:
-                third.unify(arg, heap)
-                first.unify(term.Number(i + 1), heap)
-                result = continuation.call(engine, choice_point=True)
-                heap.discard(oldstate)
-                return result
-            except error.UnificationFailed:
-                heap.revert(oldstate)
-        heap.discard(oldstate)
-        raise error.UnificationFailed()
+        a = ArgContinuation(engine, scont, fcont, heap, first, second, third)
+        return a, fcont, heap
     elif isinstance(first, term.Number):
         num = first.num
         if num == 0:
@@ -64,7 +76,7 @@ def impl_arg(engine, heap, first, second, third, continuation):
         third.unify(arg, heap)
     else:
         error.throw_type_error("integer", first)
-    return continuation.call(engine, choice_point=False)
+    return scont, fcont, heap
 
 @expose_builtin("=..", unwrap_spec=["obj", "obj"])
 def impl_univ(engine, heap, first, second):
