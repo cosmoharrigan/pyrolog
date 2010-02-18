@@ -37,21 +37,20 @@ class ArgContinuation(continuation.ChoiceContinuation):
         self.second = second
         self.third = third
         self.i = 0
-        
+    
     def activate(self, fcont, heap):
         if self.i < self.second.argument_count():
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            oldstate = heap.branch()
             arg = self.second.argument_at(self.i)
-            # try:
-            self.third.unify(arg, heap)
-            self.first.unify(term.Number(self.i + 1), heap)
             self.i += 1
+            try:
+                self.third.unify(arg, heap)
+                self.first.unify(term.Number(self.i), heap)
+            except error.UnificationFailed, e:
+                return fcont, self.orig_fcont, heap
             return self.nextcont, fcont, heap
-            # except error.UnificationFailed:
-                # oldstate.revert_upto(heap)
         raise error.UnificationFailed()
-        
+
 @expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
 handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, scont, fcont):
