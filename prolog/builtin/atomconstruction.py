@@ -16,12 +16,11 @@ class AtomConcatContinuation(continuation.ChoiceContinuation):
         self.var2 = var2
         self.r = helper.convert_to_str(result)
         self.i = 0
-        
+    
     def activate(self, fcont, heap):
-        # nondeterministic splitting of result        
+        # nondeterministic splitting of result
         if self.i < len(self.r)+1:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            oldstate = heap.branch()
             self.var1.unify(term.Callable.build(self.r[:self.i]), heap)
             self.var2.unify(term.Callable.build(self.r[self.i:]), heap)
             self.i += 1
@@ -62,81 +61,130 @@ def impl_atom_length(engine, heap, s, length):
         error.throw_type_error("integer", length)
     term.Number(len(s)).unify(length, heap)
 
-#@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
-#                handles_continuation=True)
-def impl_sub_atom(engine, heap, s, before, length, after, sub, continuation):
-    # XXX can possibly be optimized
-    if isinstance(length, term.Var):
-        startlength = 0
-        stoplength = len(s) + 1
-    else:
-        startlength = helper.unwrap_int(length)
-        stoplength = startlength + 1
-        if startlength < 0:
-            startlength = 0
-            stoplength = len(s) + 1
-    if isinstance(before, term.Var):
-        startbefore = 0
-        stopbefore = len(s) + 1
-    else:
-        startbefore = helper.unwrap_int(before)
-        if startbefore < 0:
-            startbefore = 0
-            stopbefore = len(s) + 1
+
+
+class SubAtomContinuation(continuation.ChoiceContinuation):
+    def __init__(self, engine, scont, fcont, heap, atom, before, length, after, sub):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        self.undoheap = heap
+        self.orig_fcont = fcont
+        self.atom = atom
+        self.before = before
+        self.length = length
+        self.after = after
+        self.sub = sub
+        self.setup()
+    
+    def setup(self):
+        if isinstance(self.length, term.Var):
+            self.startlength = 0
+            self.stoplength = len(self.atom) + 1
         else:
-            stopbefore = startbefore + 1
-    oldstate = heap.branch()
-    if not isinstance(sub, term.Var):
-        s1 = helper.unwrap_atom(sub)
-        if len(s1) >= stoplength or len(s1) < startlength:
+            self.startlength = helper.unwrap_int(self.length)
+            self.stoplength = self.startlength + 1
+            if self.startlength < 0:
+                self.startlength = 0
+                self.stoplength = len(self.atom) + 1
+        if isinstance(self.before, term.Var):
+            self.startbefore = 0
+            self.stopbefore = len(self.atom) + 1
+        else:
+            self.startbefore = helper.unwrap_int(self.before)
+            if self.startbefore < 0:
+                self.startbefore = 0
+                self.stopbefore = len(self.atom) + 1
+            else:
+                self.stopbefore = self.startbefore + 1
+
+
+class SubAtomNonVarSubContinuation(SubAtomContinuation):
+    def __init__(self, engine, scont, fcont, heap, atom, before, length, after, sub):
+        SubAtomContinuation.__init__(self, engine, scont, fcont, heap,
+                                            atom, before, length, after, sub)
+        self.s1 = helper.unwrap_atom(sub)
+        if len(self.s1) >= self.stoplength or len(self.s1) < self.startlength:
             raise error.UnificationFailed()
-        start = startbefore
-        while True:
-            try:
-                b = s.find(s1, start, stopbefore + len(s1)) # XXX -1?
-                if b < 0:
-                    break
-                start = b + 1
-                before.unify(term.Number(b), heap)
-                after.unify(term.Number(len(s) - len(s1) - b), heap)
-                length.unify(term.Number(len(s1)), heap)
-                result = continuation.call(engine, choice_point=True)
-                heap.discard(oldstate)
-                return result
-            except error.UnificationFailed:
-                heap.revert(oldstate)
+        self.start = self.startbefore
+    def activate(self, fcont, heap):
+        b = self.atom.find(self.s1, self.start, self.stopbefore + len(self.s1)) # XXX -1?
+        if b < 0:
+            raise error.UnificationFailed()
+        fcont, heap = self.prepare_more_solutions(fcont, heap)
+        self.start = b + 1
+        try:
+            self.before.unify(term.Number(b), heap)
+            self.after.unify(term.Number(len(self.atom) - len(self.s1) - b), heap)
+            self.length.unify(term.Number(len(self.s1)), heap)
+        except error.UnificationFailed:
+            pass
+        return self.nextcont, fcont, heap
+    
+    def __repr__(self):
+        return "<SubAtomNonVarSubContinuation(%r)>" % self.__dict__
+
+class SubAtomVarAfterContinuation(SubAtomContinuation):
+    def __init__(self, engine, scont, fcont, heap, atom,
+                                                before, length, after, sub):
+        SubAtomContinuation.__init__(self, engine, scont, fcont, heap, atom,
+                                                    before, length, after, sub)
+        self.b = self.startbefore
+        self.l = self.startlength
+        print 'foo'
+    def activate(self, fcont, heap):
+        if self.b < self.stopbefore:
+            if self.l < self.stoplength:
+                if self.l + self.b > len(self.atom):
+                    self.b += 1
+                    self.l = self.startlength
+                    return self.activate(fcont, heap)
+                fcont, heap = self.prepare_more_solutions(fcont, heap)
+                
+                self.before.unify(term.Number(self.b), heap)
+                self.after.unify(term.Number(
+                                    len(self.atom) - self.l - self.b), heap)
+                self.length.unify(term.Number(self.l), heap)
+                self.sub.unify(term.Callable.build(
+                                    self.atom[self.b:self.b + self.l]), heap)
+                self.l += 1
+                return self.nextcont, fcont, heap
+            else:
+                self.b += 1
+                self.l = self.startlength
+                return self.activate(fcont, heap)
         raise error.UnificationFailed()
-    if isinstance(after, term.Var):
-        for b in range(startbefore, stopbefore):
-            for l in range(startlength, stoplength):
-                if l + b > len(s):
-                    continue
-                try:
-                    before.unify(term.Number(b), heap)
-                    after.unify(term.Number(len(s) - l - b), heap)
-                    length.unify(term.Number(l), heap)
-                    sub.unify(term.Callable.build(s[b:b + l]), heap)
-                    result = continuation.call(engine, choice_point=True)
-                    heap.discard(oldstate)
-                    return result
-                except error.UnificationFailed:
-                    heap.revert(oldstate)
-    else:
-        a = helper.unwrap_int(after)
-        for l in range(startlength, stoplength):
-            b = len(s) - l - a
+
+class SubAtomElseContinuation(SubAtomContinuation):
+    def __init__(self, engine, scont, fcont, heap, atom,
+                                                before, length, after, sub):
+        SubAtomContinuation.__init__(self, engine, scont, fcont, heap, atom,
+                                                    before, length, after, sub)
+        self.a = helper.unwrap_int(after)
+        self.l = self.startlength
+    def activate(self, fcont, heap):
+        if self.l < self.stoplength:
+            b = len(self.atom) - self.l - self.a
             assert b >= 0
-            if l + b > len(s):
-                continue
-            try:
-                before.unify(term.Number(b), heap)
-                after.unify(term.Number(a), heap)
-                length.unify(term.Number(l), heap)
-                sub.unify(term.Callable.build(s[b:b + l]), heap)
-                result = continuation.call(engine, choice_point=True)
-                heap.discard(oldstate)
-                return result
-            except error.UnificationFailed:
-                heap.revert(oldstate)
-    raise error.UnificationFailed()
+            if self.l + b > len(self.atom):
+                self.l += 1
+                return self.activate(fcont, heap)
+            fcont, heap = self.prepare_more_solutions(fcont, heap)
+            self.before.unify(term.Number(b), heap)
+            self.after.unify(term.Number(self.a), heap)
+            self.length.unify(term.Number(self.l), heap)
+            self.sub.unify(term.Callable.build(self.atom[b:b + self.l]), heap)
+            self.l += 1
+            return self.nextcont, fcont, heap
+        raise error.UnificationFailed()
+
+@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
+                                                    handles_continuation=True)
+def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
+    if not isinstance(sub, term.Var):
+        cls = SubAtomNonVarSubContinuation
+    elif isinstance(after, term.Var):
+        cls = SubAtomVarAfterContinuation
+    else:
+        cls = SubAtomElseContinuation
+    cont =  cls(engine, scont, fcont, heap, s, before, length, after, sub)
+    return cont, fcont, heap
 

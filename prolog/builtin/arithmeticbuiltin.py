@@ -1,31 +1,44 @@
 import py
-from prolog.interpreter import helper, term, error
+from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
-
 # ___________________________________________________________________
 # arithmetic
 
 
-#@expose_builtin("between", unwrap_spec=["int", "int", "obj"],
-#                handles_continuation=True)
-def impl_between(engine, heap, lower, upper, varorint, continuation):
-    if isinstance(varorint, term.Var):
-        for i in range(lower, upper):
-            oldstate = heap.branch()
+class BetweenContinuation(continuation.ChoiceContinuation):
+    def __init__(self, engine, scont, fcont, heap, lower, upper, varorint):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        self.undoheap = heap
+        self.orig_fcont = fcont
+        self.lower = lower
+        self.upper = upper
+        self.varorint = varorint
+        self.i = lower
+        
+    def activate(self, fcont, heap):
+        if self.i <= self.upper:
+            fcont, heap = self.prepare_more_solutions(fcont, heap)
             try:
-                varorint.unify(term.Number(i), heap)
-                result = continuation.call(engine, choice_point=True)
-                heap.discard(oldstate)
-                return result
-            except error.UnificationFailed:
-                heap.revert(oldstate)
-        varorint.unify(term.Number(upper), heap)
-        return continuation.call(engine, choice_point=False)
+                self.varorint.unify(term.Number(self.i), heap)
+            except error.UnificationFailed, e:
+                return fcont, self.orig_fcont, heap
+            finally:
+                self.i +=1
+            return self.nextcont, fcont, heap
+        raise error.UnificationFailed()
+        
+@expose_builtin("between", unwrap_spec=["int", "int", "obj"],
+               handles_continuation=True)
+def impl_between(engine, heap, lower, upper, varorint, scont, fcont):
+    if isinstance(varorint, term.Var):
+        bc = BetweenContinuation(engine, scont, fcont, heap, 
+                                                        lower, upper, varorint)
+        return bc, fcont, heap
     else:
         integer = helper.unwrap_int(varorint)
         if not (lower <= integer <= upper):
             raise error.UnificationFailed
-    return continuation.call(engine, choice_point=False)
+    return scont, fcont, heap
 
 @expose_builtin("is", unwrap_spec=["raw", "arithmetic"])
 def impl_is(engine, heap, var, num):
