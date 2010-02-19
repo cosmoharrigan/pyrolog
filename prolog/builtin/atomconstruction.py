@@ -106,7 +106,11 @@ class SubAtomNonVarSubContinuation(SubAtomContinuation):
             raise error.UnificationFailed()
         self.start = self.startbefore
     def activate(self, fcont, heap):
-        b = self.atom.find(self.s1, self.start, self.stopbefore + len(self.s1)) # XXX -1?
+        start = self.start
+        assert start >= 0
+        end = self.stopbefore + len(self.s1)
+        assert end >= 0
+        b = self.atom.find(self.s1, start, end) # XXX -1?
         if b < 0:
             raise error.UnificationFailed()
         fcont, heap = self.prepare_more_solutions(fcont, heap)
@@ -143,8 +147,12 @@ class SubAtomVarAfterContinuation(SubAtomContinuation):
                 self.after.unify(term.Number(
                                     len(self.atom) - self.l - self.b), heap)
                 self.length.unify(term.Number(self.l), heap)
+                b = self.b
+                l = self.l
+                assert b >= 0
+                assert l >= 0
                 self.sub.unify(term.Callable.build(
-                                    self.atom[self.b:self.b + self.l]), heap)
+                                    self.atom[b:b + l]), heap)
                 self.l += 1
                 return self.nextcont, fcont, heap
             else:
@@ -171,7 +179,9 @@ class SubAtomElseContinuation(SubAtomContinuation):
             self.before.unify(term.Number(b), heap)
             self.after.unify(term.Number(self.a), heap)
             self.length.unify(term.Number(self.l), heap)
-            self.sub.unify(term.Callable.build(self.atom[b:b + self.l]), heap)
+            l = self.l
+            assert l >= 0
+            self.sub.unify(term.Callable.build(self.atom[b:b + l]), heap)
             self.l += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
