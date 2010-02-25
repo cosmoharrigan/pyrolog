@@ -545,91 +545,98 @@ def cmp_standard_order(obj1, obj2, heap):
 def generate_class(cname, fname, n_args):
     from pypy.rlib.unroll import unrolling_iterable
     arg_iter = unrolling_iterable(range(n_args))
+    parent = callables['Abstract', n_args]
+    assert parent is not None
     signature = fname + '/' + str(n_args)
-    class cls(Callable):
+    
+    class cls(parent):
         _immutable_ = True
         if n_args == 0:
             TYPE_STANDARD_ORDER = Atom.TYPE_STANDARD_ORDER
         else:
             TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
-            
-        def __init__(self, term_name, args, signature):
+        
+        def __init__(self, term_name, args, signature=None):
+            parent.__init__(self, term_name, args, signature)
             assert self.name() == term_name
             assert len(args) == n_args
-            for x in arg_iter:
-                setattr(self, 'val_%d' % x, args[x])
                 
         def name(self):
             return fname
         
         def signature(self):
             return signature
+    
+    cls.__name__ = cname
+    return cls
+
+def generate_abstract_class(n_args):
+    from pypy.rlib.unroll import unrolling_iterable
+    arg_iter = unrolling_iterable(range(n_args))
+    class abstract_callable(Callable):
+        def __init__(self, term_name, args, signature=None):
+            for x in arg_iter:
+                setattr(self, 'val_%d' % x, args[x])
         
         def arguments(self):
             result = [None] * n_args
             for x in arg_iter:
                 result[x] = getattr(self, 'val_%d' % x)
             return result
-
+        
         def argument_at(self, i):
             for x in arg_iter:
                 if x == i:
                     return getattr(self, 'val_%d' % x)
-
+        
         def argument_count(self):
             return n_args
-            
-    cls.__name__ = cname
-    return cls
+    
+    abstract_callable.__name__ = 'Abstract'+str(n_args)
+    return abstract_callable
 
-def generate_term_class(n_args):
-    from pypy.rlib.unroll import unrolling_iterable
-    arg_iter = unrolling_iterable(range(n_args))
-    class term_cls(Callable):
+def generate_generic_class(n_args):
+    parent = callables['Abstract', n_args]
+    assert parent is not None
+    
+    class generic_callable(parent):
         # _immutable_ = True
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
-
+        
         def __init__(self, term_name, args, signature=None):
+            parent.__init__(self, term_name, args, signature=None)
             self._name = term_name
             if signature is None:
                 self._signature = term_name+"/"+str(n_args)
-            else: 
-                self._signature = signature 
+            else:
+                self._signature = signature
             assert len(args) == n_args
-            for x in arg_iter:
-                setattr(self, 'val_%d' % x, args[x])
-
+        
         def name(self):
             return self._name
-
+        
         def signature(self):
             return self._signature
-
-        def arguments(self):
-            result = [None] * n_args
-            for x in arg_iter:
-                result[x] = getattr(self, 'val_%d' % x)
-            return result
-
-        def argument_at(self, i):
-            for x in arg_iter:
-                if x == i:
-                    return getattr(self, 'val_%d' % x)
-
-        def argument_count(self):
-            return n_args
-            
+        
         def __str__(self):
-            return "Term%d(%s, %r)" % (n_args, self.name(), self.arguments())
+            return "Generic%d(%s, %r)" % (n_args, self.name(),
+                                                            self.arguments())
         __repr__ = __str__
-    term_cls.__name__ = 'Term'+str(n_args)
-    return term_cls
+    generic_callable.__name__ = 'Generic'+str(n_args)
+    return generic_callable
     
+
 specialized_term_classes = {}
+callables = {}
+
+for numargs in range(1, 4):
+    callables['Abstract', numargs] = generate_abstract_class(numargs)
+
 classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2)]
 for cname, fname, numargs in classes:
-    specialized_term_classes[fname, numargs] = generate_class(cname, fname, numargs)
+    specialized_term_classes[fname, numargs] = generate_class(
+                                                        cname, fname, numargs)
 
 for numargs in range(1,4):
     assert ('Term', numargs) not in specialized_term_classes
-    specialized_term_classes['Term', numargs] = generate_term_class(numargs)
+    specialized_term_classes['Term', numargs] = generate_generic_class(numargs)
