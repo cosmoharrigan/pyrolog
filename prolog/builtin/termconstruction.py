@@ -10,6 +10,7 @@ def impl_functor(engine, heap, t, functor, arity):
         functor.unify(t, heap)
         arity.unify(term.Number(0), heap)
     elif helper.is_term(t):
+        assert isinstance(t, term.Callable)
         functor.unify(term.Callable.build(t.name()), heap)
         arity.unify(term.Number(t.argument_count()), heap)
     elif isinstance(t, term.Var):
@@ -60,6 +61,7 @@ def impl_arg(engine, heap, first, second, third, scont, fcont):
         raise error.UnificationFailed()
     if not helper.is_term(second):
         error.throw_type_error("compound", second)
+    assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
         a = ArgContinuation(engine, scont, fcont, heap, first, second, third)
         return a, fcont, heap
@@ -80,7 +82,8 @@ def impl_arg(engine, heap, first, second, third, scont, fcont):
 @expose_builtin("=..", unwrap_spec=["obj", "obj"])
 def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
-        if not isinstance(first, term.Atom):
+        if helper.is_term(first):
+            assert isinstance(first, term.Callable)
             l = [term.Callable.build(first.name())] + first.arguments()
         else:
             l = [first]

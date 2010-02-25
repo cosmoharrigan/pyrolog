@@ -78,6 +78,7 @@ class Engine(object):
     def add_rule(self, rule, end=True):
         from prolog import builtin
         if helper.is_term(rule):
+            assert isinstance(rule, Callable)
             if rule.name()== ":-":
                 rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
