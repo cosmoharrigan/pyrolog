@@ -574,6 +574,7 @@ def generate_abstract_class(n_args):
     from pypy.rlib.unroll import unrolling_iterable
     arg_iter = unrolling_iterable(range(n_args))
     class abstract_callable(Callable):
+        _immutable_ = True
         def __init__(self, term_name, args, signature=None):
             for x in arg_iter:
                 setattr(self, 'val_%d' % x, args[x])
@@ -600,7 +601,7 @@ def generate_generic_class(n_args):
     assert parent is not None
     
     class generic_callable(parent):
-        # _immutable_ = True
+        _immutable_ = True
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
         
         def __init__(self, term_name, args, signature=None):

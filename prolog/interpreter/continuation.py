@@ -41,20 +41,15 @@ jitdriver = jit.JitDriver(
 
 
 def driver(scont, fcont, heap):
-    oldrule = scont.rule
     while not scont.is_done():
         rule = scont.rule
-        if rule is None:
-            rule = oldrule
-        else:
-            oldrule = rule
         try:
-            jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
-                                      heap=heap)
             if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
                 rule = scont.rule
                 jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
                                         heap=heap)
+            jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
+                                      heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
         except error.UnificationFailed:
             scont, fcont, heap = fcont.fail(heap)
@@ -95,14 +90,13 @@ class Engine(object):
         function = self._lookup(signature)
         function.add_rule(rule, end)
 
-    # @jit.purefunction_promote
-    @jit.purefunction
+    @jit.purefunction_promote("0")
     def get_builtin(self, signature):
         from prolog.builtin import builtins
         builtin = builtins.get(signature, None)
         return builtin
 
-    @jit.purefunction
+    @jit.purefunction_promote("0")
     def _lookup(self, signature):
         signature2function = self.signature2function
         function = signature2function.get(signature, None)
@@ -484,7 +478,8 @@ class RuleContinuation(Continuation):
 
     def activate(self, fcont, heap):
         nextcont = self.nextcont
-        nextcall = self.rule.clone_and_unify_head(heap, self.query)
+        rule = jit.hint(self.rule, promote=True)
+        nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
             cont = BodyContinuation(self.engine, nextcont, nextcall)
         else:
