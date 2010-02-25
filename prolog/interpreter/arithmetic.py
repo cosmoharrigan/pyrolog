@@ -141,6 +141,7 @@ for prolog_name, unwrap_spec, pattern, overflow, intversion in simple_functions:
 
 arithmetic_functions_list = unrolling_iterable(arithmetic_functions_list)
 
-@jit.purefunction_promote
+# @jit.purefunction_promote
+@jit.purefunction
 def get_arithmetic_function(signature):
     return arithmetic_functions.get(signature, None)

@@ -95,7 +95,8 @@ class Engine(object):
         function = self._lookup(signature)
         function.add_rule(rule, end)
 
-    @jit.purefunction_promote
+    # @jit.purefunction_promote
+    @jit.purefunction
     def get_builtin(self, signature):
         from prolog.builtin import builtins
         builtin = builtins.get(signature, None)
