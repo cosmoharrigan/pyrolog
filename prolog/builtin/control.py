@@ -80,7 +80,7 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
     if call1.signature()== "->/2":
         assert helper.is_term(call1)
-        scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
+        scont = fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont, fcont, heap = impl_if(
                 engine, heap, helper.ensure_callable(call1.argument_at(0)),
@@ -135,6 +135,6 @@ def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
             insert_cutdelimiter=True):
     scont = continuation.BodyContinuation(engine, scont, then_clause)
     if insert_cutdelimiter:
-        scont = fcont = continuation.CutDelimiter(engine, scont, fcont)
+        scont = fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
     body = term.Callable.build(",", [if_clause, CUTATOM])
     return continuation.BodyContinuation(engine, scont, body), fcont, heap

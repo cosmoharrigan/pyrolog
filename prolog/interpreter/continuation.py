@@ -456,7 +456,8 @@ class UserCallContinuation(ChoiceContinuation):
         rule = rulechain
         nextcont = self.nextcont
         if rule.contains_cut:
-            nextcont = fcont = CutDelimiter(self.engine, nextcont, fcont)
+            nextcont = fcont = CutDelimiter.insert_cut_delimiter(
+                    self.engine, nextcont, fcont)
         query = self.query
         restchain = rulechain.find_next_applicable_rule(query)
         if restchain is not None:
@@ -500,6 +501,14 @@ class CutDelimiter(FailureContinuation):
         FailureContinuation.__init__(self, engine, nextcont)
         self.fcont = fcont
         self.activated = False
+
+    @staticmethod
+    def insert_cut_delimiter(engine, nextcont, fcont):
+        if (isinstance(nextcont, CutDelimiter) and
+                not nextcont.activated and
+                nextcont is fcont):
+            return nextcont
+        return CutDelimiter(engine, nextcont, fcont)
 
     def activate(self, fcont, heap):
         self.activated = True
