@@ -320,17 +320,20 @@ class Continuation(object):
     def is_done(self):
         return False
 
-    def _dot(self):
+    def _dot(self, seen):
+        if self in seen:
+            return
+        seen.add(self)
         yield '%s [label="%r", shape=box]' % (id(self), self)
         if self.nextcont is not None:
             yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
-            for line in self.nextcont._dot():
+            for line in self.nextcont._dot(seen):
                 yield line
 
     def view(self):
         from dotviewer import graphclient
         content = ["digraph G{"]
-        content.extend(self._dot())
+        content.extend(self._dot(set()))
         content.append("}")
         p = py.test.ensuretemp("prolog").join("temp.dot")
         p.write("\n".join(content))
@@ -430,12 +433,15 @@ class ChoiceContinuation(FailureContinuation):
         assert self.undoheap is not None
         return self.orig_fcont.cut()
 
-    def _dot(self):
-        for line in FailureContinuation._dot(self):
+    def _dot(self, seen):
+        if self in seen:
+            return
+        for line in FailureContinuation._dot(self, seen):
             yield line
+        seen.add(self)
         if self.orig_fcont is not None:
             yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
-            for line in self.orig_fcont._dot():
+            for line in self.orig_fcont._dot(seen):
                 yield line
 
 class UserCallContinuation(ChoiceContinuation):
@@ -512,11 +518,14 @@ class CutDelimiter(FailureContinuation):
     def __repr__(self):
         return "<CutDelimiter activated=%r>" % (self.activated, )
 
-    def _dot(self):
-        for line in FailureContinuation._dot(self):
+    def _dot(self, seen):
+        if self in seen:
+            return
+        for line in FailureContinuation._dot(self, seen):
             yield line
+        seen.add(self)
         yield "%s -> %s [label=fcont]" % (id(self), id(self.fcont))
-        for line in self.fcont._dot():
+        for line in self.fcont._dot(seen):
             yield line
 
 
