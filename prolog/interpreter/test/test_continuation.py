@@ -140,6 +140,30 @@ def test_full():
     assert all[3].argument_at(0).argument_at(0).name()== "y"
     assert all[3].argument_at(1).argument_at(0).name()== "b"
 
+def test_cut_doesnt_grow_huge_continuations():
+    from prolog.interpreter.term import Number
+    all = []
+    class CollectContinuation(Continuation):
+        rule = None
+        def __init__(self):
+            self.nextcont = None
+        def is_done(self):
+            return False
+        def activate(self, fcont, heap):
+            depth = 0
+            while fcont.nextcont:
+                depth += 1
+                fcont = fcont.nextcont
+            assert depth < 5
+            return DoneContinuation(e), DoneContinuation(e), heap
+    e = get_engine("""
+        f(0).
+        f(X) :- X>0, X0 is X - 1, !, f(X0).
+        f(_).
+    """)
+    query = Callable.build("f", [Number(100)])
+    e.run_query(query, CollectContinuation())
+
 # ___________________________________________________________________
 # integration tests
 
