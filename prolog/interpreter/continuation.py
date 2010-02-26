@@ -296,6 +296,18 @@ class Heap(object):
             self.trail_binding[i] = None
         self.i = 0
 
+    def __repr__(self):
+        return "<Head %r trailed vars>" % (self.i, )
+
+    def _dot(self, seen):
+        if self in seen:
+            return
+        seen.add(self)
+        yield '%s [label="%r", shape=octagon]' % (id(self), self)
+        if self.prev:
+            yield "%s -> %s [label=prev]" % (id(self), id(self.prev))
+            for line in self.prev._dot(seen):
+                yield line
 # ___________________________________________________________________
 # Continuation classes
 
@@ -330,14 +342,16 @@ class Continuation(object):
             for line in self.nextcont._dot(seen):
                 yield line
 
-    def view(self):
-        from dotviewer import graphclient
-        content = ["digraph G{"]
-        content.extend(self._dot(set()))
-        content.append("}")
-        p = py.test.ensuretemp("prolog").join("temp.dot")
-        p.write("\n".join(content))
-        graphclient.display_dot_file(str(p))
+def view(*objects):
+    from dotviewer import graphclient
+    content = ["digraph G{"]
+    seen = set()
+    for obj in objects:
+        content.extend(obj._dot(seen))
+    content.append("}")
+    p = py.test.ensuretemp("prolog").join("temp.dot")
+    p.write("\n".join(content))
+    graphclient.display_dot_file(str(p))
 
 class FailureContinuation(Continuation):
     """ A continuation that can represent failures. It has a .fail method that
@@ -442,6 +456,10 @@ class ChoiceContinuation(FailureContinuation):
         if self.orig_fcont is not None:
             yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
             for line in self.orig_fcont._dot(seen):
+                yield line
+        if self.undoheap is not None:
+            yield "%s -> %s [label=heap]" % (id(self), id(self.undoheap))
+            for line in self.undoheap._dot(seen):
                 yield line
 
 class UserCallContinuation(ChoiceContinuation):
