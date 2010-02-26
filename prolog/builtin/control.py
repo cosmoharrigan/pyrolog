@@ -30,6 +30,7 @@ class RepeatContinuation(continuation.FailureContinuation):
         return self.nextcont, self, heap
     
     def cut(self):
+        # XXX is this check still necessary, now that there is the DoneContinuation?
         if self.fcont is not None:
             return self.fcont.cut()
         return None
