@@ -2,6 +2,7 @@
 
 from prolog.interpreter import term
 from prolog.interpreter import error
+from pypy.rlib import jit
 
 emptylist = term.Callable.build("[]")
 
@@ -11,13 +12,27 @@ def wrap_list(python_list):
         curr = term.Callable.build(".", [python_list[i], curr])
     return curr
 
+@jit.unroll_safe
 def unwrap_list(prolog_list):
-    result = []
+    # Grrr, stupid JIT
+    result = [None]
+    used = 0
     curr = prolog_list
     while isinstance(curr, term.Callable) and curr.signature() == './2':
-        result.append(curr.argument_at(0))
+        if used == len(result):
+            nresult = [None] * (used * 2)
+            for i in range(used):
+                nresult[i] = result[i]
+            result = nresult
+        result[used] = curr.argument_at(0)
+        used += 1
         curr = curr.argument_at(1)
     if isinstance(curr, term.Callable) and curr.name()== "[]":
+        if used != len(result):
+            nresult = [None] * used
+            for i in range(used):
+                nresult[i] = result[i]
+            result = nresult
         return result
     error.throw_type_error("list", prolog_list)
 
