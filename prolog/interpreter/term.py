@@ -630,7 +630,7 @@ def generate_generic_class(n_args):
 specialized_term_classes = {}
 callables = {}
 
-for numargs in range(1, 4):
+for numargs in range(1, 10):
     callables['Abstract', numargs] = generate_abstract_class(numargs)
 
 classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2)]
@@ -638,6 +638,6 @@ for cname, fname, numargs in classes:
     specialized_term_classes[fname, numargs] = generate_class(
                                                         cname, fname, numargs)
 
-for numargs in range(1,4):
+for numargs in range(1, 10):
     assert ('Term', numargs) not in specialized_term_classes
     specialized_term_classes['Term', numargs] = generate_generic_class(numargs)
