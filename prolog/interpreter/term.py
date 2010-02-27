@@ -589,6 +589,7 @@ def generate_abstract_class(n_args):
             for x in arg_iter:
                 if x == i:
                     return getattr(self, 'val_%d' % x)
+            raise IndexError
         
         def argument_count(self):
             return n_args
