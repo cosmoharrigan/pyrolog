@@ -231,7 +231,7 @@ class Engine(object):
 # Heap implementation
 
 class Heap(object):
-    INITSIZE = 10
+    INITSIZE = 2
     def __init__(self, prev=None):
         self.trail_var = [None] * Heap.INITSIZE
         self.trail_binding = [None] * Heap.INITSIZE
@@ -246,11 +246,12 @@ class Heap(object):
         to that state. Usually called just before a variable changes. """
         if self is var.created_after_choice_point:
             return
-        if self.i >= len(self.trail_var):
+        i = jit.hint(self.i, promote=True)
+        if i >= len(self.trail_var):
             self._double_size()
-        self.trail_var[self.i] = var
-        self.trail_binding[self.i] = var.binding
-        self.i += 1
+        self.trail_var[i] = var
+        self.trail_binding[i] = var.binding
+        self.i = i + 1
 
     def _double_size(self):
         trail_var = [None] * (len(self.trail_var) * 2)
@@ -287,6 +288,24 @@ class Heap(object):
             previous = self
             self = self.prev
         return previous
+
+    @jit.unroll_safe
+    def discard(self, current_heap):
+        """ Remove a heap that is no longer needed (usually due to a cut) from chain of frames. """
+        if current_heap.prev is self:
+            # XXX slightly wrong complexity
+            if self.prev is not None:
+                for i in range(self.i):
+                    var = self.trail_var[i]
+                    currbinding = var.binding
+                    binding = self.trail_binding[i]
+                    var.binding = binding
+                    self.prev.add_trail(var)
+                    var.binding = currbinding
+            current_heap.prev = self.prev
+        else:
+            return self
+        return current_heap
 
     @jit.unroll_safe
     def _revert(self):
@@ -368,7 +387,7 @@ class FailureContinuation(Continuation):
         # returns (next cont, failure cont, heap)
         raise NotImplementedError("abstract base class")
 
-    def cut(self):
+    def cut(self, heap):
         """ Cut away choice points till the next correct cut delimiter.
         Slightly subtle. """
         return self
@@ -443,9 +462,9 @@ class ChoiceContinuation(FailureContinuation):
         heap = heap.revert_upto(self.undoheap)
         return self, self.orig_fcont, self.undoheap
 
-    def cut(self):
-        assert self.undoheap is not None
-        return self.orig_fcont.cut()
+    def cut(self, heap):
+        heap = self.undoheap.discard(heap)
+        return self.orig_fcont.cut(heap)
 
     def _dot(self, seen):
         if self in seen:
@@ -522,10 +541,13 @@ class CutDelimiter(FailureContinuation):
 
     @staticmethod
     def insert_cut_delimiter(engine, nextcont, fcont):
-        if (isinstance(nextcont, CutDelimiter) and
-                not nextcont.activated and
-                nextcont is fcont):
-            return nextcont
+        if isinstance(fcont, CutDelimiter):
+            if fcont.activated:
+                fcont = fcont.fcont
+            elif (isinstance(nextcont, CutDelimiter) and
+                    nextcont is fcont):
+                assert not fcont.activated
+                return nextcont
         return CutDelimiter(engine, nextcont, fcont)
 
     def activate(self, fcont, heap):
@@ -533,13 +555,12 @@ class CutDelimiter(FailureContinuation):
         return self.nextcont, fcont, heap
 
     def fail(self, heap):
-        self.activated = False
         return self.fcont.fail(heap)
 
-    def cut(self):
+    def cut(self, heap):
         if not self.activated:
             return self
-        return self.fcont.cut()
+        return self.fcont.cut(heap)
 
 
     def __repr__(self):

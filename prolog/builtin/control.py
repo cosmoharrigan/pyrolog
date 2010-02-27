@@ -29,16 +29,14 @@ class RepeatContinuation(continuation.FailureContinuation):
         heap = heap.revert_upto(self.undoheap)
         return self.nextcont, self, heap
     
-    def cut(self):
-        # XXX is this check still necessary, now that there is the DoneContinuation?
-        if self.fcont is not None:
-            return self.fcont.cut()
-        return None
+    def cut(self, heap):
+        heap = self.undoheap.discard(heap)
+        return self.fcont.cut(heap)
         
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
     if fcont:
-        fcont = fcont.cut()
+        fcont = fcont.cut(heap)
     return scont, fcont, heap
 
 @expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)
@@ -61,9 +59,9 @@ class OrContinuation(continuation.FailureContinuation):
                                               self.altcall)
         return scont, fcont, heap
 
-    def cut(self):
+    def cut(self, heap):
         assert self.undoheap is not None
-        return self.orig_fcont.cut()
+        return self.orig_fcont.cut(heap)
 
     def fail(self, heap):
         assert self.undoheap is not None

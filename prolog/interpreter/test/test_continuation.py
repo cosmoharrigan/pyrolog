@@ -111,6 +111,35 @@ def test_heap_dont_trail_new():
     assert v2.binding == 3 # wasn't undone, because v2 dies
     assert h3 is h2
 
+def test_heap_discard():
+    h1 = Heap()
+    h2 = h1.branch()
+    h3 = h2.branch()
+    h = h2.discard(h3)
+    assert h3.prev is h1
+    assert h3 is h
+
+    h0 = Heap()
+    v0 = h0.newvar()
+
+    h1 = h0.branch()
+    v1 = h1.newvar()
+
+    h2 = h1.branch()
+    h2.add_trail(v0)
+    v0.binding = 1
+    h2.add_trail(v1)
+    v1.binding = 2
+
+    h3 = h2.branch()
+    h = h2.discard(h3)
+    assert h3.prev is h1
+    assert h3 is h
+
+    assert h3.revert_upto(h0)
+    assert v0.binding is None
+    assert v1.binding == 2 # wasn't undone, because v1 dies
+
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
@@ -140,7 +169,7 @@ def test_full():
     assert all[3].argument_at(0).argument_at(0).name()== "y"
     assert all[3].argument_at(1).argument_at(0).name()== "b"
 
-def test_cut_doesnt_grow_huge_continuations():
+def test_cut_and_call_dont_grow_huge_continuations():
     from prolog.interpreter.term import Number
     all = []
     class CollectContinuation(Continuation):
@@ -150,18 +179,53 @@ def test_cut_doesnt_grow_huge_continuations():
         def is_done(self):
             return False
         def activate(self, fcont, heap):
+            # hack: use _dot to count size of tree
+            seen = set()
+            list(fcont._dot(seen))
+            assert len(seen) < 10
             depth = 0
             while fcont.nextcont:
                 depth += 1
                 fcont = fcont.nextcont
+            assert depth < 5
+            depth = 0
+            while heap.prev:
+                depth += 1
+                heap = heap.prev
             assert depth < 5
             return DoneContinuation(e), DoneContinuation(e), heap
     e = get_engine("""
         f(0).
         f(X) :- X>0, X0 is X - 1, !, f(X0).
         f(_).
+
+        g(0).
+        g(X) :- X > 0, X0 is X - 1, call(g(X0)).
+
+        add1(X, X1) :- X1 is X + 1.
+        map(_, [], []).
+        map(Pred, [H1 | T1], [H2 | T2]) :-
+            C =.. [Pred, H1, H2],
+            call(C),
+            map(Pred, T1, T2).
+        map(X) :- !.
+        h(X) :- map(add1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 5, 6, 7, 8, 9, 10, 11, 12, 13], [X | _]).
+
+        partition([],_,[],[]).
+        partition([X|L],Y,[X|L1],L2) :-
+            X =< Y, !,
+            partition(L,Y,L1,L2).
+        partition([X|L],Y,L1,[X|L2]) :-
+            partition(L,Y,L1,L2).
+        i(X) :- partition([1, 5, 1, 5, 7, 9,2,4, 3, 7, 9, 0, 10], 5, [X | _], _).
     """)
     query = Callable.build("f", [Number(100)])
+    e.run_query(query, CollectContinuation())
+    query = Callable.build("g", [Number(100)])
+    e.run_query(query, CollectContinuation())
+    query = Callable.build("h", [Number(2)])
+    e.run_query(query, CollectContinuation())
+    query = Callable.build("i", [Number(1)])
     e.run_query(query, CollectContinuation())
 
 # ___________________________________________________________________
