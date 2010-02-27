@@ -1,6 +1,7 @@
 import py
 from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
+from pypy.rlib import jit
 # ___________________________________________________________________
 # analysing and construction terms
 
@@ -80,6 +81,7 @@ def impl_arg(engine, heap, first, second, third, scont, fcont):
     return scont, fcont, heap
 
 @expose_builtin("=..", unwrap_spec=["obj", "obj"])
+@jit.unroll_safe
 def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
         if helper.is_term(first):
@@ -100,7 +102,10 @@ def impl_univ(engine, heap, first, second):
             head = l[0]
             if not isinstance(head, term.Atom):
                 error.throw_type_error("atom", head)
-            term.Callable.build(head.name(), l[1:]).unify(first, heap)
+            l2 = [None] * (len(l) - 1)
+            for i in range(len(l2)):
+                l2[i] = l[i + 1]
+            term.Callable.build(head.name(), l2).unify(first, heap)
 
 @expose_builtin("copy_term", unwrap_spec=["obj", "obj"])
 def impl_copy_term(engine, heap, interm, outterm):
