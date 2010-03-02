@@ -74,7 +74,7 @@ class Engine(object):
         from prolog import builtin
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
-            if rule.name()== ":-":
+            if rule.signature() == ":-/2":
                 rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
                 rule = Rule(rule, None)
@@ -290,30 +290,48 @@ class Heap(object):
         return previous
 
     @jit.unroll_safe
-    def discard(self, current_heap):
-        """ Remove a heap that is no longer needed (usually due to a cut) from chain of frames. """
-        if current_heap.prev is self:
-            # XXX slightly wrong complexity
-            if self.prev is not None:
-                for i in range(self.i):
-                    var = self.trail_var[i]
-                    currbinding = var.binding
-                    binding = self.trail_binding[i]
-                    var.binding = binding
-                    self.prev.add_trail(var)
-                    var.binding = currbinding
-            current_heap.prev = self.prev
-        else:
-            return self
-        return current_heap
-
-    @jit.unroll_safe
     def _revert(self):
         for i in range(self.i):
             self.trail_var[i].binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
+
+    @jit.unroll_safe
+    def discard(self, current_heap):
+        """ Remove a heap that is no longer needed (usually due to a cut) from
+        a chain of frames. """
+        if current_heap.prev is self:
+            targetpos = 0
+            # check whether variables in the current heap no longer need to be
+            # traced, because they originate in the discarded heap
+            for i in range(current_heap.i):
+                var = current_heap.trail_var[i]
+                binding = current_heap.trail_binding[i]
+                if var.created_after_choice_point is self:
+                    var.created_after_choice_point = self.prev
+                    current_heap.trail_var[i] = None
+                    current_heap.trail_binding[i] = None
+                else:
+                    current_heap.trail_var[targetpos] = var
+                    current_heap.trail_binding[targetpos] = binding
+                    targetpos += 1
+            current_heap.i = targetpos
+
+            # move the variable bindings from the discarded heap to the current
+            # heap
+            for i in range(self.i):
+                var = self.trail_var[i]
+                currbinding = var.binding
+                binding = self.trail_binding[i]
+                var.binding = binding
+                current_heap.add_trail(var)
+                var.binding = currbinding
+            current_heap.prev = self.prev
+        else:
+            return self
+        return current_heap
+
 
     def __repr__(self):
         return "<Head %r trailed vars>" % (self.i, )

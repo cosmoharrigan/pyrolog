@@ -126,19 +126,25 @@ def test_heap_discard():
     v1 = h1.newvar()
 
     h2 = h1.branch()
+    v2 = h2.newvar()
+
     h2.add_trail(v0)
     v0.binding = 1
     h2.add_trail(v1)
     v1.binding = 2
 
     h3 = h2.branch()
+    h3.add_trail(v2)
+    v2.binding = 3
+
     h = h2.discard(h3)
     assert h3.prev is h1
     assert h3 is h
 
     assert h3.revert_upto(h0)
     assert v0.binding is None
-    assert v1.binding == 2 # wasn't undone, because v1 dies
+    assert v1.binding is None
+    assert v2.binding == 3 # not backtracked, because it goes away
 
 
 def test_full():
@@ -189,10 +195,13 @@ def test_cut_and_call_dont_grow_huge_continuations():
                 fcont = fcont.nextcont
             assert depth < 5
             depth = 0
-            while heap.prev:
+            numvars = 0
+            while heap:
                 depth += 1
+                numvars += heap.i
                 heap = heap.prev
             assert depth < 5
+            assert numvars < 5
             return DoneContinuation(e), DoneContinuation(e), heap
     e = get_engine("""
         f(0).
