@@ -9,7 +9,7 @@ from pypy.rlib.parsing.deterministic import LexerError
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.continuation import Engine
-from prolog.interpreter.continuation import Continuation, Engine
+from prolog.interpreter.continuation import Continuation, DoneContinuation
 from prolog.interpreter import error
 import prolog.interpreter.term
 prolog.interpreter.term.DEBUG = False
@@ -28,7 +28,7 @@ class StopItNow(Exception):
 
 class ContinueContinuation(Continuation):
     def __init__(self, engine, var_to_pos, write):
-        Continuation.__init__(self, engine, None)
+        Continuation.__init__(self, engine, DoneContinuation(engine))
         self.var_to_pos = var_to_pos
         self.write = write
 
@@ -88,7 +88,7 @@ class PrologConsole(code.InteractiveConsole):
             self.engine.run(query, ContinueContinuation(self.engine, var_to_pos, self.write))
         except error.UnificationFailed:
             self.write("no\n")
-        except error.CatchableError, e:
+        except error.UncaughtError, e:
             self.write("ERROR: ")
             if e.term.argument_at(0).name()== "instantiation_error":
                 print e.term
