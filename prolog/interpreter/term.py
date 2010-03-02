@@ -53,6 +53,9 @@ class PrologObject(object):
     def cmp_standard_order(self, other, heap):
         raise NotImplementedError("abstract base class")
 
+    def quick_unify_check(self, other):
+        return True
+
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
     
@@ -81,7 +84,7 @@ class Var(PrologObject):
             return self
         else:
             result = next.dereference(heap)
-            if result is not next:
+            if heap is not None and result is not next:
                 # do path compression
                 self.setvalue(result, heap)
             return result
@@ -331,7 +334,24 @@ class Callable(NonVar):
     def _find_specialized_class(term_name, numargs):
         return specialized_term_classes.get((term_name, numargs), None)
 
-        
+    def __repr__(self):
+        return "%s(%s, %r)" % (self.__class__.__name__, self.name(),
+                               self.arguments())
+
+    @jit.unroll_safe
+    def quick_unify_check(self, other):
+        other = other.dereference(None)
+        if isinstance(other, Var):
+            return True
+        if not isinstance(other, Callable):
+            return False
+        if self.signature() != other.signature():
+            return False
+        for i in range(self.argument_count()):
+            if not self.argument_at(i).quick_unify_check(other.argument_at(i)):
+                return False
+        return True
+
 
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
@@ -416,6 +436,12 @@ class Number(NonVar): #, UnboxedValue):
         elif isinstance(other, Float):
             return rcmp(self.num, other.floatval)
         assert 0
+
+    def quick_unify_check(self, other):
+        other = other.dereference(None)
+        if isinstance(other, Var):
+            return True
+        return isinstance(other, Number) and other.num == self.num
 
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2
@@ -620,10 +646,6 @@ def generate_generic_class(n_args):
         def signature(self):
             return self._signature
         
-        def __str__(self):
-            return "Generic%d(%s, %r)" % (n_args, self.name(),
-                                                            self.arguments())
-        __repr__ = __str__
     generic_callable.__name__ = 'Generic'+str(n_args)
     return generic_callable
     

@@ -91,3 +91,19 @@ def test_run():
     assert X.dereference(e.heap).name()== "b"
     query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
     e.run(query)
+
+
+def test_quick_unify_check():
+    a = Callable.build("hallo", [NumberedVar(0), Number(10), Number(11)])
+    b = Callable.build("hallo", [Callable.build("a"), Number(10), Var()])
+    assert a.quick_unify_check(b)
+
+    a = Callable.build("hallo", [NumberedVar(0), Number(10), Callable.build("b")])
+    b = Callable.build("hallo", [Callable.build("a"), Number(10), Number(11)])
+    assert not a.quick_unify_check(b)
+
+    a = Callable.build("hallo", [Callable.build("a"), Number(10), Number(11)])
+    b = Callable.build("hallo", [Var(), Number(10), Callable.build("b")])
+    assert a.quick_unify_check(a)
+    assert b.quick_unify_check(b)
+    assert not a.quick_unify_check(b)

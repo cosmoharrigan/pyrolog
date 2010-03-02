@@ -81,12 +81,25 @@ class Rule(object):
             curr = curr.next
         return first, copy
 
+    @jit.unroll_safe
     def find_applicable_rule(self, query):
         # This method should do some quick filtering on the rules to filter out
         # those that cannot match query. Here is where e.g. indexing should
-        # occur. For now, we just return all rules, which is clearly not
-        # optimal. XXX improve this
-        return self
+        # occur.
+        while self is not None:
+            if self.headargs is not None:
+                assert isinstance(query, Callable)
+                for i in range(len(self.headargs)):
+                    arg2 = self.headargs[i]
+                    arg1 = query.argument_at(i)
+                    if not arg2.quick_unify_check(arg1):
+                        break
+                else:
+                    return self
+            else:
+                return self
+            self = self.next
+        return None
 
     def find_next_applicable_rule(self, query):
         if self.next is None:
