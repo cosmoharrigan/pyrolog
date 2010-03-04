@@ -16,27 +16,24 @@ def impl_statistics(engine, heap, stat_name, value):
         t = [walltime(engine), walltime_since_last_call(engine)]
     l = [term.Number(x) for x in t]
     helper.wrap_list(l).unify(value, heap)
-    
-
-clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
 
 def clock_time(engine):
-    clocks['cpu_now'] = int(time.clock()*1000)
-    return clocks['cpu_now']
+    engine.clocks['cpu_now'] = int(time.clock()*1000)
+    return engine.clocks['cpu_now']
     
 def clocktime_since_last_call(engine):
-    t = clocks['cpu_now'] - clocks['cpu_last']
-    clocks['cpu_last'] = clocks['cpu_now']
+    t = engine.clocks['cpu_now'] - engine.clocks['cpu_last']
+    engine.clocks['cpu_last'] = engine.clocks['cpu_now']
     return t
     
 def walltime(engine):
-    clocks['wall_now'] = int((time.time()-engine.start)*1000)
-    return clocks['wall_now']
+    engine.clocks['wall_now'] = int((time.time()-engine.start)*1000)
+    return engine.clocks['wall_now']
 
 def walltime_since_last_call(engine):
-    t = clocks['wall_now'] - clocks['wall_last']
-    clocks['wall_last'] = clocks['wall_now']
+    t = engine.clocks['wall_now'] - engine.clocks['wall_last']
+    engine.clocks['wall_last'] = engine.clocks['wall_now']
     return t
     
-def reset_clocks():
-    prolog.builtin.statistics.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
+def reset_clocks(engine):
+    engine.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}

@@ -45,6 +45,7 @@ def driver(scont, fcont, heap):
     while not scont.is_done():
         rule = scont.rule
         try:
+            view(scont, fcont, heap)
             if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
                 rule = scont.rule
                 jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
@@ -67,7 +68,8 @@ class Engine(object):
         self.signature2function = {}
         self.parser = None
         self.operations = None
-        self.start = time.time()
+        self.start = time.clock()
+        self.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
     # _____________________________________________________
     # database functionality
 
