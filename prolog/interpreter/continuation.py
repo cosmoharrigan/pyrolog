@@ -1,4 +1,5 @@
 import py
+import time
 from pypy.rlib import jit
 from prolog.interpreter import error
 from prolog.interpreter import helper
@@ -66,7 +67,7 @@ class Engine(object):
         self.signature2function = {}
         self.parser = None
         self.operations = None
-
+        self.start = time.time()
     # _____________________________________________________
     # database functionality
 
