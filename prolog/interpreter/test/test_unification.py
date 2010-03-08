@@ -113,3 +113,18 @@ def test_copy_derefences():
     v1.binding = Number(10)
     v2 = v1.copy(None, {})
     assert v2.num == 10
+
+def test_callable_build_removes_unneeded_vars():
+    h1 = Heap()
+    v1 = h1.newvar()
+    v1.binding = 1
+
+    h2 = h1.branch()
+    v2 = h2.newvar()
+    v2.binding = 2
+
+    t = Callable.build("hello", [v1, v2], heap=h2)
+    assert t.argument_at(0) is v1
+    assert t.argument_at(1) == 2
+
+

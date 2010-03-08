@@ -322,6 +322,15 @@ class Callable(NonVar):
     def build(term_name, args=None, signature=None, heap=None):
         if args is None:
             args = []
+        if heap is not None:
+            # perform variable shunting:
+            # remove variables that are not needed because they are bound
+            # already and cannot be backtracked
+            for i in range(len(args)):
+                arg = args[i]
+                if (isinstance(arg, Var) and arg.binding is not None and
+                        arg.created_after_choice_point is heap):
+                    args[i] = arg.binding
         if len(args) == 0:
             return Atom.newatom(term_name)
         else:
