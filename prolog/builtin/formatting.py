@@ -156,7 +156,7 @@ def impl_write_term(engine, heap, term, options):
 def impl_nl(engine, heap):
     os.write(1, "\n") # XXX use streams
 
-@expose_builtin("write", unwrap_spec=["raw"])
+@expose_builtin("write", unwrap_spec=["concrete"])
 def impl_write(engine, heap, term):
     impl_write_term(engine, heap, term, [])
 
