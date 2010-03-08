@@ -3,7 +3,7 @@ builtins = {}
 builtins_list = []
 
 # imports to register builtins
-#import prolog.builtin.allsolution
+import prolog.builtin.allsolution
 import prolog.builtin.arithmeticbuiltin
 import prolog.builtin.atomconstruction
 import prolog.builtin.control

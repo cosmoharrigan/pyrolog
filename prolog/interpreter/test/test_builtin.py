@@ -254,6 +254,7 @@ def test_cut3():
     #    import pdb; pdb.set_trace()
     assert_true("s(d, [a, b]).", e)
 
+
 def test_rule_with_cut_calling_rule_with_cut():
     e = get_engine("""
         e(a).
@@ -455,13 +456,19 @@ def test_sub_atom_with_var_after():
     assert_false("sub_atom(abcabc, 1, 3, After, Sub), Sub=abc.")
 
 def test_sub_atom_var_sub_and_non_var_after():
-        assert_true("sub_atom(abcabd, 2, 1, 3, Sub), Sub=c.")
-        assert_true("sub_atom(abcabc, Before, Length, 2, Sub), Before=1, Length=3, Sub=bca.")
-        assert_false("sub_atom(abcabc, 1, 3, 2, Sub), Sub=abc.")
-@py.test.mark.xfail
+    assert_true("sub_atom(abcabd, 2, 1, 3, Sub), Sub=c.")
+    assert_true("sub_atom(abcabc, Before, Length, 2, Sub), Before=1, Length=3, Sub=bca.")
+    assert_false("sub_atom(abcabc, 1, 3, 2, Sub), Sub=abc.")
+
 def test_findall():
     assert_true("findall(X, (X = a; X = b; X = c), L), L == [a, b, c].")
-    assert_true("findall(X + Y, (X = 1), L), L == [1+_].")
+    assert_true("findall(X + Y, (X = 1; X = 2), [1+A, 2+B]), A \== B.")
+    e = get_engine("""
+        app([], X, X).
+        app([H | T1], T2, [H | T3]) :-
+            app(T1, T2, T3).
+    """)
+    assert_true("findall(X+Y, app(X, Y, [1, 2, 3]), L), L == [[]+[1, 2, 3], [1]+[2, 3], [1, 2]+[3], [1, 2, 3]+[]].", e)
 
 
 def test_ifthenelse():
