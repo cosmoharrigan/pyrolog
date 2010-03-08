@@ -107,3 +107,9 @@ def test_quick_unify_check():
     assert a.quick_unify_check(a)
     assert b.quick_unify_check(b)
     assert not a.quick_unify_check(b)
+
+def test_copy_derefences():
+    v1 = Var()
+    v1.binding = Number(10)
+    v2 = v1.copy(None, {})
+    assert v2.num == 10

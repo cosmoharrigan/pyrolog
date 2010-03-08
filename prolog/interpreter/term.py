@@ -100,11 +100,14 @@ class Var(PrologObject):
         self.binding = value
     
     def copy(self, heap, memo):
-        try:
-            return memo[self]
-        except KeyError:
-            newvar = memo[self] = heap.newvar()
-            return newvar
+        self = self.dereference(heap)
+        if isinstance(self, Var):
+            try:
+                return memo[self]
+            except KeyError:
+                newvar = memo[self] = heap.newvar()
+                return newvar
+        return self.copy(heap, memo)
     
     def enumerate_vars(self, memo):
         if self in memo:
@@ -249,8 +252,8 @@ class Callable(NonVar):
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Callable) and
             self.signature() == other.signature()):
-            return self._copy_term(_term_unify_and_standardize_apart,
-                                   other, heap, env)
+            return self._copy_term(_term_unify_and_standardize_apart, heap,
+                                   other, env)
         else:
             raise UnificationFailed
     
@@ -261,26 +264,26 @@ class Callable(NonVar):
         return self._copy_term(_term_copy_standardize_apart, heap, env)
     
     def enumerate_vars(self, memo):
-        return self._copy_term(_term_enumerate_vars, memo)
+        return self._copy_term(_term_enumerate_vars, None, memo)
     
     def getvalue(self, heap):
         return self._copy_term(_term_getvalue, heap)
     
     @specialize.arg(1)
     @jit.unroll_safe
-    def _copy_term(self, copy_individual, *extraargs):
+    def _copy_term(self, copy_individual, heap, *extraargs):
         args = [None] * self.argument_count()
         newinstance = False
         i = 0
         while i < self.argument_count():
             arg = self.argument_at(i)
-            cloned = copy_individual(arg, i, *extraargs)
+            cloned = copy_individual(arg, i, heap, *extraargs)
             newinstance = newinstance or cloned is not arg
             args[i] = cloned
             i += 1
         if newinstance:
             # XXX construct the right class directly
-            return Callable.build(self.name(), args, self.signature())
+            return Callable.build(self.name(), args, self.signature(), heap=heap)
         else:
             return self
     
@@ -315,7 +318,8 @@ class Callable(NonVar):
         return func(engine, self)
     
     @staticmethod
-    def build(term_name, args=None, signature=None):
+    @jit.unroll_safe
+    def build(term_name, args=None, signature=None, heap=None):
         if args is None:
             args = []
         if len(args) == 0:
@@ -510,13 +514,13 @@ def _term_copy(obj, i, heap, memo):
 def _term_copy_standardize_apart(obj, i, heap, env):
     return obj.copy_standardize_apart(heap, env)
 
-def _term_enumerate_vars(obj, i, memo):
+def _term_enumerate_vars(obj, i, _, memo):
     return obj.enumerate_vars(memo)
 
 def _term_getvalue(obj, i, heap):
     return obj.getvalue(heap)
 
-def _term_unify_and_standardize_apart(obj, i, other, heap, memo):
+def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
     obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)
 
 class Term(Callable):
