@@ -88,7 +88,7 @@ class PrologConsole(code.InteractiveConsole):
             self.engine.run(query, ContinueContinuation(self.engine, var_to_pos, self.write))
         except error.UnificationFailed:
             self.write("no\n")
-        except error.UncaughtError, e:
+        except error.CatchableError, e:
             self.write("ERROR: ")
             if e.term.argument_at(0).name()== "instantiation_error":
                 print e.term
