@@ -9,7 +9,6 @@ from prolog.builtin.type import impl_ground
 @expose_builtin("catch", unwrap_spec=["callable", "obj", "callable"],
                 handles_continuation=True)
 def impl_catch(engine, heap, goal, catcher, recover, scont, fcont):
-    new_heap = heap.branch()
     scont = continuation.CatchingDelimiter(engine, scont, fcont, catcher, recover, heap)
     return continuation.BodyContinuation(engine, scont, goal), fcont, heap
 
