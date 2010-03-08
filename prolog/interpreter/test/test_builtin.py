@@ -283,6 +283,34 @@ def test_not_with_cut():
     assert_false("p1.", e)
     assert_true("p2.", e)
 
+def test_two_cuts():
+    e = get_engine("""
+        f(>, X) :- X > 0, !.
+        f(=, X) :- X = 0, !.
+        f(<, _).
+    """)
+    assert_true("f(X, 1), X = '>'.", e)
+    assert_true("f(X, 0), X = '='.", e)
+    assert_true("f(X, -1), X = '<'.", e)
+
+def test_listify():
+    e = get_engine("""
+        listify(_X, _X) :- 
+            (var(_X); atomic(_X)), !.
+        listify(_Expr, [_Op|_LArgs]) :-
+            functor(_Expr, _Op, N),
+            listify_list(1, N, _Expr, _LArgs).
+
+        listify_list(I, N, _, []) :- I>N, !.
+        listify_list(I, N, _Expr, [_LA|_LArgs]) :- I=<N, !,
+            arg(I, _Expr, _A),
+            listify(_A, _LA),
+            I1 is I+1,
+            listify_list(I1, N, _Expr, _LArgs).
+    """)
+    assert_true("listify(f(X, 1, g(1)), Y), Y = [f, X, 1, [g, 1]].", e)
+
+
 def test_univ():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
     assert_true("g(a, b, c) =.. [g, a, b, c].")
@@ -419,7 +447,6 @@ def test_standard_comparison():
                               (X @> Y, X @>= X, X @>= Y, Y @< X)).""")
     assert_true("'\\\\=='(f(X, Y), 12).")
     assert_true("X = f(a), Y = f(b), Y @> X.")
-
 
 def test_atom_length():
     assert_true("atom_length('abc', 3).")

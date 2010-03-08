@@ -44,6 +44,7 @@ jitdriver = jit.JitDriver(
 def driver(scont, fcont, heap):
     while not scont.is_done():
         rule = scont.rule
+        #view(scont, fcont, heap)
         try:
             if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
                 rule = scont.rule
@@ -610,7 +611,6 @@ class CutDelimiter(FailureContinuation):
         return self.fcont.cut(heap)
 
     def discard(self):
-        assert not self.discarded
         assert not self.activated
         self.discarded = True
 
