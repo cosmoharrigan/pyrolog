@@ -21,8 +21,8 @@ class AtomConcatContinuation(continuation.ChoiceContinuation):
         # nondeterministic splitting of result
         if self.i < len(self.r)+1:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.var1.unify(term.Callable.build(self.r[:self.i]), heap)
-            self.var2.unify(term.Callable.build(self.r[self.i:]), heap)
+            self.var1.unify(term.Callable.build(self.r[:self.i], cache=False), heap)
+            self.var2.unify(term.Callable.build(self.r[self.i:], cache=False), heap)
             self.i += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
@@ -39,7 +39,7 @@ def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
             if r.endswith(s2):
                 stop = len(r) - len(s2)
                 assert stop > 0
-                a1.unify(term.Callable.build(r[:stop]), heap)
+                a1.unify(term.Callable.build(r[:stop], cache=False), heap)
             else:
                 raise error.UnificationFailed()
     else:
@@ -47,12 +47,12 @@ def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
         if isinstance(a2, term.Var):
             r = helper.convert_to_str(result)
             if r.startswith(s1):
-                a2.unify(term.Callable.build(r[len(s1):]), heap)
+                a2.unify(term.Callable.build(r[len(s1):], cache=False), heap)
             else:
                 raise error.UnificationFailed()
         else:
             s2 = helper.convert_to_str(a2)
-            result.unify(term.Callable.build(s1 + s2), heap)
+            result.unify(term.Callable.build(s1 + s2, cache=False), heap)
     return scont, fcont, heap
 
 @expose_builtin("atom_length", unwrap_spec = ["atom", "obj"])
@@ -152,7 +152,7 @@ class SubAtomVarAfterContinuation(SubAtomContinuation):
                 assert b >= 0
                 assert l >= 0
                 self.sub.unify(term.Callable.build(
-                                    self.atom[b:b + l]), heap)
+                                    self.atom[b:b + l], cache=False), heap)
                 self.l += 1
                 return self.nextcont, fcont, heap
             else:
@@ -181,7 +181,7 @@ class SubAtomElseContinuation(SubAtomContinuation):
             self.length.unify(term.Number(self.l), heap)
             l = self.l
             assert l >= 0
-            self.sub.unify(term.Callable.build(self.atom[b:b + l]), heap)
+            self.sub.unify(term.Callable.build(self.atom[b:b + l], cache=False), heap)
             self.l += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()

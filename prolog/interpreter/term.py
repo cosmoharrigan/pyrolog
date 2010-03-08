@@ -319,7 +319,7 @@ class Callable(NonVar):
     
     @staticmethod
     @jit.unroll_safe
-    def build(term_name, args=None, signature=None, heap=None):
+    def build(term_name, args=None, signature=None, heap=None, cache=True):
         if args is None:
             args = []
         if heap is not None:
@@ -332,7 +332,9 @@ class Callable(NonVar):
                         arg.created_after_choice_point is heap):
                     args[i] = arg.binding
         if len(args) == 0:
-            return Atom.newatom(term_name)
+            if cache:
+                return Atom.newatom(term_name)
+            return Atom(term_name)
         else:
             cls = Callable._find_specialized_class(term_name, len(args))
             if cls is not None:
