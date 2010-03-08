@@ -448,6 +448,10 @@ def test_standard_comparison():
     assert_true("'\\\\=='(f(X, Y), 12).")
     assert_true("X = f(a), Y = f(b), Y @> X.")
 
+def test_compare():
+    assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
+    assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")
+
 def test_atom_length():
     assert_true("atom_length('abc', 3).")
     assert_true("atom_length('\\\\', 1).")

@@ -40,3 +40,14 @@ def impl_standard_comparison_%s(engine, heap, obj1, obj2):
     if not c %s:
         raise error.UnificationFailed()""" % (ext, python)).compile()
  
+@expose_builtin("compare", unwrap_spec=["raw", "obj", "obj"])
+def impl_compare(engine, heap, result, obj1, obj2):
+    """docstring for impl_compare"""
+    c = term.cmp_standard_order(obj1, obj2, heap)
+    if c == 0:
+        res = term.Callable.build("=")
+    elif c == -1:
+        res = term.Callable.build("<")
+    else:
+        res = term.Callable.build(">")
+    result.unify(res, heap)
