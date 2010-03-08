@@ -45,7 +45,6 @@ def driver(scont, fcont, heap):
     while not scont.is_done():
         rule = scont.rule
         try:
-            view(scont, fcont, heap)
             if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
                 rule = scont.rule
                 jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
@@ -54,6 +53,7 @@ def driver(scont, fcont, heap):
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
         except error.UnificationFailed:
+            scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
@@ -240,15 +240,23 @@ class Heap(object):
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
         self.prev = prev
+        self.discarded = False
 
     # _____________________________________________________
     # interface that term.py uses
 
+    @jit.unroll_safe
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
-        if self is var.created_after_choice_point:
+        # if the variable doesn't exist before the last choice point, don't
+        # trail it (variable shunting)
+        created_in = var.created_after_choice_point
+        while created_in is not None and created_in.discarded:
+            created_in = var.created_after_choice_point = created_in.prev
+        if self is created_in:
             return
+        # actually trail the variable
         i = jit.hint(self.i, promote=True)
         if i >= len(self.trail_var):
             self._double_size()
@@ -256,6 +264,7 @@ class Heap(object):
         self.trail_binding[i] = var.binding
         self.i = i + 1
 
+    @jit.unroll_safe
     def _double_size(self):
         trail_var = [None] * (len(self.trail_var) * 2)
         trail_binding = [None] * len(trail_var)
@@ -304,6 +313,7 @@ class Heap(object):
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
         a chain of frames. """
+        self.discarded = True
         if current_heap.prev is self:
             targetpos = 0
             # check whether variables in the current heap no longer need to be
@@ -331,6 +341,11 @@ class Heap(object):
                 current_heap.add_trail(var)
                 var.binding = currbinding
             current_heap.prev = self.prev
+            self.trail_var = None
+            self.trail_binding = None
+            self.i = -1
+            # make self.prev point to the heap that replaced it
+            self.prev = current_heap
         else:
             return self
         return current_heap
@@ -372,11 +387,16 @@ class Continuation(object):
     def is_done(self):
         return False
 
+    def discard(self):
+        """ XXX """
+        if self.nextcont is not None:
+            self.nextcont.discard()
+
     def _dot(self, seen):
         if self in seen:
             return
         seen.add(self)
-        yield '%s [label="%r", shape=box]' % (id(self), self)
+        yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
         if self.nextcont is not None:
             yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
             for line in self.nextcont._dot(seen):
@@ -487,6 +507,11 @@ class ChoiceContinuation(FailureContinuation):
         heap = self.undoheap.discard(heap)
         return self.orig_fcont.cut(heap)
 
+    def discard(self):
+        # don't propagate the discarding, as a ChoiceContinuation can both be a
+        # success and a failure continuation at the same time
+        pass
+
     def _dot(self, seen):
         if self in seen:
             return
@@ -559,11 +584,12 @@ class CutDelimiter(FailureContinuation):
         FailureContinuation.__init__(self, engine, nextcont)
         self.fcont = fcont
         self.activated = False
+        self.discarded = False
 
     @staticmethod
     def insert_cut_delimiter(engine, nextcont, fcont):
         if isinstance(fcont, CutDelimiter):
-            if fcont.activated:
+            if fcont.activated or fcont.discarded:
                 fcont = fcont.fcont
             elif (isinstance(nextcont, CutDelimiter) and
                     nextcont is fcont):
@@ -583,9 +609,13 @@ class CutDelimiter(FailureContinuation):
             return self
         return self.fcont.cut(heap)
 
+    def discard(self):
+        assert not self.discarded
+        assert not self.activated
+        self.discarded = True
 
     def __repr__(self):
-        return "<CutDelimiter activated=%r>" % (self.activated, )
+        return "<CutDelimiter activated=%r, discarded=%r>" % (self.activated, self.discarded)
 
     def _dot(self, seen):
         if self in seen:

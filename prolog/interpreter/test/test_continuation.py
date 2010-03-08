@@ -1,6 +1,12 @@
 import py
 from prolog.interpreter.continuation import *
 
+from prolog.interpreter.parsing import parse_query_term, get_engine
+from prolog.interpreter.parsing import get_query_and_vars
+from prolog.interpreter.error import UnificationFailed
+from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
+
+
 def test_driver():
     order = []
     done = DoneContinuation(None)
@@ -22,6 +28,8 @@ def test_driver():
         def fail(self, heap):
             order.append("fail")
             return self, done, heap
+        def discard(self):
+            pass
 
 
     c5 = FakeC(FakeC(FakeC(FakeC(FakeC(done, 1), 2), 3), 4), 5)
@@ -45,6 +53,8 @@ def test_failure_continuation():
         
         def is_done(self):
             return False
+        def discard(self):
+            pass
         def activate(self, fcont, heap):
             if self.val == -1:
                 raise error.UnificationFailed
@@ -146,6 +156,37 @@ def test_heap_discard():
     assert v1.binding is None
     assert v2.binding == 3 # not backtracked, because it goes away
 
+def test_heap_discard_variable_shunting():
+    h0 = Heap()
+    v0 = h0.newvar()
+
+    h1 = h0.branch()
+    v1a = h1.newvar()
+    v1b = h1.newvar()
+
+    h2 = h1.branch()
+    v2 = h1.newvar()
+
+    h2.add_trail(v0)
+    v0.binding = 1
+    h2.add_trail(v1a)
+    v1a.binding = 2
+
+    h = h1.discard(h2)
+    assert h2.prev is h0
+    assert h2 is h
+    assert h1.discarded
+    assert h1.prev is h2
+
+    h2.add_trail(v1b)
+    v1b.binding = 3
+
+    assert h2.revert_upto(h0)
+
+    assert v0.binding is None
+    assert v1a.binding == 2 # not backtracked, because it goes away
+    assert v1b.binding == 3 # not backtracked, because it goes away
+
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
@@ -154,6 +195,8 @@ def test_full():
         rule = None
         def is_done(self):
             return False
+        def discard(self):
+            pass
         def activate(self, fcont, heap):
             all.append(query.getvalue(heap))
             raise error.UnificationFailed
@@ -178,7 +221,7 @@ def test_full():
 def test_cut_and_call_dont_grow_huge_continuations():
     from prolog.interpreter.term import Number
     all = []
-    class CollectContinuation(Continuation):
+    class CheckContinuation(Continuation):
         rule = None
         def __init__(self):
             self.nextcont = None
@@ -226,24 +269,55 @@ def test_cut_and_call_dont_grow_huge_continuations():
             partition(L,Y,L1,L2).
         partition([X|L],Y,L1,[X|L2]) :-
             partition(L,Y,L1,L2).
-        i(X) :- partition([1, 5, 1, 5, 7, 9,2,4, 3, 7, 9, 0, 10], 5, [X | _], _).
+        i(X) :- partition([6, 6, 6, 6, 6, 6, 6, 1, 5, 1, 5, 7, 9,2,4, 3, 7, 9, 0, 10], 5, [X | _], _).
+
+        tak(X,Y,Z,A) :-
+                write(tak(X, Y, Z, A)), nl,
+                X =< Y, !,
+                write('succeeded'), nl,
+                Z = A.
+        tak(X,Y,Z,A) :-
+                % X > Y,
+                X1 is X - 1,
+                tak(X1,Y,Z,A1),
+                Y1 is Y - 1,
+                tak(Y1,Z,X,A2),
+                Z1 is Z - 1,
+                tak(Z1,X,Y,A3),
+                tak(A1,A2,A3,A).
+
+        j(1) :- tak(18, 5, 5, _).
+
     """)
     query = Callable.build("f", [Number(100)])
-    e.run_query(query, CollectContinuation())
+    e.run_query(query, CheckContinuation())
     query = Callable.build("g", [Number(100)])
-    e.run_query(query, CollectContinuation())
+    e.run_query(query, CheckContinuation())
     query = Callable.build("h", [Number(2)])
-    e.run_query(query, CollectContinuation())
+    e.run_query(query, CheckContinuation())
     query = Callable.build("i", [Number(1)])
-    e.run_query(query, CollectContinuation())
+    e.run_query(query, CheckContinuation())
+    query = Callable.build("j", [Number(1)])
+    e.run_query(query, CheckContinuation())
+
+
+def test_cut_not_reached():
+    class CheckContinuation(Continuation):
+        def __init__(self):
+            self.nextcont = None
+        def is_done(self):
+            return False
+        def activate(self, fcont, heap):
+            assert fcont.fcont.is_done()
+            return DoneContinuation(e), DoneContinuation(e), heap
+    e = get_engine("""
+        g(X, Y) :- X > 0, !, Y = a.
+        g(_, b).
+    """)
+    e.run(parse_query_term("g(-1, Y), Y == b, g(1, Z), Z == a."), CheckContinuation())
 
 # ___________________________________________________________________
 # integration tests
-
-from prolog.interpreter.parsing import parse_query_term, get_engine
-from prolog.interpreter.parsing import get_query_and_vars
-from prolog.interpreter.error import UnificationFailed
-from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
 
 def test_trivial():
     e = get_engine("""
