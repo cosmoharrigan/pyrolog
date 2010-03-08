@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter.error import UnificationFailed
-from prolog.interpreter.term import Atom, Var, Number, Callable, Term, BlackBox
+from prolog.interpreter.term import Atom, Var, Number, Callable, Term
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter.helper import is_term
@@ -46,13 +46,6 @@ def test_term():
     t1.unify(t2, heap)
     assert X.getvalue(heap).name()== "HALLO"
     assert Y.getvalue(heap).name()== "hallo"
-
-def test_blackbox():
-    bl1 = BlackBox()
-    bl2 = BlackBox()
-    heap = Heap()
-    bl1.unify(bl1, heap)
-    py.test.raises(UnificationFailed, bl1.unify, bl2, heap)
 
 def test_enumerate_vars():
     X = Var()

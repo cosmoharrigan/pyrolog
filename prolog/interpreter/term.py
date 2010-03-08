@@ -498,25 +498,6 @@ Float.e = Float(math.e)
 Float.pi = Float(math.pi)
 
 
-class BlackBox(NonVar):
-    # meant to be subclassed
-    TYPE_STANDARD_ORDER = 4
-    def __init__(self):
-        pass
-    
-    @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
-        if self is other:
-            return
-        raise UnificationFailed
-    
-    def copy_and_basic_unify(self, other, heap, memo):
-        if self is other:
-            return self
-        else:
-            raise UnificationFailed
-
-
 # helper functions for various Term methods
 
 def _term_copy(obj, i, heap, memo):
