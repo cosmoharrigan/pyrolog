@@ -5,14 +5,14 @@ from prolog.interpreter.interactive import helptext, StopItNow, \
 ContinueContinuation
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
-from prolog.interpreter.continuation import Continuation, Engine
+from prolog.interpreter.continuation import Continuation, Engine, DoneContinuation
 from prolog.interpreter import error, term
 import prolog.interpreter.term
 prolog.interpreter.term.DEBUG = False
 
 class ContinueContinuation(Continuation):
     def __init__(self, engine, var_to_pos, write):
-        Continuation.__init__(self, engine, None)
+        Continuation.__init__(self, engine, DoneContinuation(engine))
         self.var_to_pos = var_to_pos
         self.write = write
 
@@ -75,31 +75,31 @@ def run(query, var_to_pos, engine):
         engine.run(query, ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("no\n")
-    except error.CatchableError, e:
+    except error.UncaughtError, e:
         f._make_reverse_op_mapping()
         printmessage("ERROR: ")
         t = e.term
-        if isinstance(t, term.Term):
+        if isinstance(t, term.Callable):
             errorterm = t.argument_at(0)
             if isinstance(errorterm, term.Callable):
-                if errorterm.name()== "instantiation_error":
+                if errorterm.name() == "instantiation_error":
                     printmessage("arguments not sufficiently instantiated\n")
                     return
                 elif errorterm.name()== "existence_error":
-                    if isinstance(errorterm, term.Term):
+                    if isinstance(errorterm, term.Callable):
                         printmessage("Undefined %s: %s\n" % (
                             f.format(errorterm.argument_at(0)),
                             f.format(errorterm.argument_at(1))))
                         return
                 elif errorterm.name()== "domain_error":
-                    if isinstance(errorterm, term.Term):
+                    if isinstance(errorterm, term.Callable):
                         printmessage(
                             "Domain error: '%s' expected, found '%s'\n" % (
                             f.format(errorterm.argument_at(0)),
                             f.format(errorterm.argument_at(1))))
                         return
                 elif errorterm.name()== "type_error":
-                    if isinstance(errorterm, term.Term):
+                    if isinstance(errorterm, term.Callable):
                         printmessage(
                             "Type error: '%s' expected, found '%s'\n" % (
                             f.format(errorterm.argument_at(0)),
@@ -132,5 +132,8 @@ def execute(e, filename):
     e.run(term.Callable.build("consult", [term.Callable.build(filename)]))
 
 if __name__ == '__main__':
+    from sys import argv
     e = Engine()
+    if len(argv) == 2:
+        execute(e, argv[1])
     repl(e)
