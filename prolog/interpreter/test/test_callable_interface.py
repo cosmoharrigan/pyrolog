@@ -13,8 +13,8 @@ term = parse('t(a, b, c, d, f).')[0]
 def test_atom_get_signature():
     r = atom.get_prolog_signature() 
     r.name() == '/'
-    r._args[0] == Callable.build('a')
-    r._args[1] == Number(0)
+    assert r.argument_at(0).signature().string() == 'a/0'
+    assert r.argument_at(1).num == 0
 
 def test_atom_get_arguments():
     assert atom.arguments() == []
@@ -29,8 +29,9 @@ def test_term_get_signature():
     r = term.get_prolog_signature()
     print r
     assert r.name() == '/'
-    assert r._args[0].name() == 't'
-    assert r._args[1].num == 5
+    r.name() == '/'
+    assert r.argument_at(0).signature().string() == 't/0'
+    assert r.argument_at(1).num == 5
     
 def test_term_get_arguments():
     t = term.arguments()
@@ -59,33 +60,33 @@ def test_atom_name():
     assert atom.name() == 'a'
 
 def test_atom_signature():
-    assert atom.signature() == 'a/0'
+    assert atom.signature().string() == 'a/0'
     
 def test_term_name():
     assert term.name() == 't'
     
 def test_term_signature():
-    assert term.signature() == 't/5'
+    assert term.signature().string() == 't/5'
     
 def test_callable_factory_for_atom():
     r = Callable.build('foo')
     assert isinstance(r, Atom)
-    assert r.signature() == 'foo/0'
+    assert r.signature().string() == 'foo/0'
 
 def test_callable_factory_for_term_with_empty_args():
     r = Callable.build('bar', [])
     assert isinstance(r, Atom)
-    assert r.signature() == 'bar/0'
+    assert r.signature().string() == 'bar/0'
 
 def test_callable_factory_for_term():
     r = Callable.build('foo', [1, 2])
     assert isinstance(r, Callable)
-    assert r.signature() == 'foo/2'
+    assert r.signature().string() == 'foo/2'
     
 def test_callable_factory_for_cons():
     r = Callable.build('.', [1, Callable.build('[]')])
     assert isinstance(r, specialized_term_classes['.', 2])
-    assert r.signature() == './2'
+    assert r.signature().string() == './2'
     assert r.name() == '.'
     assert r.argument_count() == 2
     assert r.arguments() == [1, Callable.build('[]')]

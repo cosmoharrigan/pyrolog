@@ -2,7 +2,11 @@
 
 from prolog.interpreter import term
 from prolog.interpreter import error
+from prolog.interpreter.signature import Signature
 from pypy.rlib import jit
+
+conssig = Signature.getsignature(".", 2)
+nilsig = Signature.getsignature("[]", 0)
 
 emptylist = term.Callable.build("[]")
 
@@ -18,7 +22,7 @@ def unwrap_list(prolog_list):
     result = [None]
     used = 0
     curr = prolog_list
-    while isinstance(curr, term.Callable) and curr.signature() == './2':
+    while isinstance(curr, term.Callable) and curr.signature().eq(conssig):
         if used == len(result):
             nresult = [None] * (used * 2)
             for i in range(used):
@@ -27,7 +31,7 @@ def unwrap_list(prolog_list):
         result[used] = curr.argument_at(0)
         used += 1
         curr = curr.argument_at(1)
-    if isinstance(curr, term.Callable) and curr.name()== "[]":
+    if isinstance(curr, term.Callable) and curr.signature().eq(nilsig):
         if used != len(result):
             nresult = [None] * used
             for i in range(used):

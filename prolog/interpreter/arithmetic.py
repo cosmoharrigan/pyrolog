@@ -2,14 +2,13 @@ import py
 import math
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
+from prolog.interpreter.signature import Signature
 from prolog.interpreter.error import UnificationFailed
 from pypy.rlib.rarithmetic import intmask
 from pypy.rlib.unroll import unrolling_iterable
 from pypy.rlib import jit
 
-arithmetic_functions = {}
-arithmetic_functions_list = []
-
+Signature.register_extr_attr("arithmetic")
 
 class CodeCollector(object):
     def __init__(self):
@@ -135,13 +134,10 @@ for prolog_name, unwrap_spec, pattern, overflow, intversion in simple_functions:
         name = "".join([unicodedata.name(unicode(c)).replace(" ", "_").replace("-", "").lower() for c in prolog_name])
     f = wrap_builtin_operation(name, pattern, unwrap_spec, overflow,
                                intversion)
-    signature = "%s/%s" % (prolog_name, len(unwrap_spec))
-    arithmetic_functions[signature] = f
-    arithmetic_functions_list.append((signature, f))
+    
+    signature = Signature.getsignature(prolog_name, len(unwrap_spec))
+    signature.set_extra("arithmetic", f)
 
-arithmetic_functions_list = unrolling_iterable(arithmetic_functions_list)
-
-# @jit.purefunction_promote
 @jit.purefunction
 def get_arithmetic_function(signature):
-    return arithmetic_functions.get(signature, None)
+    return signature.get_extra("arithmetic")

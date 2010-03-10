@@ -4,6 +4,11 @@ import string
 from prolog.interpreter.term import Float, Number, Var, Atom, Callable
 from prolog.interpreter import error, helper, parsing
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.signature import Signature
+
+conssig = Signature.getsignature(".", 2)
+nilsig = Signature.getsignature("[]", 0)
+
 
 class TermFormatter(object):
     def __init__(self, engine, quoted=False, max_depth=0,
@@ -101,15 +106,15 @@ class TermFormatter(object):
         if not helper.is_term(term):
             return (0, self.format(term))
         assert isinstance(term, Callable)
-        if term.signature()== "./2":
+        if term.signature().eq(conssig):
             result = ["["]
-            while helper.is_term(term) and isinstance(term, Callable) and term.signature() == "./2":
+            while helper.is_term(term) and isinstance(term, Callable) and term.signature().eq(conssig):
                 first = term.argument_at(0)
                 second = term.argument_at(1)
                 result.append(self.format(first))
                 result.append(", ")
                 term = second
-            if isinstance(term, Atom) and term.name()== "[]":
+            if isinstance(term, Atom) and term.signature().eq(nilsig):
                 result[-1] = "]"
             else:
                 result[-1] = "|"

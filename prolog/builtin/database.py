@@ -1,5 +1,6 @@
 import py
 from prolog.interpreter import helper, term, error
+from prolog.interpreter.signature import Signature
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________
@@ -7,16 +8,16 @@ from prolog.builtin.register import expose_builtin
 
 @expose_builtin("abolish", unwrap_spec=["obj"])
 def impl_abolish(engine, heap, predicate):
-    from prolog.builtin import builtins
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
         error.throw_domain_error("not_less_than_zero", term.Number(arity))
-    signature = name + "/" + str(arity)
-    if signature in builtins:
+    signature = Signature.getsignature(name, arity)
+    if signature.get_extra("builtin"):
         error.throw_permission_error("modify", "static_procedure",
                                      predicate)
-    if signature in engine.signature2function:
-        del engine.signature2function[signature]
+    function = engine.get_function(signature)
+    if function is not None:
+        function.rulechain = None
 
 @expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
 def impl_assert(engine, heap, rule):
@@ -29,21 +30,19 @@ def impl_asserta(engine, heap, rule):
 
 @expose_builtin("retract", unwrap_spec=["callable"])
 def impl_retract(engine, heap, pattern):
-    from prolog.builtin import builtins
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
     else:
         head = pattern
         body = None
-    if head.signature()in builtins:
+    if head.signature().get_extra("builtin"):
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = engine.signature2function.get(head.signature(), None)
+    function = engine.get_function(head.signature())
     if function is None:
         raise error.UnificationFailed
-    #import pdb; pdb.set_trace()
     rulechain = function.rulechain
     oldstate = heap.branch()
     while rulechain:
@@ -57,10 +56,7 @@ def impl_retract(engine, heap, pattern):
             oldstate.revert_upto(heap)
         else:
             if function.rulechain is rulechain:
-                if rulechain.next is None:
-                    del engine.signature2function[head.signature()]
-                else:
-                    function.rulechain = rulechain.next
+                function.rulechain = rulechain.next
             else:
                 function.remove(rulechain)
             break

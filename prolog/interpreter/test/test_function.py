@@ -1,5 +1,6 @@
 from prolog.interpreter.function import Rule, Function
 from prolog.interpreter.term import Callable
+from prolog.interpreter.signature import Signature
 
 class C(Callable):
     def __init__(self, name):
@@ -9,7 +10,7 @@ class C(Callable):
     def __str__(self):
         return 'C(%s)' % self.name()    
     def signature(self):
-        return self.name() + '/123'
+        return Signature(self.name(), 123)
     def name(self):
         return 'C'
     def argument_count(self):

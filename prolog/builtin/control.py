@@ -1,5 +1,10 @@
 from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.signature import Signature
+
+ifsig = Signature.getsignature("->", 2)
+cutsig = Signature.getsignature("!", 0)
+CUTATOM = term.Callable.build("!")
 
 # ___________________________________________________________________
 # control predicates
@@ -77,7 +82,7 @@ class OrContinuation(continuation.FailureContinuation):
                 handles_continuation=True)
 def impl_or(engine, heap, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
-    if call1.signature()== "->/2":
+    if call1.signature().eq(ifsig):
         assert helper.is_term(call1)
         scont = fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
@@ -126,7 +131,6 @@ def impl_not(engine, heap, call, scont, fcont):
     newscont = continuation.BodyContinuation(engine, notscont, call)
     return newscont, notfcont, heap.branch()
 
-CUTATOM = term.Callable.build("!")
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
                 handles_continuation=True)

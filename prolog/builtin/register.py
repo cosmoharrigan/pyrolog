@@ -1,17 +1,19 @@
 import py
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
-from prolog.builtin import builtins, builtins_list
+from prolog.interpreter.signature import Signature
 
 from pypy.rlib.objectmodel import we_are_translated
+
+Signature.register_extr_attr("builtin")
 
 class Builtin(object):
     _immutable_ = True
     def __init__(self, function, name, numargs, signature):
         self.function = function
-        self.name= name
+        self.name = name
         self.numargs = numargs
-        self.signature= signature
+        self.signature = signature
 
     def call(self, engine, query, scont, fcont, heap):
         return self.function(engine, query, scont, fcont, heap)
@@ -89,9 +91,8 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     miniglobals[func.func_name] = func
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
-        signature = "%s/%s" % (name, len(unwrap_spec))
+        signature = Signature.getsignature(name, len(unwrap_spec))
         b = Builtin(miniglobals[funcname], funcname, len(unwrap_spec),
                     signature)
-        builtins[signature] = b
-        builtins_list.append((signature, b))
+        signature.set_extra("builtin", b)
     return func

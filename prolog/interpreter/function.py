@@ -1,6 +1,9 @@
 from prolog.interpreter.term import Callable
+from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
 # XXX needs tests
+
+cutsig = Signature.getsignature("!", 0)
 
 class Rule(object):
     _immutable_ = True
@@ -36,7 +39,7 @@ class Rule(object):
         while stack:
             current = stack.pop()
             if isinstance(current, Callable):
-                if current.signature() == "!/0":
+                if current.signature().eq(cutsig):
                     self.contains_cut = True
                     return
                 else:

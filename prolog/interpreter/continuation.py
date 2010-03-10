@@ -1,11 +1,15 @@
 import py
 import time
 from pypy.rlib import jit
+from pypy.rlib.objectmodel import we_are_translated
 from prolog.interpreter import error
 from prolog.interpreter import helper
 from prolog.interpreter.term import Term, Atom, Var, Callable
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
+from prolog.interpreter.signature import Signature
+
+Signature.register_extr_attr("function", engine=True)
 
 # ___________________________________________________________________
 # JIT stuff
@@ -15,7 +19,7 @@ def can_inline(*args):
 
 def get_printable_location(rule):
     if rule:
-        s = rule.signature
+        s = rule.signature.string()
     else:
         s = "No rule"
     return s
@@ -28,6 +32,8 @@ def set_jitcell_at(newcell, where, rule):
     # XXX can be vastly simplified
     rule.jit_cells[where] = newcell
 
+predsig = Signature(":-", 2)
+callsig = Signature(":-", 1)
 
 jitdriver = jit.JitDriver(
         greens=["rule"],
@@ -55,6 +61,9 @@ def driver(scont, fcont, heap):
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
         except error.UnificationFailed:
+            if not we_are_translated():
+                if fcont.is_done():
+                    raise
             scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
@@ -67,7 +76,6 @@ def driver(scont, fcont, heap):
 class Engine(object):
     def __init__(self):
         self.heap = Heap()
-        self.signature2function = {}
         self.parser = None
         self.operations = None
         self.start = time.clock()
@@ -75,11 +83,13 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
+    def get_function(self, signature):
+        return signature.get_extra_engine_local("function", self)
+
     def add_rule(self, rule, end=True):
-        from prolog import builtin
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
-            if rule.signature() == ":-/2":
+            if rule.signature().eq(predsig):
                 rule = Rule(rule.argument_at(0), rule.argument_at(1))
             else:
                 rule = Rule(rule, None)
@@ -89,24 +99,25 @@ class Engine(object):
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
         signature = rule.signature        
-        if signature in builtin.builtins:
+        if self.get_builtin(signature):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
         function = self._lookup(signature)
+        
         function.add_rule(rule, end)
 
     @jit.purefunction_promote("0")
     def get_builtin(self, signature):
-        from prolog.builtin import builtins
-        builtin = builtins.get(signature, None)
-        return builtin
+        from prolog import builtin # for the side-effects
+        return signature.get_extra("builtin")
 
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
-        signature2function = self.signature2function
-        function = signature2function.get(signature, None)
+        assert signature.cached
+        function = self.get_function(signature)
         if function is None:
-            signature2function[signature] = function = Function()
+            function = Function()
+            signature.set_extra_engine_local("function", function, self)
         return function
 
     # _____________________________________________________
@@ -116,7 +127,7 @@ class Engine(object):
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
-        if isinstance(term, Term) and term.signature()== ":-/1":
+        if isinstance(term, Term) and term.signature().eq(callsig):
             self.run(term.argument_at(0))
         else:
             self.add_rule(term)
@@ -189,48 +200,8 @@ class Engine(object):
                     scont.recover, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc)
 
-#    def throw_system_error(self, term, scont, fcont, heap):
-#        term = Callable.build("error", [term])
-#        return self.throw(term, scont, fcont, heap)
-#
-#    def throw_existence_error(self, object_type, obj, scont, fcont, heap):
-#        term = Callable.build("existence_error", [Callable.build(object_type), obj])
-#        return self.throw_system_error(term, scont, fcont, heap)
-#
-#    def throw_instantiation_error(self, scont, fcont, heap):
-#        term = Callable.build("instantiation_error")
-#        return self.throw_system_error(term, scont, fcont, heap)
-#
-#    def throw_type_error(self, valid_type, obj, scont, fcont, heap):
-#        # valid types are:
-#        # atom, atomic, byte, callable, character
-#        # evaluable, in_byte, in_character, integer, list
-#        # number, predicate_indicator, variable
-#        term = Callable.build("type_error", [Callable.build(valid_type), obj])
-#        return self.throw_system_error(term, scont, fcont, heap)
-#
-#    def throw_domain_error(self, valid_domain, obj, scont, fcont, heap):
-#        # valid domains are:
-#        # character_code_list, close_option, flag_value, io_mode,
-#        # not_empty_list, not_less_than_zero, operator_priority,
-#        # operator_specifier, prolog_flag, read_option, source_sink,
-#        # stream, stream_option, stream_or_alias, stream_position,
-#        # stream_property, write_option
-#        term = Callable.build("domain_error", [Callable.build(valid_domain), obj])
-#        return self.throw_system_error(term, scont, fcont, heap)
-#
-#    def throw_permission_error(self, operation, permission_type, obj, scont, fcont, heap):
-#        # valid operations are:
-#        # access, create, input, modify, open, output, reposition 
-#
-#        # valid permission_types are:
-#        # binary_stream, flag, operator, past_end_of_stream, private_procedure,
-#        # static_procedure, source_sink, stream, text_stream. 
-#        term = Callable.build("permission_error", [term.Callable.build(operation),
-#                                         term.Callable.build(permission_type),
-#                                         obj])
-#        return self.throw_system_error(term, scont, fcont, heap)
-
+    def __freeze__(self):
+        return True
 
 # ___________________________________________________________________
 # Continuation classes

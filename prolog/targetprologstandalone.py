@@ -9,6 +9,8 @@ from prolog.interpreter.translatedmain import repl, execute
 
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter import term
+from prolog.interpreter import arithmetic # for side effects
+from prolog import builtin # for side effects
 e = Engine()
 term.DEBUG = False
 

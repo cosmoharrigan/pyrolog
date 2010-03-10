@@ -1,7 +1,3 @@
-# all builtins
-builtins = {}
-builtins_list = []
-
 # imports to register builtins
 import prolog.builtin.allsolution
 import prolog.builtin.arithmeticbuiltin

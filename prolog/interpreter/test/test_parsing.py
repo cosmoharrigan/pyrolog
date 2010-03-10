@@ -1,3 +1,4 @@
+from prolog.interpreter.signature import Signature
 from prolog.interpreter.parsing import parse_file, TermBuilder, OrderTransformer
 from prolog.interpreter.parsing import parse_query_term
 
@@ -30,7 +31,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     for fact in facts:
         print fact
         e.add_rule(fact)
-    assert e.signature2function["add_numeral/3"].rulechain.head.argument_at(1).name()== "null"
+    assert e.get_function(Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name()== "null"
     four = Callable.build("succ", [Callable.build("succ", [Callable.build("succ",
                 [Callable.build("succ", [Callable.build("null")])])])])
     e.run(parse_query_term("numeral(succ(succ(null)))."))
