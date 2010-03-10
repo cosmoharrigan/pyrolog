@@ -111,11 +111,7 @@ class Var(PrologObject):
         return self.copy(heap, memo)
     
     def enumerate_vars(self, memo):
-        if self in memo:
-            return memo[self]
-        result = NumberedVar(len(memo))
-        memo[self] = result
-        return result
+        return memo.get(self)
     
     def contains_var(self, var, heap):
         self = self.dereference(heap)
@@ -154,12 +150,16 @@ class NumberedVar(PrologObject):
         self.num = index
     
     def copy_standardize_apart(self, heap, env):
+        if self.num < 0:
+            return heap.newvar()
         res = env[self.num]
         if res is None:
             res = env[self.num] = heap.newvar()
         return res
     
     def unify_and_standardize_apart(self, other, heap, env):
+        if self.num < 0:
+            return other
         res = env[self.num]
         if res is None:
             env[self.num] = other

@@ -1,4 +1,5 @@
 from prolog.interpreter.term import Callable
+from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
 # XXX needs tests
@@ -14,7 +15,7 @@ class Rule(object):
     def __init__(self, head, body, next = None):
         from prolog.interpreter import helper
         assert isinstance(head, Callable)
-        memo = {}
+        memo = EnumerationMemo()
         self.head = h = head.enumerate_vars(memo)
         if h.argument_count() > 0:
             self.headargs = h.arguments()
@@ -25,7 +26,7 @@ class Rule(object):
             self.body = body.enumerate_vars(memo)
         else:
             self.body = None
-        self.size_env = len(memo)
+        self.size_env = memo.size()
         self.signature = head.signature()        
         self._does_contain_cut()
 

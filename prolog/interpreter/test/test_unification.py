@@ -48,17 +48,33 @@ def test_term():
     assert Y.getvalue(heap).name()== "hallo"
 
 def test_enumerate_vars():
+    from prolog.interpreter.memo import EnumerationMemo
     X = Var()
     Y = Var()
     t1 = Callable.build("f", [X, X, Callable.build("g", [Y, X])])
-    t2 = t1.enumerate_vars({})
+    memo = EnumerationMemo()
+    t2 = t1.enumerate_vars(memo)
     assert is_term(t2)
     assert t2.signature().eq(t1.signature())
     assert t2.argument_at(0) is t2.argument_at(1)
     assert t2.argument_at(0).num == 0
     assert t2.argument_at(2).argument_at(1).num == 0
 
-def test_copy_and_unify():
+def test_enumerate_vars_var_occurs_once():
+    from prolog.interpreter.memo import EnumerationMemo
+    X = Var()
+    Y = Var()
+    Z = Var()
+    t1 = Callable.build("f", [X, Y, Y, Z, Z])
+    memo = EnumerationMemo()
+    t2 = t1.enumerate_vars(memo)
+    assert t2.argument_at(0).num == -1
+    assert t2.argument_at(1).num == 0
+    assert t2.argument_at(2).num == 0
+    assert t2.argument_at(3).num == 1
+    assert t2.argument_at(4).num == 1
+
+def test_unify_and_standardize_apart():
     heap = Heap()
     X = Var()
     Y = Var()
@@ -67,6 +83,28 @@ def test_copy_and_unify():
     t2 = Callable.build("f", [Callable.build("i"), X, Y])
     env = [None]
     t1.unify_and_standardize_apart(t2, heap, env)
+
+    Z = NumberedVar(-1)
+    Z.unify_and_standardize_apart(t2, heap, [])
+
+def test_copy_standardize_apart():
+    heap = Heap()
+    Z = NumberedVar(0)
+    t = Callable.build("f", [Z, Z])
+    t2 = t.copy_standardize_apart(heap, [None])
+    assert isinstance(t2.argument_at(0), Var)
+    assert t2.argument_at(0) is t2.argument_at(1)
+
+    t2 = t.copy_standardize_apart(heap, [Number(1)])
+    assert isinstance(t2.argument_at(0), Number)
+    assert t2.argument_at(0) is t2.argument_at(1)
+
+    Z = NumberedVar(-1)
+    t = Callable.build("f", [Z, Z])
+    t2 = t.copy_standardize_apart(heap, [None])
+    assert isinstance(t2.argument_at(0), Var)
+    assert isinstance(t2.argument_at(1), Var)
+    assert t2.argument_at(0) is not t2.argument_at(1)
 
 def test_run():
     e = Engine()
