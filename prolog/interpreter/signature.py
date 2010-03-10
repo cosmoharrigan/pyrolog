@@ -7,11 +7,7 @@ class SignatureFactory(object):
         self.cache = {}
         self.extra_attrs = []
         self.extra_attr_names = []
-        self.extra_attrs_unrolling = unrolling_iterable(self.extra_attrs)
-
-    def init_extra_attrs(self, signature):
-        for attr, val in self.extra_attrs_unrolling:
-            setattr(signature, attr, val)
+        self.init_extra_attrs = lambda self: None
 
     def getsignature(self, name, numargs, cache=True):
         if (name, numargs) in self.cache:
@@ -42,7 +38,11 @@ class SignatureFactory(object):
             setattr(signature, aname, default)
             if engine:
                 setattr(signature, ename, None)
-        self.extra_attrs_unrolling = unrolling_iterable(self.extra_attrs)
+        extra_attrs_unrolling = unrolling_iterable(self.extra_attrs)
+        def init_extra_attrs(signature):
+            for attr, val in extra_attrs_unrolling:
+                setattr(signature, attr, val)
+        self.init_extra_attrs = init_extra_attrs
 
     def __freeze__(self):
         return True

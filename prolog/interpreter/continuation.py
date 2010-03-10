@@ -32,8 +32,8 @@ def set_jitcell_at(newcell, where, rule):
     # XXX can be vastly simplified
     rule.jit_cells[where] = newcell
 
-predsig = Signature(":-", 2)
-callsig = Signature(":-", 1)
+predsig = Signature.getsignature(":-", 2)
+callsig = Signature.getsignature(":-", 1)
 
 jitdriver = jit.JitDriver(
         greens=["rule"],
