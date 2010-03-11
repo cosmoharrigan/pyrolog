@@ -47,14 +47,13 @@ def test_statistics_walltime_since_last_call():
     assert clock <= vars['A'].num
     assert vars['B'].num <= clock
 
-
 def test_statistics_walltime_progresses():
     # succesive call return total runtime and time since last call
     clock = walltime(e)
     reset_clocks(e)
-    vars = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
+    v1 = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
     time.sleep(2)
-    vars = assert_true("statistics(walltime, _), statistics(walltime, [C,D]).", e)
-    assert vars['A'] != vars['B']
-    assert clock <= vars['A'].num
-    assert vars['B'].num <= clock
+    v2 = assert_true("statistics(walltime, _), statistics(walltime, [C,D]).", e)
+    assert v1['A'] != v1['B']
+    assert clock <= v1['A'].num
+    assert v1['A'].num <= v2['C'].num
