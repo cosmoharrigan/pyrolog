@@ -10,7 +10,7 @@ from prolog.builtin.register import expose_builtin
 @expose_builtin("statistics", unwrap_spec=["atom", "obj"])
 def impl_statistics(engine, heap, stat_name, value):
     t = []
-    if stat_name == 'runtime':        
+    if stat_name == 'runtime':
         t = [clock_time(engine), clocktime_since_last_call(engine)]
     if stat_name == 'walltime':
         t = [walltime(engine), walltime_since_last_call(engine)]
@@ -20,20 +20,28 @@ def impl_statistics(engine, heap, stat_name, value):
 def clock_time(engine):
     engine.clocks['cpu_now'] = int(time.clock()*1000)
     return engine.clocks['cpu_now']
-    
+
 def clocktime_since_last_call(engine):
     t = engine.clocks['cpu_now'] - engine.clocks['cpu_last']
     engine.clocks['cpu_last'] = engine.clocks['cpu_now']
     return t
-    
+
 def walltime(engine):
-    engine.clocks['wall_now'] = int((time.time()-engine.start)*1000)
+    # XXX Unhack
+    engine.clocks['wall_now'] = millis()
     return engine.clocks['wall_now']
 
 def walltime_since_last_call(engine):
     t = engine.clocks['wall_now'] - engine.clocks['wall_last']
     engine.clocks['wall_last'] = engine.clocks['wall_now']
     return t
-    
+
 def reset_clocks(engine):
     engine.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
+
+def millis():
+    x = time.time()
+    y = int(x)
+    dec = int((x - y)*100)
+    h = y % 100
+    return (h*100+dec)
