@@ -53,6 +53,8 @@ class Signature(object):
 
     _cache = SignatureFactory()
 
+    _immutable_fields_ = ["name", "numargs", "factory"]
+
     def __init__(self, name, numargs, cached=False, factory=None):
         assert isinstance(name, str)
         self.name = name
