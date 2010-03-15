@@ -66,9 +66,19 @@ class Var(PrologObject):
         self.binding = None
     
     @specialize.arg(3)
+    @jit.unroll_safe
     def unify(self, other, heap, occurs_check=False):
         other = other.dereference(heap)
-        return self.dereference(heap)._unify_derefed(other, heap, occurs_check)
+        next = self.binding
+        while isinstance(next, Var):
+            self = next
+            next = next.binding
+        if next is None:
+            assert isinstance(self, Var)
+            return self._unify_derefed(other, heap, occurs_check)
+        else:
+            assert isinstance(next, NonVar)
+            return next._unify_derefed(other, heap, occurs_check)
     
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
@@ -253,8 +263,10 @@ class Callable(NonVar):
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Callable) and
             self.signature().eq(other.signature())):
-            return self._copy_term(_term_unify_and_standardize_apart, heap,
-                                   other, env)
+            for i in range(self.argument_count()):
+                argself = self.argument_at(i)
+                argother = other.argument_at(i)
+                argself.copy_and_basic_unify(argother, heap, env)
         else:
             raise UnificationFailed
     
@@ -619,6 +631,63 @@ def generate_abstract_class(n_args):
         
         def argument_count(self):
             return n_args
+
+        def quick_unify_check(self, other):
+            other = other.dereference(None)
+            if isinstance(other, Var):
+                return True
+            if not isinstance(other, Callable):
+                return False
+            if not self.signature().eq(other.signature()):
+                return False
+            if not isinstance(other, abstract_callable):
+                return Callable.quick_unify_check(self, other)
+            for x in arg_iter:
+                a = getattr(self, 'val_%d' % x)
+                b = getattr(other, 'val_%d' % x)
+                if not a.quick_unify_check(b):
+                    return False
+            return True
+
+        def copy_and_basic_unify(self, other, heap, env):
+            if not isinstance(other, abstract_callable):
+                return Callable.copy_and_basic_unify(self, other, heap, env)
+            if self.signature().eq(other.signature()):
+                for x in arg_iter:
+                    a = getattr(self, 'val_%d' % x)
+                    b = getattr(other, 'val_%d' % x)
+                    a.unify_and_standardize_apart(b, heap, env)
+            else:
+                raise UnificationFailed
+
+        @specialize.arg(3)
+        def basic_unify(self, other, heap, occurs_check=False):
+            if not isinstance(other, abstract_callable):
+                return Callable.basic_unify(self, other, heap, occurs_check)
+            if self.signature().eq(other.signature()):
+                for x in arg_iter:
+                    a = getattr(self, 'val_%d' % x)
+                    b = getattr(other, 'val_%d' % x)
+                    a.unify(b, heap, occurs_check)
+            else:
+                raise UnificationFailed
+
+        @specialize.arg(1)
+        def _copy_term(self, copy_individual, heap, *extraargs):
+            args = [None] * self.argument_count()
+            newinstance = False
+            i = 0
+            for i in arg_iter:
+                arg = getattr(self, 'val_%d' % i)
+                cloned = copy_individual(arg, i, heap, *extraargs)
+                newinstance = newinstance or cloned is not arg
+                args[i] = cloned
+                i += 1
+            if newinstance:
+                # XXX construct the right class directly
+                return Callable.build(self.name(), args, self.signature(), heap=heap)
+            else:
+                return self
     
     abstract_callable.__name__ = 'Abstract'+str(n_args)
     return abstract_callable
