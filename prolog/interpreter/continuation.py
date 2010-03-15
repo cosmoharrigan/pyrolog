@@ -64,7 +64,8 @@ def driver(scont, fcont, heap):
             if not we_are_translated():
                 if fcont.is_done():
                     raise
-            scont.discard()
+            if scont.candiscard():
+                scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
@@ -214,6 +215,13 @@ class Continuation(object):
     def __init__(self, engine, nextcont):
         self.engine = engine
         self.nextcont = nextcont
+        if nextcont is not None:
+            self._candiscard = nextcont.candiscard()
+        else:
+            self._candiscard = False
+
+    def candiscard(self):
+        return self._candiscard
 
     def activate(self, fcont, heap):
         """ Follow the continuation. heap is the heap that should be used while
@@ -228,7 +236,9 @@ class Continuation(object):
         return False
 
     def discard(self):
-        """ XXX """
+        """ Discard the information stored in a Continuation. This will be used
+        if a SuccessContinuation will no longer be activatable, since
+        backtracking occurred. """
         if self.nextcont is not None:
             self.nextcont.discard()
 
@@ -425,6 +435,9 @@ class CutDelimiter(FailureContinuation):
         self.fcont = fcont
         self.activated = False
         self.discarded = False
+
+    def candiscard(self):
+        return not self.discarded
 
     @staticmethod
     def insert_cut_delimiter(engine, nextcont, fcont):

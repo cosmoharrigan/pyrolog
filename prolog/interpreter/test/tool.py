@@ -26,6 +26,7 @@ class CollectAllContinuation(Continuation):
     def __init__(self, vars):
         self.heaps = []
         self.vars = vars
+        self._candiscard = True
 
     def activate(self, fcont, heap):
         self.heaps.append(dict([(name, var.dereference(heap))

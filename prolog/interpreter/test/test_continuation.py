@@ -15,6 +15,7 @@ def test_driver():
         def __init__(self, next, val):
             self.next = next
             self.val = val
+            self.candiscard = lambda : True
 
         def is_done(self):
             return False
@@ -50,6 +51,7 @@ def test_failure_continuation():
         def __init__(self, next, val):
             self.next = next
             self.val = val
+            self.candiscard = lambda : True
         
         def is_done(self):
             return False
@@ -88,6 +90,7 @@ def test_full():
     all = []
     class CollectContinuation(object):
         rule = None
+        candiscard = lambda self: True
         def is_done(self):
             return False
         def discard(self):
@@ -113,6 +116,22 @@ def test_full():
     assert all[3].argument_at(0).argument_at(0).name()== "y"
     assert all[3].argument_at(1).argument_at(0).name()== "b"
 
+def test_cut_can_be_discarded():
+    cont = DoneContinuation(None)
+    assert not cont.candiscard()
+    cont = RuleContinuation(None, cont, None, None)
+    assert not cont.candiscard()
+    cont = CutDelimiter(None, None, None)
+    assert cont.candiscard()
+    cont = RuleContinuation(None, cont, None, None)
+    assert cont.candiscard()
+
+    cont = CutDelimiter(None, None, None)
+    cont.discard()
+    assert not cont.candiscard()
+    cont = RuleContinuation(None, cont, None, None)
+    assert not cont.candiscard()
+
 def test_cut_and_call_dont_grow_huge_continuations():
     from prolog.interpreter.term import Number
     all = []
@@ -120,6 +139,7 @@ def test_cut_and_call_dont_grow_huge_continuations():
         rule = None
         def __init__(self):
             self.nextcont = None
+            self._candiscard = True
         def is_done(self):
             return False
         def activate(self, fcont, heap):
@@ -200,6 +220,7 @@ def test_cut_not_reached():
     class CheckContinuation(Continuation):
         def __init__(self):
             self.nextcont = None
+            self._candiscard = True
         def is_done(self):
             return False
         def activate(self, fcont, heap):
