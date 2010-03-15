@@ -105,7 +105,8 @@ def impl_univ(engine, heap, first, second):
             l2 = [None] * (len(l) - 1)
             for i in range(len(l2)):
                 l2[i] = l[i + 1]
-            term.Callable.build(head.name(), l2).unify(first, heap)
+            name = jit.hint(head.signature(), promote=True).name
+            term.Callable.build(name, l2).unify(first, heap)
 
 @expose_builtin("copy_term", unwrap_spec=["obj", "obj"])
 def impl_copy_term(engine, heap, interm, outterm):
