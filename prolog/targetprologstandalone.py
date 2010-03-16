@@ -15,9 +15,7 @@ e = Engine()
 term.DEBUG = False
 
 def entry_point(argv):
-    #from pypy.jit.codegen.hlinfo import highleveljitinfo
-    #if highleveljitinfo.sys_executable is None:
-    #    highleveljitinfo.sys_executable = argv[0]
+    e.clocks.startup()
     if len(argv) == 2:
         execute(e, argv[1])
     try:

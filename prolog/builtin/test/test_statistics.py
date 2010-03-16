@@ -2,7 +2,7 @@ import py
 import time
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
-from prolog.builtin.statistics import clock_time, reset_clocks, walltime
+from prolog.builtin.statistics import Clocks
 
 e = Engine()
 def test_statistics():
@@ -12,48 +12,40 @@ def test_statistics_builds_list():
     assert_true('statistics(runtime, [A,B]), number(A), number(B).', e)
     
 def test_statistics_runtime_total():
-    reset_clocks(e)
     # first call returns total runtime in both list items
-    clock = clock_time(e)
+    e.clocks.startup()
     vars = assert_true("statistics(runtime, [A,B]).", e)
-    assert vars['A'].num == vars['B'].num
-    assert vars['A'] != 0
-    assert clock <= vars['A'].num
+    assert vars['A'].num <= vars['B'].num
     
 def test_statistics_runtime_since_last_call():
-    reset_clocks(e)
+    e.clocks.startup()
     # succesive call return total runtime and time since last call
-    clock = clock_time(e)
-    vars = assert_true("statistics(runtime, _), statistics(runtime, [A,B]).", e)
-    assert vars['A'] != vars['B']
-    assert clock <= vars['A'].num
-    assert vars['B'].num <= clock
+    vars1 = assert_true("statistics(runtime, _), statistics(runtime, [A,B]).", e)
+    vars2 = assert_true("statistics(runtime, _), statistics(runtime, [A,B]).", e)
+    assert vars2['A'].num != vars2['B'].num
+    assert vars1['A'].num <= vars2['A'].num
     
 def test_statistics_walltime_total():
-    reset_clocks(e)
+    e.clocks.startup()
     # first call returns total runtime in both list items
-    clock = walltime(e)
     vars = assert_true("statistics(walltime, [A,B]).", e)
     assert vars['A'].num == vars['B'].num
     assert vars['A'].num != 0
-    assert clock <= vars['A'].num
 
 def test_statistics_walltime_since_last_call():
     # succesive call return total runtime and time since last call
-    clock = walltime(e)
-    reset_clocks(e)
-    vars = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
-    assert vars['A'] != vars['B']
-    assert clock <= vars['A'].num
-    assert vars['B'].num <= clock
+    e.clocks.startup()
+    # first call returns total runtime in both list items
+    vars1 = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
+    vars2 = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
+    assert vars2['A'].num != vars2['B'].num
+    assert vars1['A'].num <= vars2['A'].num
 
 def test_statistics_walltime_progresses():
     # succesive call return total runtime and time since last call
-    clock = walltime(e)
-    reset_clocks(e)
+    e.clocks.startup()
     v1 = assert_true("statistics(walltime, _), statistics(walltime, [A,B]).", e)
     time.sleep(2)
     v2 = assert_true("statistics(walltime, _), statistics(walltime, [C,D]).", e)
     assert v1['A'] != v1['B']
-    assert clock <= v1['A'].num
-    assert v1['A'].num <= v2['C'].num
+    assert 1000 <= v2['C'].num - v1['A'].num <= 3000

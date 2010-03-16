@@ -4,6 +4,29 @@ import time
 from prolog.interpreter import helper, term, error
 from prolog.builtin.register import expose_builtin
 
+class Clocks(object):
+    def __init__(self):
+        pass
+
+    def startup(self):
+        self.startup_wall = time.time()
+        self.last_wall = 0
+        self.startup_cpu = time.clock()
+        self.last_cpu = 0
+
+    def get_walltime(self):
+        t = time.time() - self.startup_wall
+        t = int(t * 1000)
+        res = [t, t - self.last_wall]
+        self.last_wall = t
+        return res
+
+    def get_cputime(self):
+        t = time.clock() - self.startup_cpu
+        t = int(t * 1000)
+        res = [t, t - self.last_cpu]
+        self.last_cpu = t
+        return res
 
 # TODO: make this continuation based and return all statistics
 # RPYTHON??
@@ -11,37 +34,8 @@ from prolog.builtin.register import expose_builtin
 def impl_statistics(engine, heap, stat_name, value):
     t = []
     if stat_name == 'runtime':
-        t = [clock_time(engine), clocktime_since_last_call(engine)]
+        t = engine.clocks.get_cputime()
     if stat_name == 'walltime':
-        t = [walltime(engine), walltime_since_last_call(engine)]
+        t = engine.clocks.get_walltime()
     l = [term.Number(x) for x in t]
     helper.wrap_list(l).unify(value, heap)
-
-def clock_time(engine):
-    engine.clocks['cpu_now'] = int(time.clock()*1000)
-    return engine.clocks['cpu_now']
-
-def clocktime_since_last_call(engine):
-    t = engine.clocks['cpu_now'] - engine.clocks['cpu_last']
-    engine.clocks['cpu_last'] = engine.clocks['cpu_now']
-    return t
-
-def walltime(engine):
-    # XXX Unhack
-    engine.clocks['wall_now'] = millis()
-    return engine.clocks['wall_now']
-
-def walltime_since_last_call(engine):
-    t = engine.clocks['wall_now'] - engine.clocks['wall_last']
-    engine.clocks['wall_last'] = engine.clocks['wall_now']
-    return t
-
-def reset_clocks(engine):
-    engine.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
-
-def millis():
-    x = time.time()
-    y = int(x)
-    dec = int((x - y)*100)
-    h = y % 100
-    return (h*100+dec)
