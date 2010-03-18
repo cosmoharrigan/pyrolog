@@ -266,7 +266,7 @@ class Callable(NonVar):
             for i in range(self.argument_count()):
                 argself = self.argument_at(i)
                 argother = other.argument_at(i)
-                argself.copy_and_basic_unify(argother, heap, env)
+                argself.unify_and_standardize_apart(argother, heap, env)
         else:
             raise UnificationFailed
     
@@ -291,7 +291,7 @@ class Callable(NonVar):
         while i < self.argument_count():
             arg = self.argument_at(i)
             cloned = copy_individual(arg, i, heap, *extraargs)
-            newinstance = newinstance | cloned is not arg
+            newinstance = newinstance | (cloned is not arg)
             args[i] = cloned
             i += 1
         if newinstance:
@@ -680,7 +680,7 @@ def generate_abstract_class(n_args):
             for i in arg_iter:
                 arg = getattr(self, 'val_%d' % i)
                 cloned = copy_individual(arg, i, heap, *extraargs)
-                newinstance = newinstance | cloned is not arg
+                newinstance = newinstance | (cloned is not arg)
                 args[i] = cloned
                 i += 1
             if newinstance:
