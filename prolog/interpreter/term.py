@@ -291,7 +291,7 @@ class Callable(NonVar):
         while i < self.argument_count():
             arg = self.argument_at(i)
             cloned = copy_individual(arg, i, heap, *extraargs)
-            newinstance = newinstance or cloned is not arg
+            newinstance = newinstance | cloned is not arg
             args[i] = cloned
             i += 1
         if newinstance:
@@ -680,7 +680,7 @@ def generate_abstract_class(n_args):
             for i in arg_iter:
                 arg = getattr(self, 'val_%d' % i)
                 cloned = copy_individual(arg, i, heap, *extraargs)
-                newinstance = newinstance or cloned is not arg
+                newinstance = newinstance | cloned is not arg
                 args[i] = cloned
                 i += 1
             if newinstance:
