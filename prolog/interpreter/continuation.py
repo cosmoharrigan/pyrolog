@@ -184,6 +184,7 @@ class Engine(object):
     # _____________________________________________________
     # error handling
 
+    @jit.unroll_safe
     def throw(self, exc, scont, fcont, heap):
         # XXX write tests for catching non-ground things
         while not scont.is_done():
