@@ -49,14 +49,14 @@ jitdriver = jit.JitDriver(
 
 
 def driver(scont, fcont, heap):
+    rule = None
     while not scont.is_done():
-        rule = scont.rule
         #view(scont, fcont, heap)
+        if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+            rule = scont._rule
+            jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+                                    heap=heap)
         try:
-            if isinstance(scont, RuleContinuation) and scont.rule.body is not None:
-                rule = scont.rule
-                jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
-                                        heap=heap)
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
@@ -72,7 +72,6 @@ def driver(scont, fcont, heap):
     assert isinstance(scont, DoneContinuation)
     if scont.failed:
         raise error.UnificationFailed
-
 
 class Engine(object):
     def __init__(self):
@@ -212,7 +211,6 @@ class Continuation(object):
     """ Represents a continuation of the Prolog computation. This can be seen
     as an RPython-compatible way to express closures. """
 
-    rule = None
     def __init__(self, engine, nextcont):
         self.engine = engine
         self.nextcont = nextcont
@@ -415,21 +413,21 @@ class RuleContinuation(Continuation):
 
     def __init__(self, engine, nextcont, rule, query):
         Continuation.__init__(self, engine, nextcont)
-        self.rule = rule
+        self._rule = rule
         self.query = query
 
     def activate(self, fcont, heap):
         nextcont = self.nextcont
-        rule = jit.hint(self.rule, promote=True)
+        rule = jit.hint(self._rule, promote=True)
         nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            cont = BodyContinuation(self.engine, nextcont, nextcall)
+            return self.engine.call(nextcall, nextcont, fcont, heap)
         else:
             cont = nextcont
         return cont, fcont, heap
 
     def __repr__(self):
-        return "<RuleContinuation rule=%r query=%r>" % (self.rule, self.query)
+        return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
 
 class CutDelimiter(FailureContinuation):
     def __init__(self, engine, nextcont, fcont):

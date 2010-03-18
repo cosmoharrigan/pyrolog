@@ -60,9 +60,7 @@ class OrContinuation(continuation.FailureContinuation):
 
     def activate(self, fcont, heap):
         assert self.undoheap is None
-        scont = continuation.BodyContinuation(self.engine, self.nextcont,
-                                              self.altcall)
-        return scont, fcont, heap
+        return self.engine.call(self.altcall, self.nextcont, fcont, heap)
 
     def cut(self, heap):
         assert self.undoheap is not None
