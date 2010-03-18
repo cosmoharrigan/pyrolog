@@ -32,7 +32,6 @@ def test_driver():
         def discard(self):
             pass
 
-
     c5 = FakeC(FakeC(FakeC(FakeC(FakeC(done, 1), 2), 3), 4), 5)
     driver(c5, done, None)
     assert order == [5, 4, 3, 2, 1]
@@ -71,6 +70,7 @@ def test_failure_continuation():
         def __init__(self, next, count):
             self.next = next
             self.count = count
+            self.engine = FakeE()
 
         def activate(self, fcont, heap):
             if self.count:
@@ -79,6 +79,11 @@ def test_failure_continuation():
             order.append(res)
             self.count -= 1
             return self.next, fcont, heap
+
+    class FakeE(object):
+        @staticmethod
+        def continue_(*args):
+            return args
 
     ca = FakeF(FakeC(FakeC(done, -1), 'c'), 10)
     driver(ca, FakeC(done, "done"), h)

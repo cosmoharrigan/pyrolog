@@ -1,7 +1,7 @@
 import py
 import time
 from pypy.rlib import jit
-from pypy.rlib.objectmodel import we_are_translated
+from pypy.rlib.objectmodel import we_are_translated, specialize
 from prolog.interpreter import error
 from prolog.interpreter import helper
 from prolog.interpreter.term import Term, Atom, Var, Callable
@@ -166,7 +166,7 @@ class Engine(object):
         signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return BuiltinContinuation(self, scont, builtin, query), fcont, heap
+            return self.continue_(BuiltinContinuation(self, scont, builtin, query), fcont, heap)
 
         # do a real call
         function = self._lookup(signature)
@@ -179,7 +179,7 @@ class Engine(object):
             raise error.UnificationFailed
         scont = UserCallContinuation(self, scont, query,
                                      rulechain)
-        return scont, fcont, heap
+        return self.continue_(scont, fcont, heap)
 
     # _____________________________________________________
     # error handling
@@ -201,6 +201,25 @@ class Engine(object):
                 return self.call(
                     scont.recover, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc)
+
+
+    @specialize.argtype(0)
+    def continue_(scont, fcont, heap):
+        if scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+            return scont, fcont, heap
+        try:
+            return scont.activate(fcont, heap)
+        except error.UnificationFailed:
+            if not we_are_translated():
+                if fcont.is_done():
+                    raise
+            if scont.candiscard():
+                scont.discard()
+            return fcont.fail(heap)
+        except error.CatchableError, e:
+            return scont.engine.throw(e.term, scont, fcont, heap)
+    continue_._always_inline_ = True
+    continue_ = staticmethod(continue_)
 
     def __freeze__(self):
         return True
@@ -351,7 +370,7 @@ class ChoiceContinuation(FailureContinuation):
     def fail(self, heap):
         assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return self, self.orig_fcont, heap
+        return self.engine.continue_(self, self.orig_fcont, heap)
 
     def cut(self, heap):
         heap = self.undoheap.discard(heap)

@@ -70,7 +70,7 @@ class OrContinuation(continuation.FailureContinuation):
         assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         self.undoheap = None
-        return self, self.orig_fcont, heap
+        return self.engine.continue_(self, self.orig_fcont, heap)
 
     def __repr__(self):
         return "<OrContinuation altcall=%s" % (self.altcall, )
@@ -87,11 +87,11 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
         newscont, fcont, heap = impl_if(
                 engine, heap, helper.ensure_callable(call1.argument_at(0)),
                 call1.argument_at(1), scont, fcont, insert_cutdelimiter=False)
-        return newscont, fcont, heap.branch()
+        return engine.continue_(newscont, fcont, heap.branch())
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont = continuation.BodyContinuation(engine, scont, call1)
-        return newscont, fcont, heap.branch()
+        return engine.continue_(newscont, fcont, heap.branch())
 
 class NotSuccessContinuation(continuation.Continuation):
     def __init__(self, engine, nextcont, heap):
@@ -105,7 +105,7 @@ class NotSuccessContinuation(continuation.Continuation):
             raise error.UnificationFailed
         nextcont = self.nextcont
         assert isinstance(nextcont, continuation.FailureContinuation)
-        return nextcont.fail(self.undoheap)
+        return self.nextcont.fail(self.undoheap)
 
 class NotFailureContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap):
@@ -127,7 +127,7 @@ def impl_not(engine, heap, call, scont, fcont):
     notscont = NotSuccessContinuation(engine, fcont, heap)
     notfcont = NotFailureContinuation(engine, scont, fcont, heap)
     newscont = continuation.BodyContinuation(engine, notscont, call)
-    return newscont, notfcont, heap.branch()
+    return engine.continue_(newscont, notfcont, heap.branch())
 
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
@@ -138,4 +138,4 @@ def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
     if insert_cutdelimiter:
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
     body = term.Callable.build(",", [if_clause, CUTATOM])
-    return continuation.BodyContinuation(engine, scont, body), fcont, heap
+    return engine.continue_(continuation.BodyContinuation(engine, scont, body), fcont, heap)
