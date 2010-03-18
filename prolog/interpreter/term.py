@@ -595,15 +595,18 @@ def generate_class(cname, fname, n_args):
             TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
         
         def __init__(self, term_name, args, signature):
-            parent.__init__(self, term_name, args, signature)
+            parent._init_values(self, args)
             assert self.name() == term_name
-            assert len(args) == n_args
+            assert args is None or len(args) == n_args
                 
         def name(self):
             return fname
         
         def signature(self):
             return signature
+
+        def _make_new(self, name, signature):
+            return cls(name, None, signature)
     
     cls.__name__ = cname
     return cls
@@ -613,9 +616,14 @@ def generate_abstract_class(n_args):
     arg_iter = unrolling_iterable(range(n_args))
     class abstract_callable(Callable):
         _immutable_ = True
-        def __init__(self, term_name, args, signature):
+        def _init_values(self, args):
+            if args is None:
+                return
             for x in arg_iter:
                 setattr(self, 'val_%d' % x, args[x])
+
+        def _make_new(self, name, signature):
+            raise NotImplementedError("abstract base class")
         
         def arguments(self):
             result = [None] * n_args
@@ -674,18 +682,18 @@ def generate_abstract_class(n_args):
 
         @specialize.arg(1)
         def _copy_term(self, copy_individual, heap, *extraargs):
-            args = [None] * self.argument_count()
+            result = self._make_new(self.name(), self.signature())
             newinstance = False
             i = 0
             for i in arg_iter:
                 arg = getattr(self, 'val_%d' % i)
                 cloned = copy_individual(arg, i, heap, *extraargs)
                 newinstance = newinstance | (cloned is not arg)
-                args[i] = cloned
+                setattr(result, 'val_%d' % i, cloned)
                 i += 1
             if newinstance:
-                # XXX construct the right class directly
-                return Callable.build(self.name(), args, self.signature(), heap=heap)
+                # XXX what about the variable shunting in Callable.build
+                return result
             else:
                 return self
     
@@ -701,10 +709,13 @@ def generate_generic_class(n_args):
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
         
         def __init__(self, term_name, args, signature):
-            parent.__init__(self, term_name, args, signature)
+            parent._init_values(self, args)
             self._signature = signature
-            assert len(args) == n_args
+            assert args is None or len(args) == n_args
             assert self.name() == term_name
+
+        def _make_new(self, name, signature):
+            return generic_callable(name, None, signature)
         
         def signature(self):
             return self._signature
