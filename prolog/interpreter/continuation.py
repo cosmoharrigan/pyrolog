@@ -79,8 +79,9 @@ class Engine(object):
         self.heap = Heap()
         self.parser = None
         self.operations = None
-        self.start = time.clock()
-        self.clocks = {'cpu_last': 0, 'cpu_now': 0, 'wall_now':0, 'wall_last':0}
+        from prolog.builtin.statistics import Clocks
+        self.clocks = Clocks()
+        self.clocks.startup()
     # _____________________________________________________
     # database functionality
 
