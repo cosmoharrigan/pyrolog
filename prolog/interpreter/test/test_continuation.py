@@ -121,12 +121,12 @@ def test_cut_can_be_discarded():
     assert not cont.candiscard()
     cont = RuleContinuation(None, cont, None, None)
     assert not cont.candiscard()
-    cont = CutDelimiter(None, None, None)
+    cont = CutScopeNotifier(None, None)
     assert cont.candiscard()
     cont = RuleContinuation(None, cont, None, None)
     assert cont.candiscard()
 
-    cont = CutDelimiter(None, None, None)
+    cont = CutScopeNotifier(None, None)
     cont.discard()
     assert not cont.candiscard()
     cont = RuleContinuation(None, cont, None, None)
@@ -141,7 +141,7 @@ def test_cut_not_reached():
         def is_done(self):
             return False
         def activate(self, fcont, heap):
-            assert fcont.fcont.is_done()
+            assert fcont.nextcont.is_done()
             return DoneContinuation(e), DoneContinuation(e), heap
     e = get_engine("""
         g(X, Y) :- X > 0, !, Y = a.

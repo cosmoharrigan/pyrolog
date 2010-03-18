@@ -389,7 +389,7 @@ class UserCallContinuation(ChoiceContinuation):
         rule = rulechain
         nextcont = self.nextcont
         if rule.contains_cut:
-            nextcont = fcont = CutDelimiter.insert_cut_delimiter(
+            nextcont, fcont = CutDelimiter.insert_cut_delimiter(
                     self.engine, nextcont, fcont)
         query = self.query
         restchain = rulechain.find_next_applicable_rule(query)
@@ -430,47 +430,68 @@ class RuleContinuation(Continuation):
     def __repr__(self):
         return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
 
-class CutDelimiter(FailureContinuation):
-    def __init__(self, engine, nextcont, fcont):
-        FailureContinuation.__init__(self, engine, nextcont)
-        self.fcont = fcont
+class CutScopeNotifier(Continuation):
+    def __init__(self, engine, nextcont):
+        Continuation.__init__(self, engine, nextcont)
+        self.cutcell = CutCell()
+
+    def candiscard(self):
+        return not self.cutcell.discarded
+
+    def activate(self, fcont, heap):
+        self.cutcell.activated = True
+        return self.nextcont, fcont, heap
+
+    def discard(self):
+        assert not self.cutcell.activated
+        self.cutcell.discarded = True
+
+
+class CutCell(object):
+    def __init__(self):
         self.activated = False
         self.discarded = False
 
+class CutDelimiter(FailureContinuation):
+    def __init__(self, engine, nextcont, cutcell):
+        FailureContinuation.__init__(self, engine, nextcont)
+        self.cutcell = cutcell
+
     def candiscard(self):
-        return not self.discarded
+        return not self.cutcell.discarded
 
     @staticmethod
     def insert_cut_delimiter(engine, nextcont, fcont):
         if isinstance(fcont, CutDelimiter):
-            if fcont.activated or fcont.discarded:
-                fcont = fcont.fcont
-                if isinstance(nextcont, CutDelimiter) and nextcont.discarded:
+            if fcont.cutcell.activated or fcont.cutcell.discarded:
+                fcont = fcont.nextcont
+                if isinstance(nextcont, CutScopeNotifier) and nextcont.cutcell.discarded:
                     nextcont = nextcont.nextcont
-            elif (isinstance(nextcont, CutDelimiter) and
-                    nextcont is fcont):
-                assert not fcont.activated
-                return nextcont
-        return CutDelimiter(engine, nextcont, fcont)
+            elif (isinstance(nextcont, CutScopeNotifier) and
+                    nextcont.cutcell is fcont.cutcell):
+                assert not fcont.cutcell.activated
+                return nextcont, fcont
+        scont = CutScopeNotifier(engine, nextcont)
+        fcont = CutDelimiter(engine, fcont, scont.cutcell)
+        return scont, fcont
 
-    def activate(self, fcont, heap):
-        self.activated = True
-        return self.nextcont, fcont, heap
+    def activate(self, *args):
+        raise NotImplementedError("unreachable")
 
     def fail(self, heap):
-        return self.fcont.fail(heap)
+        nextcont = self.nextcont
+        assert isinstance(nextcont, FailureContinuation)
+        return nextcont.fail(heap)
 
     def cut(self, heap):
-        if not self.activated:
+        if not self.cutcell.activated:
             return self
-        return self.fcont.cut(heap)
-
-    def discard(self):
-        assert not self.activated
-        self.discarded = True
+        nextcont = self.nextcont
+        assert isinstance(nextcont, FailureContinuation)
+        return nextcont.cut(heap)
 
     def __repr__(self):
-        return "<CutDelimiter activated=%r, discarded=%r>" % (self.activated, self.discarded)
+        return "<CutDelimiter activated=%r, discarded=%r>" % (self.cutcell.activated, self.cutcell.discarded)
 
     def _dot(self, seen):
         if self in seen:
@@ -478,8 +499,8 @@ class CutDelimiter(FailureContinuation):
         for line in FailureContinuation._dot(self, seen):
             yield line
         seen.add(self)
-        yield "%s -> %s [label=fcont]" % (id(self), id(self.fcont))
-        for line in self.fcont._dot(seen):
+        yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
+        for line in self.nextcont._dot(seen):
             yield line
 
 
