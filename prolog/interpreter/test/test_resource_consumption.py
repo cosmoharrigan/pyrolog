@@ -107,3 +107,15 @@ def test_recurse_with_if():
     """)
     query = Callable.build("f", [Number(100)])
     e.run_query(query, CheckContinuation(e))
+
+def test_recurse_with_many_base_cases():
+    e = get_engine("""
+    f(X) :- X = 0.
+    f(X) :- X = 0.
+    f(X) :- X = 0.
+    f(X) :- X = 0.
+    f(X) :- X = 0.
+    f(X) :- Y is X - 1, f(Y).
+    """)
+    query = Callable.build("f", [Number(100)])
+    e.run_query(query, CheckContinuation(e))

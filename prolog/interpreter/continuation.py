@@ -351,9 +351,8 @@ class ChoiceContinuation(FailureContinuation):
     
     def fail(self, heap):
         assert self.undoheap is not None
-        # XXX discard the choice point here?
-        heap = heap.revert_upto(self.undoheap)
-        return self, self.orig_fcont, self.undoheap
+        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
+        return self, self.orig_fcont, heap
 
     def cut(self, heap):
         heap = self.undoheap.discard(heap)
@@ -398,6 +397,7 @@ class UserCallContinuation(ChoiceContinuation):
         if restchain is not None:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
             self.rulechain = restchain
+
         cont = RuleContinuation(self.engine, nextcont, rule, query)
         return cont, fcont, heap
 
