@@ -351,6 +351,7 @@ class ChoiceContinuation(FailureContinuation):
     
     def fail(self, heap):
         assert self.undoheap is not None
+        # XXX discard the choice point here?
         heap = heap.revert_upto(self.undoheap)
         return self, self.orig_fcont, self.undoheap
 
@@ -445,6 +446,8 @@ class CutDelimiter(FailureContinuation):
         if isinstance(fcont, CutDelimiter):
             if fcont.activated or fcont.discarded:
                 fcont = fcont.fcont
+                if isinstance(nextcont, CutDelimiter) and nextcont.discarded:
+                    nextcont = nextcont.nextcont
             elif (isinstance(nextcont, CutDelimiter) and
                     nextcont is fcont):
                 assert not fcont.activated

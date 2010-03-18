@@ -60,7 +60,7 @@ class Heap(object):
         return res
 
     @jit.unroll_safe
-    def revert_upto(self, heap):
+    def revert_upto(self, heap, discard_choicepoint=False):
         """ Revert to the heap corresponding to a choice point. The return
         value is the new heap that should be used."""
         previous = self
@@ -68,6 +68,8 @@ class Heap(object):
             self._revert()
             previous = self
             self = self.prev
+        if discard_choicepoint:
+            return heap
         return previous
 
     @jit.unroll_safe

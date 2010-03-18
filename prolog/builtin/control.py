@@ -70,7 +70,7 @@ class OrContinuation(continuation.FailureContinuation):
 
     def fail(self, heap):
         assert self.undoheap is not None
-        heap = heap.revert_upto(self.undoheap)
+        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         self.undoheap = None
         return self, self.orig_fcont, heap
 

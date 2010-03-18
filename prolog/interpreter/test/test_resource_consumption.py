@@ -8,30 +8,32 @@ from prolog.interpreter.term import Number
 
 class CheckContinuation(Continuation):
     rule = None
-    def __init__(self, engine):
+    def __init__(self, engine, seen=10):
         self.engine = engine
         self.nextcont = None
         self._candiscard = True
+        self.seen = seen
     def is_done(self):
         return False
     def activate(self, fcont, heap):
         # hack: use _dot to count size of tree
         seen = set()
+
         list(fcont._dot(seen))
-        assert len(seen) < 10
+        assert len(seen) < self.seen
         depth = 0
         while fcont.nextcont:
             depth += 1
             fcont = fcont.nextcont
-        assert depth < 5
+        assert depth < self.seen
         depth = 0
         numvars = 0
         while heap:
             depth += 1
             numvars += heap.i
             heap = heap.prev
-        assert depth < 5
-        assert numvars < 5
+        assert depth < self.seen
+        assert numvars < self.seen
         return DoneContinuation(self.engine), DoneContinuation(self.engine), heap
 
 def test_cut():
@@ -75,7 +77,7 @@ def test_partition():
     """)
     query = Callable.build("i", [Number(1)])
     e.run_query(query, CheckContinuation(e))
-    
+
 def test_tak():
     e = get_engine("""
     tak(X,Y,Z,A) :-
@@ -98,11 +100,10 @@ def test_tak():
     query = Callable.build("j", [Number(1)])
     e.run_query(query, CheckContinuation(e))
 
-@py.test.mark.xfail
 def test_recurse_with_if():
     e = get_engine("""
     equal(0, 0). equal(X, X).
     f(X) :- equal(X, 0) -> true ; Y is X - 1, f(Y).
     """)
-    query = Callable.build("f", [Number(3)])
+    query = Callable.build("f", [Number(100)])
     e.run_query(query, CheckContinuation(e))

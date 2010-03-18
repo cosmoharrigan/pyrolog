@@ -21,6 +21,11 @@ def test_heap():
     h2 = h1.revert_upto(h1)
     assert h2 is h1
 
+    h1 = Heap()
+    h2 = h1.branch()
+    h3 = h2.revert_upto(h1, discard_choicepoint=True)
+    assert h3 is h1
+
 def test_heap_dont_trail_new():
     h1 = Heap()
     v1 = h1.newvar()
@@ -103,5 +108,3 @@ def test_heap_discard_variable_shunting():
     assert v0.binding is None
     assert v1a.binding == 2 # not backtracked, because it goes away
     assert v1b.binding == 3 # not backtracked, because it goes away
-
-
