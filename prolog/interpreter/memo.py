@@ -18,3 +18,16 @@ class EnumerationMemo(object):
 
     def size(self):
         return self.varcount
+
+class CopyMemo(object):
+    def __init__(self):
+        self.seen = None
+
+    def get(self, key):
+        if self.seen is None:
+            self.seen = {}
+        return self.seen.get(key, None)
+
+    def set(self, key, val):
+        self.seen[key] = val
+

@@ -110,8 +110,9 @@ def impl_univ(engine, heap, first, second):
 
 @expose_builtin("copy_term", unwrap_spec=["obj", "obj"])
 def impl_copy_term(engine, heap, interm, outterm):
-    d = {}
-    copy = interm.copy(heap, d)
+    from prolog.interpreter.memo import CopyMemo
+    m = CopyMemo()
+    copy = interm.copy(heap, m)
     outterm.unify(copy, heap)
 
 

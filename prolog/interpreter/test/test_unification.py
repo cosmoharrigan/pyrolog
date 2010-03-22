@@ -140,9 +140,10 @@ def test_quick_unify_check():
     assert not a.quick_unify_check(b)
 
 def test_copy_derefences():
+    from prolog.interpreter.memo import CopyMemo
     v1 = Var()
     v1.binding = Number(10)
-    v2 = v1.copy(None, {})
+    v2 = v1.copy(None, CopyMemo())
     assert v2.num == 10
 
 def test_callable_build_removes_unneeded_vars():

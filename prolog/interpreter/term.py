@@ -95,7 +95,7 @@ class Var(PrologObject):
             return self
         else:
             result = next.dereference(heap)
-            if heap is not None and result is not next:
+            if result is not next and heap is not None:
                 # do path compression
                 self.setvalue(result, heap)
             return result
@@ -113,11 +113,12 @@ class Var(PrologObject):
     def copy(self, heap, memo):
         self = self.dereference(heap)
         if isinstance(self, Var):
-            try:
-                return memo[self]
-            except KeyError:
-                newvar = memo[self] = heap.newvar()
-                return newvar
+            res = memo.get(self)
+            if res is not None:
+                return res
+            newvar = heap.newvar()
+            memo.set(self, newvar)
+            return newvar
         return self.copy(heap, memo)
     
     def enumerate_vars(self, memo):
@@ -669,6 +670,7 @@ def generate_abstract_class(n_args):
                 raise UnificationFailed
 
         @specialize.arg(3)
+        @jit.dont_look_inside
         def basic_unify(self, other, heap, occurs_check=False):
             if not isinstance(other, abstract_callable):
                 return Callable.basic_unify(self, other, heap, occurs_check)

@@ -1,5 +1,5 @@
 import py
-from prolog.interpreter import helper, term, error, continuation
+from prolog.interpreter import helper, term, error, continuation, memo
 from prolog.builtin.register import expose_builtin
 
 # ___________________________________________________________________
@@ -13,8 +13,8 @@ class FindallContinuation(continuation.Continuation):
         self.heap = heap
 
     def activate(self, fcont, _):
-        d = {}
-        clone = self.template.copy(self.heap, d)
+        m = memo.CopyMemo()
+        clone = self.template.copy(self.heap, m)
         newresultvar = self.heap.newvar()
         result = term.Callable.build(".", [clone, newresultvar])
         self.resultvar.setvalue(result, self.heap)
