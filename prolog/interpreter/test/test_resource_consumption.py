@@ -119,3 +119,39 @@ def test_recurse_with_many_base_cases():
     """)
     query = Callable.build("f", [Number(100)])
     e.run_query(query, CheckContinuation(e))
+
+def test_serialize():
+    e = get_engine("""
+    
+    serialise :- serialise([65, 66, 76, 69, 32, 87, 65, 83, 32, 32, 73, 32, 83, 65, 87, 32, 69, 76, 66, 65],_).
+
+    serialise(L,R) :-
+        pairlists(L,R,A),
+        arrange(A,T),
+        numbered(T,1,_).
+
+    pairlists([X|L],[Y|R],[pair(X,Y)|A]) :- pairlists(L,R,A).
+    pairlists([],[],[]).
+
+    arrange([X|L],tree(T1,X,T2)) :-
+        split(L,X,L1,L2),
+        arrange(L1,T1),
+        arrange(L2,T2).
+    arrange([],void).
+
+    split([X|L],X,L1,L2) :- !, split(L,X,L1,L2).
+    split([X|L],Y,[X|L1],L2) :- before(X,Y), !, split(L,Y,L1,L2).
+    split([X|L],Y,L1,[X|L2]) :- before(Y,X), !, split(L,Y,L1,L2).
+    split([],_,[],[]).
+
+    before(pair(X1,_),pair(X2,_)) :- X1 < X2.
+
+    numbered(tree(T1,pair(_,N1),T2),N0,N) :-
+        numbered(T1,N0,N1),
+        N2 is N1+1,
+        numbered(T2,N2,N).
+    numbered(void,N,N).
+    """)
+
+    query = Callable.build("serialise")
+    e.run_query(query, CheckContinuation(e))
