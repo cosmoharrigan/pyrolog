@@ -400,7 +400,6 @@ class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, nextcont, query, rulechain):
         ChoiceContinuation.__init__(self, engine, nextcont)
         self.query = query
-        signature = query.signature()        
         self.rulechain = rulechain
 
     def activate(self, fcont, heap):
