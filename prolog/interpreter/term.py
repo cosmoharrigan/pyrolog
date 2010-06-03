@@ -244,7 +244,11 @@ class Callable(NonVar):
         return Callable.build("/", [Callable.build(self.name()),
                                     Number(self.argument_count())])
     def arguments(self):
-        raise NotImplementedError("abstract base")
+        argcount = self.argument_count()
+        result = [None] * argcount
+        for i in range(argcount):
+            result[i] = self.argument_at(i)
+        return result
     
     def argument_at(self, i):
         raise NotImplementedError("abstract base")
