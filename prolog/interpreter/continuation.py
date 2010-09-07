@@ -14,9 +14,6 @@ Signature.register_extr_attr("function", engine=True)
 # ___________________________________________________________________
 # JIT stuff
 
-def can_inline(*args):
-    return False
-
 def get_printable_location(rule):
     if rule:
         s = rule.signature.string()
@@ -38,7 +35,6 @@ callsig = Signature.getsignature(":-", 1)
 jitdriver = jit.JitDriver(
         greens=["rule"],
         reds=["scont", "fcont", "heap"],
-        can_inline=can_inline,
         get_printable_location=get_printable_location,
         #get_jitcell_at=get_jitcell_at,
         #set_jitcell_at=set_jitcell_at,
