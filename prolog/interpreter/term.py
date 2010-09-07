@@ -78,8 +78,14 @@ class Var(PrologObject):
             return self._unify_derefed(other, heap, occurs_check)
         else:
             assert isinstance(next, NonVar)
-            return next._unify_derefed(other, heap, occurs_check)
-    
+            if next is not other:
+                print "self", self, "next", next, "other", other
+                self.setvalue(other, heap)
+                print "self", self, "next", next, "other", other
+                import pdb; pdb.set_trace()
+                next._unify_derefed(other, heap, occurs_check)
+                print "self", self, "next", next, "other", other
+
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
         if isinstance(other, Var) and other is self:
