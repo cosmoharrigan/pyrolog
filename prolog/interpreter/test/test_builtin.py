@@ -295,7 +295,7 @@ def test_two_cuts():
 
 def test_listify():
     e = get_engine("""
-        listify(_X, _X) :- 
+        listify(_X, _X) :-
             (var(_X); atomic(_X)), !.
         listify(_Expr, [_Op|_LArgs]) :-
             functor(_Expr, _Op, N),
@@ -308,6 +308,8 @@ def test_listify():
             I1 is I+1,
             listify_list(I1, N, _Expr, _LArgs).
     """)
+    assert_true("listify(f(X), Y), Y = [f, X].", e)
+    assert_true("listify(f(X, g(1)), Y).", e)
     assert_true("listify(f(X, 1, g(1)), Y), Y = [f, X, 1, [g, 1]].", e)
 
 

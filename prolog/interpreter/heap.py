@@ -128,7 +128,7 @@ class Heap(object):
 
 
     def __repr__(self):
-        return "<Head %r trailed vars>" % (self.i, )
+        return "<Heap %r trailed vars>" % (self.i, )
 
     def _dot(self, seen):
         if self in seen:

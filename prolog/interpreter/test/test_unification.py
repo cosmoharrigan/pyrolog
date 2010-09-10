@@ -159,4 +159,16 @@ def test_callable_build_removes_unneeded_vars():
     assert t.argument_at(0) is v1
     assert t.argument_at(1) == 2
 
+def test_cyclic_term():
+    h = Heap()
+    X = h.newvar()
+    t = Callable.build("f", [X], heap=h)
+    t.unify(X, h)
+
+    Y = h.newvar()
+    t2 = Callable.build("f", [Y], heap=h)
+    t2.unify(Y, h)
+
+    t.unify(t2, h) # does not crash
+    X.unify(Y, h) # does not crash
 
