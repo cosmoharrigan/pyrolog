@@ -23,13 +23,13 @@ def deconstruct_line(line):
         elif line_0_5 == TRUE:
             left = 'true'
         right = line[6:]
-    elif line[0:2] == CUT:
+    elif line.startswith(CUT):
         left = '!'
         right = line[3:]
-    elif line[0:3] == ASSIGN:
+    elif line.startswith(ASSIGN):
         left = 'X = "fred"'
         right = line[12:]
-    elif line[0:4] == FLOAT:
+    elif line.startswith(FLOAT):
         left = '0.333 =:= 1/3'
         right = line[15:]
     else:
