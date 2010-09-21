@@ -41,6 +41,25 @@ class TestArithmeticMethod(object):
         assert b.arith_add(n0).value.tofloat() == 100000000000000000000000000001.0
         assert n0.arith_add(b).value.tofloat() == 100000000000000000000000000001.0
 
+        # -------------------- test subtraction --------------------------
+        n1 = Number(5)
+        n2 = Number(10)
+        assert n1.arith_sub(n2).num == -5
+        assert n2.arith_sub(n1).num == 5
+
+        f1 = Float(10.5)
+        f2 = Float(30.6)
+        assert f1.arith_sub(f2).floatval == -20.1
+        assert f2.arith_sub(f1).floatval == 20.1
+
+        b1 = BigInt(rbigint.fromdecimalstr('10000000000000000000000000000000000000'))
+        b2 = BigInt(rbigint.fromdecimalstr('20000000000000000000000000000000000000'))
+        assert b1.arith_sub(b2).value.tofloat() == -10000000000000000000000000000000000000.0
+        assert b2.arith_sub(b1).value.tofloat() == 10000000000000000000000000000000000000.0
+
+
+
+
 def test_simple():
     assert_true("X is 1 + 2, X = 3.")
     assert_true("X is 1.2 + 2.8, X = 4.")

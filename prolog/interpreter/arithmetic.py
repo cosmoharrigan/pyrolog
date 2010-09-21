@@ -161,6 +161,23 @@ class __extend__(term.Number):
     def arith_add_float(self, other_float):
         return term.Float(other_float + float(self.num))
 
+    # ------------------ subtraction ------------------ 
+    def arith_sub(self, other):
+        return other.arith_sub_number(self.num)
+
+    def arith_sub_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num - self.num)
+        except OverflowError:
+            return self.arith_sub_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_sub_bigint(self, other_value):
+        return term.BigInt(other_value.sub(rbigint.fromint(self.num)))
+
+    def arith_sub_float(self, other_float):
+        return term.Float(other_float - float(self.num))
+
 
 class __extend__(term.Float):    
     def arith_add(self, other):
@@ -174,6 +191,19 @@ class __extend__(term.Float):
 
     def arith_add_float(self, other_float):
         return term.Float(other_float + self.floatval)
+
+    # ------------------ subtraction ------------------ 
+    def arith_sub(self, other):
+        return other.arith_sub_number(self.floatval)
+
+    def arith_sub_number(self, other_num):
+        return term.Float(float(other_num) - self.floatval)
+
+    def arith_sub_bigint(self, other_value):
+        return term.Float(other_value.tofloat() - self.floatval)
+
+    def arith_sub_float(self, other_float):
+        return term.Float(other_float - self.floatval)
 
 
 class __extend__(term.BigInt):
@@ -189,5 +219,17 @@ class __extend__(term.BigInt):
     def arith_add_float(self, other_float):
         return term.Float(other_float + self.value.tofloat())
 
+    # ------------------ subtraction ------------------ 
+    def arith_sub(self, other):
+        return other.arith_sub_bigint(self.value)
+
+    def arith_sub_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).sub(self.value))
+
+    def arith_sub_bigint(self, other_value):
+        return term.BigInt(other_value.sub(self.value))
+
+    def arith_sub_float(self, other_float):
+        return term.Float(other_float - self.value.tofloat())
 
 
