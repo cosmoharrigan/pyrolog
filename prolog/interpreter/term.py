@@ -7,6 +7,7 @@ from pypy.rlib.objectmodel import compute_unique_id
 from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
 from pypy.rlib import jit
+from pypy.tool.pairtype import extendabletype
 
 DEBUG = False
 
@@ -18,6 +19,7 @@ def debug_print(*args):
 class PrologObject(object):
     __slots__ = ()
     _immutable_ = True
+    __metaclass__ = extendabletype
     
     def getvalue(self, heap):
         return self
@@ -488,13 +490,13 @@ class Number(NonVar): #, UnboxedValue):
             return True
         return isinstance(other, Number) and other.num == self.num
 
+
 class BigInt(NonVar):
+    # value is an instance of rbigint
     def __init__(self, value):
         self.value = value
 
     
-
-
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True

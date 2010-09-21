@@ -1,10 +1,45 @@
 import py
+import sys
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
+from prolog.interpreter.term import Number, Float, BigInt
+import prolog.interpreter.arithmetic # has side-effects, changes Number etc
+
+from pypy.rlib.rbigint import rbigint
+
+class TestArithmeticMethod(object):
+    def test_add(self):
+        f1 = Float(5.1)
+        f2 = Float(10.1)
+        assert f1.arith_add(f2).floatval == 15.2
+
+        n0 = Number(1)
+        n1 = Number(2)
+        assert n0.arith_add(n1).num == 3
+
+        n2 = Number(2)
+        f3 = Float(3.2)
+        assert n2.arith_add(f3).floatval == 5.2
+        assert f3.arith_add(n2).floatval == 5.2
+
+        b1 = BigInt(rbigint.fromdecimalstr('50000000000000000000000'))
+        b2 = BigInt(rbigint.fromdecimalstr('10000000000000000000001'))
+        assert b1.arith_add(b2).value.str() == '60000000000000000000001'
+
+        n3 = Number(sys.maxint)
+        assert n3.arith_add(n0).value.str() == str(sys.maxint + 1)
+
+        b = BigInt(rbigint.fromdecimalstr('100000000000000000000000000000'))
+        f = Float(1.5)
+        assert b.arith_add(f).floatval == 100000000000000000000000000001.5
+        assert f.arith_add(b).floatval == 100000000000000000000000000001.5
+
+        assert b.arith_add(n0).value.tofloat() == 100000000000000000000000000001.0
+        assert n0.arith_add(b).value.tofloat() == 100000000000000000000000000001.0
 
 def test_simple():
     assert_true("X is 1 + 2, X = 3.")

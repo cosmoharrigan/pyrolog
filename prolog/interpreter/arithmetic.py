@@ -6,8 +6,8 @@ from prolog.interpreter.signature import Signature
 from prolog.interpreter.error import UnificationFailed
 from pypy.rlib.rarithmetic import intmask
 from pypy.rlib.unroll import unrolling_iterable
-from pypy.rlib import jit
-from pypy.rlib import rbigint
+from pypy.rlib import jit, rarithmetic
+from pypy.rlib.rbigint import rbigint
 
 Signature.register_extr_attr("arithmetic")
 
@@ -142,3 +142,52 @@ for prolog_name, unwrap_spec, pattern, overflow, intversion in simple_functions:
 @jit.purefunction
 def get_arithmetic_function(signature):
     return signature.get_extra("arithmetic")
+
+
+class __extend__(term.Number):
+    def arith_add(self, other):
+        return other.arith_add_number(self.num)
+
+    def arith_add_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num + self.num)
+        except OverflowError:
+            return self.arith_add_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_add_bigint(self, other_value):
+        return term.BigInt(other_value.add(rbigint.fromint(self.num)))
+
+    def arith_add_float(self, other_float):
+        return term.Float(other_float + float(self.num))
+
+
+class __extend__(term.Float):    
+    def arith_add(self, other):
+        return other.arith_add_float(self.floatval)
+
+    def arith_add_number(self, other_num):
+        return term.Float(float(other_num) + self.floatval)
+
+    def arith_add_bigint(self, other_value):
+        return term.Float(other_value.tofloat() + self.floatval)
+
+    def arith_add_float(self, other_float):
+        return term.Float(other_float + self.floatval)
+
+
+class __extend__(term.BigInt):
+    def arith_add(self, other):
+        return other.arith_add_bigint(self.value)
+
+    def arith_add_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).add(self.value))
+
+    def arith_add_bigint(self, other_value):
+        return term.BigInt(other_value.add(self.value))
+
+    def arith_add_float(self, other_float):
+        return term.Float(other_float + self.value.tofloat())
+
+
+
