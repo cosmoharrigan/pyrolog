@@ -1,5 +1,6 @@
-import os
+import os, py
 
+#TESTDIR = py.path.local(__file__).dirpath().join('inriasuite') # use this line instead of the next
 TESTDIR = 'inriasuite'
 
 def deconstruct_line(line):
@@ -13,19 +14,8 @@ def deconstruct_line(line):
     line_0_5 = line[0:5]
     H_F_T = (HALT, FAIL, TRUE)
     
-    if line_0_5 not in H_F_T and line[0:2] != CUT and line[0:3] != ASSIGN and line[0:4] != FLOAT:
-        first_open_par = line.find('(')
-        brace_counter = 1
-        i = first_open_par
-        while brace_counter != 0:
-            i += 1
-            if line[i] == '(':
-                brace_counter += 1
-            elif line[i] == ')':
-                brace_counter -= 1
-        left = line[0:i + 1]
-        right = line[i + 2:].strip()
-    elif line_0_5 in H_F_T:
+    # use str.startswith instead of [...]
+    if line_0_5 in H_F_T:
         if line_0_5 == FAIL:
             left = 'fail'
         elif line_0_5 == HALT:
@@ -42,6 +32,18 @@ def deconstruct_line(line):
     elif line[0:4] == FLOAT:
         left = '0.333 =:= 1/3'
         right = line[15:]
+    else:
+        first_open_par = line.find('(')
+        brace_counter = 1
+        i = first_open_par
+        while brace_counter:
+            i += 1
+            if line[i] == '(':
+                brace_counter += 1
+            elif line[i] == ')':
+                brace_counter -= 1
+        left = line[0:i + 1]
+        right = line[i + 2:].strip()
     return left, right
     
 
