@@ -7,6 +7,7 @@ from prolog.interpreter.error import UnificationFailed
 from pypy.rlib.rarithmetic import intmask
 from pypy.rlib.unroll import unrolling_iterable
 from pypy.rlib import jit
+from pypy.rlib import rbigint
 
 Signature.register_extr_attr("arithmetic")
 

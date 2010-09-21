@@ -488,6 +488,13 @@ class Number(NonVar): #, UnboxedValue):
             return True
         return isinstance(other, Number) and other.num == self.num
 
+class BigInt(NonVar):
+    def __init__(self, value):
+        self.value = value
+
+    
+
+
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True
