@@ -5,7 +5,7 @@ from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true, prolog_raises
-from fileutil import get_lines, get_files, deconstruct_list
+from prolog.interpreter.test.isotests.fileutil import get_lines, get_files, deconstruct_list
 
 FAILURE = 'failure'
 SUCCESS = 'success'
@@ -30,15 +30,22 @@ def pytest_generate_tests(metafunc):
         
 
 def test_error(test, error):
-    #print 'test =', test, ', error =', error
     prolog_raises(error, test)
 
 
 def test_success_failure(test, mode):
-    if mode == FAILURE:
-        assert_false(test)
-    elif mode == SUCCESS:
-        assert_true(test)
+    print test
+    try:
+        if mode == FAILURE:
+            assert_false(test)
+        elif mode == SUCCESS:
+            assert_true(test)
+    except (error.UncaughtError, error.CatchableError), e:
+        msg = repr(e.term)
+        if 'existence_error' in msg:
+            py.test.skip(msg)
+        else:
+            raise
 
 
 def test_multiple_lists(test, lists):
