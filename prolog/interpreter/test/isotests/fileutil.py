@@ -1,7 +1,6 @@
 import os, py
 
-#TESTDIR = py.path.local(__file__).dirpath().join('inriasuite') # use this line instead of the next
-TESTDIR = 'inriasuite'
+TESTDIR = str(py.path.local(__file__).dirpath().join('inriasuite')) # use this line instead of the next
 
 def deconstruct_line(line):
 
@@ -14,7 +13,6 @@ def deconstruct_line(line):
     line_0_5 = line[0:5]
     H_F_T = (HALT, FAIL, TRUE)
     
-    # use str.startswith instead of [...]
     if line_0_5 in H_F_T:
         if line_0_5 == FAIL:
             left = 'fail'
@@ -50,7 +48,7 @@ def deconstruct_line(line):
 def get_lines(file_):
     testfile = open(TESTDIR + '/' + file_)
     for test in testfile.readlines():
-        if test.endswith('%%SKIP%%\n'):
+        if test.endswith('%%SKIP%%\n') or test.find('0\'') != -1:
             continue
         if test.startswith('['):
             last_bracket = test.rfind(']')
