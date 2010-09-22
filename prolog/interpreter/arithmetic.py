@@ -145,6 +145,7 @@ def get_arithmetic_function(signature):
 
 
 class __extend__(term.Number):
+    # ------------------ addition ------------------ 
     def arith_add(self, other):
         return other.arith_add_number(self.num)
 
@@ -178,8 +179,43 @@ class __extend__(term.Number):
     def arith_sub_float(self, other_float):
         return term.Float(other_float - float(self.num))
 
+    # ------------------ multiplication ------------------ 
+    def arith_mul(self, other):
+        return other.arith_mul_number(self.num)
+
+    def arith_mul_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num * self.num)
+        except OverflowError:
+            return self.arith_mul_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_mul_bigint(self, other_value):
+        return term.BigInt(other_value.mul(rbigint.fromint(self.num)))
+
+    def arith_mul_float(self, other_float):
+        return term.Float(other_float * float(self.num))
+
+    # ------------------ division ------------------ 
+    def arith_div(self, other):
+        return other.arith_div_number(self.num)
+
+    def arith_div_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num / self.num)
+        except OverflowError:
+            return self.arith_div_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_div_bigint(self, other_value):
+        return term.BigInt(other_value.div(rbigint.fromint(self.num)))
+
+    def arith_div_float(self, other_float):
+        return term.Float(other_float / float(self.num))
+
 
 class __extend__(term.Float):    
+    # ------------------ addition ------------------ 
     def arith_add(self, other):
         return other.arith_add_float(self.floatval)
 
@@ -194,7 +230,7 @@ class __extend__(term.Float):
 
     # ------------------ subtraction ------------------ 
     def arith_sub(self, other):
-        return other.arith_sub_number(self.floatval)
+        return other.arith_sub_float(self.floatval)
 
     def arith_sub_number(self, other_num):
         return term.Float(float(other_num) - self.floatval)
@@ -205,8 +241,35 @@ class __extend__(term.Float):
     def arith_sub_float(self, other_float):
         return term.Float(other_float - self.floatval)
 
+    # ------------------ multiplication ------------------ 
+    def arith_mul(self, other):
+        return other.arith_mul_float(self.floatval)
+
+    def arith_mul_number(self, other_num):
+        return term.Float(float(other_num) * self.floatval)
+
+    def arith_mul_bigint(self, other_value):
+        return term.Float(other_value.tofloat() * self.floatval)
+
+    def arith_mul_float(self, other_float):
+        return term.Float(other_float * self.floatval)
+
+    # ------------------ division ------------------ 
+    def arith_div(self, other):
+        return other.arith_div_float(self.floatval)
+
+    def arith_div_number(self, other_num):
+        return term.Float(float(other_num) / self.floatval)
+
+    def arith_div_bigint(self, other_value):
+        return term.Float(other_value.tofloat() / self.floatval)
+
+    def arith_div_float(self, other_float):
+        return term.Float(other_float / self.floatval)
+
 
 class __extend__(term.BigInt):
+    # ------------------ addition ------------------ 
     def arith_add(self, other):
         return other.arith_add_bigint(self.value)
 
@@ -232,4 +295,28 @@ class __extend__(term.BigInt):
     def arith_sub_float(self, other_float):
         return term.Float(other_float - self.value.tofloat())
 
+    # ------------------ multiplication ------------------ 
+    def arith_mul(self, other):
+        return other.arith_mul_bigint(self.value)
 
+    def arith_mul_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).mul(self.value))
+
+    def arith_mul_bigint(self, other_value):
+        return term.BigInt(other_value.mul(self.value))
+
+    def arith_mul_float(self, other_float):
+        return term.Float(other_float * self.value.tofloat())
+
+    # ------------------ division ------------------ 
+    def arith_div(self, other):
+        return other.arith_div_bigint(self.value)
+
+    def arith_div_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).div(self.value))
+
+    def arith_div_bigint(self, other_value):
+        return term.BigInt(other_value.div(self.value))
+
+    def arith_div_float(self, other_float):
+        return term.Float(other_float / self.value.tofloat())

@@ -41,7 +41,8 @@ class TestArithmeticMethod(object):
         assert b.arith_add(n0).value.tofloat() == 100000000000000000000000000001.0
         assert n0.arith_add(b).value.tofloat() == 100000000000000000000000000001.0
 
-        # -------------------- test subtraction --------------------------
+
+    def test_sub(self):
         n1 = Number(5)
         n2 = Number(10)
         assert n1.arith_sub(n2).num == -5
@@ -56,6 +57,42 @@ class TestArithmeticMethod(object):
         b2 = BigInt(rbigint.fromdecimalstr('20000000000000000000000000000000000000'))
         assert b1.arith_sub(b2).value.tofloat() == -10000000000000000000000000000000000000.0
         assert b2.arith_sub(b1).value.tofloat() == 10000000000000000000000000000000000000.0
+        assert BigInt(rbigint.fromdecimalstr('100000000000000000000')).arith_sub(Number(1)).value.str() == '99999999999999999999'
+        assert Number(5).arith_sub(BigInt(rbigint.fromdecimalstr('5'))).value.str() == '0'
+        assert BigInt(rbigint.fromdecimalstr('1000000000000000')).arith_sub(Float(500000000000000)).floatval == 500000000000000.0
+        assert Float(2000000000000000).arith_sub(BigInt(rbigint.fromdecimalstr('1000000000000000'))).floatval == 1000000000000000.0
+
+
+    def test_mul(self):
+        assert Number(5).arith_mul(Number(100)).num == 500
+        assert Number(5).arith_mul(BigInt(rbigint.fromdecimalstr('1000000000000000000000000000000'))).value.tofloat() == 5000000000000000000000000000000.0
+        assert Number(-10).arith_mul(Float(-7.3)).floatval == 73.0
+        assert BigInt(rbigint.fromdecimalstr('-1000000000000000000000000000')).arith_mul(BigInt(rbigint.fromdecimalstr('100000000000000000000'))).value.str() == '-100000000000000000000000000000000000000000000000'
+        assert Float(6.7).arith_mul(Float(-2.4)).floatval == -16.08
+        assert Float(6.7).arith_mul(BigInt(rbigint.fromdecimalstr('100000000000000000000000000000000000'))).floatval == 670000000000000000000000000000000000.0
+        assert BigInt(rbigint.fromdecimalstr('100000000000000000000000000000000000')).arith_mul(Float(6.7)).floatval == 670000000000000000000000000000000000.0
+        assert Number(2).arith_mul(Float(2.5)).floatval == 5.0
+        assert Float(2.5).arith_mul(Number(2)).floatval == 5.0
+
+    def test_div(self):
+        assert Number(5).arith_div(Number(2)).num == 2
+        assert Number(15).arith_div(Number(5)).num == 3
+        assert Number(5).arith_div(Float(2.5)).floatval == 2.0
+        assert Float(2.5).arith_div(Number(5)).floatval == 0.5
+        assert Float(-10).arith_div(Float(2.5)).floatval == -4.0
+        assert BigInt(rbigint.fromdecimalstr('50000000000000000')).arith_div(BigInt(rbigint.fromdecimalstr('25000000000000000'))).value.str() == '2'
+        assert BigInt(rbigint.fromdecimalstr('100000000000000000000')).arith_div(Float(100000000000000000000.0)).floatval == 1.0
+        assert Float(100000000000000000000).arith_div(BigInt(rbigint.fromdecimalstr('100000000000000000000'))).floatval == 1.0
+        assert Number(5).arith_div(BigInt(rbigint.fromdecimalstr('5'))).value.str() == '1'
+        assert BigInt(rbigint.fromdecimalstr('5')).arith_div(Number(5)).value.str() == '1'
+
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(BigInt(rbigint.fromdecimalstr(\'0\')))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Number(0))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Float(0))')
+        py.test.raises(ZeroDivisionError, 'Float(1).arith_div(Number(0))')
+        py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Number(0))')
+        py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Float(0))')
+
 
 
 
