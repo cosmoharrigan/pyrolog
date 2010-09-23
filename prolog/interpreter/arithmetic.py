@@ -258,6 +258,123 @@ class __extend__(term.Number):
     def arith_shl_bigint(self, other_value):
         return term.BigInt(other_value.lshift(self.num))
 
+    # ------------------ or ------------------ 
+    def arith_or(self, other):
+        return other.arith_or_number(self.num)
+
+    def arith_or_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num | self.num)
+        except OverflowError:
+            return self.arith_or_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_or_bigint(self, other_value):
+        return term.BigInt(rbigint.fromint(self.num).or_(other_value))
+
+    # ------------------ and ------------------ 
+    def arith_and(self, other):
+        return other.arith_and_number(self.num)
+
+    def arith_and_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num & self.num)
+        except OverflowError:
+            return self.arith_and_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_and_bigint(self, other_value):
+        return term.BigInt(rbigint.fromint(self.num).and_(other_value))
+
+    # ------------------ xor ------------------ 
+    def arith_xor(self, other):
+        return other.arith_xor_number(self.num)
+
+    def arith_xor_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num ^ self.num)
+        except OverflowError:
+            return self.arith_xor_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_xor_bigint(self, other_value):
+        return term.BigInt(rbigint.fromint(self.num).xor(other_value))
+
+    # ------------------ mod ------------------ 
+    def arith_mod(self, other):
+        return other.arith_mod_number(self.num)
+
+    def arith_mod_number(self, other_num):
+        return term.Number(other_num % self.num)
+
+    def arith_mod_bigint(self, other_value):
+        return term.BigInt(other_value.mod(rbigint.fromint(self.num)))
+
+    # ------------------ inversion ------------------
+    def arith_invert(self):
+        try:
+            val = rarithmetic.ovfcheck(~self.num)
+        except OverflowError:
+            return term.BigInt(rbigint.fromint(self.num).invert())
+        return term.Number(val)
+
+
+    # ------------------ abs ------------------
+    def arith_abs(self):
+        try:
+            val = rarithmetic.ovfcheck(abs(self.num))
+        except OverflowError:
+            return term.BigInt(rbigint.fromint(self.num).abs())
+        return term.Number(val)
+
+    # ------------------ max ------------------
+    def arith_max(self, other):
+        return other.arith_max_number(self.num)
+
+    def arith_max_number(self, other_num):
+        return term.Number(max(other_num, self.num))
+
+    def arith_max_bigint(self, other_value):
+        self_value = rbigint.fromint(self.num)
+        if self_value.lt(other_value):
+            return term.BigInt(other_value)
+        return term.BigInt(self_value)
+
+    def arith_max_float(self, other_float):
+        return term.Float(max(other_float, float(self.num)))
+
+    # ------------------ min ------------------
+    def arith_min(self, other):
+        return other.arith_min_number(self.num)
+
+    def arith_min_number(self, other_num):
+        return term.Number(min(other_num, self.num))
+
+    def arith_min_bigint(self, other_value):
+        self_value = rbigint.fromint(self.num)
+        if self_value.lt(other_value):
+            return term.BigInt(self_value)
+        return term.BigInt(other_value)
+
+    def arith_min_float(self, other_float):
+        return term.Float(min(other_float, float(self.num)))
+
+    # ------------------ miscellanous ------------------
+    def arith_round(self):
+        return self
+
+    def arith_floor(self):
+        return self
+
+    def arith_ceiling(self):
+        return self
+
+    def arith_fractional_part(self):
+        return term.Number(0)
+
+    def arith_integer_part(self):
+        return self
+
 
 class __extend__(term.Float):    
     # ------------------ addition ------------------ 
@@ -324,6 +441,52 @@ class __extend__(term.Float):
 
     def arith_pow_float(self, other_float):
         return term.Float(other_float ** self.floatval)
+
+    # ------------------ abs ------------------ 
+    def arith_abs(self):
+        return term.Float(abs(self.floatval))
+
+    # ------------------ max ------------------ 
+    def arith_max(self, other):
+        return other.arith_max_float(self.floatval)
+
+    def arith_max_number(self, other_num):
+        return term.Float(max(float(other_num), self.floatval))
+
+    def arith_max_bigint(self, other_value):
+        return term.Float(max(other_value.tofloat(), self.floatval))
+
+    def arith_max_float(self, other_float):
+        return term.Float(max(other_float, self.floatval))
+    
+    # ------------------ min ------------------ 
+    def arith_min(self, other):
+        return other.arith_min_float(self.floatval)
+
+    def arith_min_number(self, other_num):
+        return term.Float(min(float(other_num), self.floatval))
+
+    def arith_min_bigint(self, other_value):
+        return term.Float(min(other_value.tofloat(), self.floatval))
+
+    def arith_min_float(self, other_float):
+        return term.Float(min(other_float, self.floatval))
+
+    # ------------------ miscellanous ------------------
+    def arith_round(self):
+        return term.Float(round(self.floatval + 0.5))
+
+    def arith_floor(self):
+        return term.Float(math.floor(self.floatval))
+
+    def arith_ceiling(self):
+        return term.Float(math.ceil(self.floatval))
+
+    def arith_fractional_part(self):
+        return term.Float(self.floatval - int(self.floatval))
+
+    def arith_integer_part(self):
+        return term.Float(int(self.floatval))
 
 
 class __extend__(term.BigInt):
@@ -432,3 +595,105 @@ class __extend__(term.BigInt):
         except OverflowError:
             raise ValueError('Right operand too big')
         return term.BigInt(other_value.lshift(num))
+
+    # ------------------ or ------------------ 
+    def arith_or(self, other):
+        return other.arith_or_bigint(self.value)
+
+    def arith_or_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).or_(self.value))
+
+    def arith_or_bigint(self, other_value):
+        return term.BigInt(other_value.or_(self.value))
+
+    # ------------------ and ------------------ 
+    def arith_and(self, other):
+        return other.arith_and_bigint(self.value)
+
+    def arith_and_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).and_(self.value))
+
+    def arith_and_bigint(self, other_value):
+        return term.BigInt(other_value.and_(self.value))
+
+    # ------------------ xor ------------------ 
+    def arith_xor(self, other):
+        return other.arith_xor_bigint(self.value)
+
+    def arith_xor_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).xor(self.value))
+
+    def arith_xor_bigint(self, other_value):
+        return term.BigInt(other_value.xor(self.value))
+
+    # ------------------ mod ------------------ 
+    def arith_mod(self, other):
+        return other.arith_mod_bigint(self.value)
+
+    def arith_mod_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).mod(self.value))
+
+    def arith_mod_bigint(self, other_value):
+        return term.BigInt(other_value.mod(self.value))
+
+    # ------------------ mod ------------------ 
+    def arith_invert(self):
+        return term.BigInt(self.value.invert())
+
+
+    # ------------------ abs ------------------
+    def arith_abs(self):
+        return term.BigInt(self.value.abs())
+
+
+    # ------------------ max ------------------
+    def arith_max(self, other):
+        return other.arith_max_bigint(self.value)
+
+    def arith_max_number(self, other_num):
+        other_value = rbigint.fromint(other_num)
+        if other_value.lt(self.value):
+            return term.BigInt(self.value)
+        return term.BigInt(other_value)
+
+    def arith_max_bigint(self, other_value):
+        if other_value.lt(self.value):
+            return term.BigInt(self.value)
+        return term.BigInt(other_value)
+
+    def arith_max_float(self, other_float):
+        return term.Float(max(other_float, self.value.tofloat()))
+
+    # ------------------ min ------------------
+    def arith_min(self, other):
+        return other.arith_min_bigint(self.value)
+
+    def arith_min_number(self, other_num):
+        other_value = rbigint.fromint(other_num)
+        if other_value.lt(self.value):
+            return term.BigInt(other_value)
+        return term.BigInt(self.value)
+
+    def arith_min_bigint(self, other_value):
+        if other_value.lt(self.value):
+            return term.BigInt(other_value)
+        return term.BigInt(self.value)
+
+    def arith_min_float(self, other_float):
+        return term.Float(min(other_float, self.value.tofloat()))
+
+    # ------------------ miscellanous ------------------
+    def arith_round(self):
+        return self
+
+    def arith_floor(self):
+        return self
+
+    def arith_ceiling(self):
+        return self
+
+    def arith_fractional_part(self):
+        return term.Number(0)
+
+    def arith_integer_part(self):
+        return self

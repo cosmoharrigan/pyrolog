@@ -120,6 +120,70 @@ class TestArithmeticMethod(object):
         assert Number(1000).arith_shl(BigInt(rbigint.fromint(1))).num == 2000
         assert Number(1000).arith_shl(BigInt(rbigint.fromint(100))).value.str() == '1267650600228229401496703205376000'
 
+    def test_or(self):
+        assert Number(8).arith_or(Number(2)).num == 10
+        assert BigInt(rbigint.fromint(256)).arith_or(Number(128)).value.str() == '384'
+        assert BigInt(rbigint.fromdecimalstr('18446744073709551616')).arith_or(BigInt(rbigint.fromdecimalstr('9223372036854775808'))).value.str() == '27670116110564327424'
+        assert Number(128).arith_or(BigInt(rbigint.fromint(256))).value.str() == '384'
+
+    def test_and(self):
+        assert Number(8).arith_and(Number(2)).num == 0
+        assert BigInt(rbigint.fromint(46546)).arith_and(Number(34)).value.str() == '2'
+        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_and(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '15973735027198597'
+        assert Number(46546).arith_and(BigInt(rbigint.fromint(34))).value.str() == '2'
+
+    def test_xor(self):
+        assert Number(8).arith_xor(Number(2)).num == 10
+        assert BigInt(rbigint.fromint(46546)).arith_xor(Number(34)).value.str() == '46576'
+        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_xor(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '848692582328774746'
+        assert Number(46546).arith_xor(BigInt(rbigint.fromint(34))).value.str() == '46576'
+
+    def test_mod(self):
+        assert Number(8).arith_mod(Number(2)).num == 0
+        assert BigInt(rbigint.fromint(46546)).arith_mod(Number(33)).value.str() == '16'
+        assert BigInt(rbigint.fromdecimalstr('348765738456378457436537854637845')).arith_mod(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '738607793931799615'
+        assert Number(46546).arith_mod(BigInt(rbigint.fromint(33))).value.str() == '16'
+
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromint(12342424234)).arith_mod(BigInt(rbigint.fromint(0)))')
+        py.test.raises(ZeroDivisionError, 'Number(34535).arith_mod(BigInt(rbigint.fromint(0)))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromint(12342424234)).arith_mod(Number(0))')
+
+    def test_invert(self):
+        assert Number(2345).arith_invert().num == -2346
+        assert BigInt(rbigint.fromdecimalstr('37846578346543875674385')).arith_invert().value.str() == '-37846578346543875674386'
+
+    def test_abs(self):
+        assert Number(-345345345).arith_abs().num == 345345345
+        assert Float(345345.435).arith_abs().floatval == 345345.435
+        assert Float(-345345.435).arith_abs().floatval == 345345.435
+        assert BigInt(rbigint.fromdecimalstr('-123123123123123123123123123')).arith_abs().value.str() == '123123123123123123123123123'
+
+    def test_max(self):
+        assert Number(5).arith_max(Number(1)).num == 5
+        assert Float(-1.32).arith_max(Float(4.5)).floatval == 4.5
+        assert BigInt(rbigint.fromdecimalstr('111111111111111111111111111')).arith_max(BigInt(rbigint.fromdecimalstr('222222222222222222222222222222'))).value.str() == '222222222222222222222222222222'
+        assert Number(-1000).arith_max(BigInt(rbigint.fromint(-1001))).value.str() == '-1000'
+        assert BigInt(rbigint.fromint(-1001)).arith_max(Number(-1000)).value.str() == '-1000'
+        assert BigInt(rbigint.fromdecimalstr('10000')).arith_max(Float(20000)).floatval == 20000.0
+        assert Float(20000).arith_max(BigInt(rbigint.fromdecimalstr('10000'))).floatval == 20000.0
+
+    def test_min(self):
+        assert Number(5).arith_min(Number(1)).num == 1
+        assert Float(-1.32).arith_min(Float(4.5)).floatval == -1.32
+        assert BigInt(rbigint.fromdecimalstr('111111111111111111111111111')).arith_min(BigInt(rbigint.fromdecimalstr('222222222222222222222222222222'))).value.str() == '111111111111111111111111111'
+        assert Number(-1000).arith_min(BigInt(rbigint.fromint(-1001))).value.str() == '-1001'
+        assert BigInt(rbigint.fromint(-1001)).arith_min(Number(-1000)).value.str() == '-1001'
+        assert BigInt(rbigint.fromdecimalstr('10000')).arith_min(Float(20000)).floatval == 10000.0
+        assert Float(20000).arith_min(BigInt(rbigint.fromdecimalstr('10000'))).floatval == 10000.0
+
+    def test_float_misc(self):
+        #assert Float(7.4).arith_round().floatval == 7.0
+        assert Float(7.5).arith_round().floatval == 8.0
+        assert Float(7.4).arith_floor().floatval == 7.0
+        assert Float(7.9).arith_floor().floatval == 7.0
+        assert Float(7.4).arith_ceiling().floatval == 8.0
+        #assert Float(7.4).arith_fractional_part().floatval == 0.4
+        assert Float(7.4).arith_integer_part().floatval == 7.0
 
 
 def test_simple():
