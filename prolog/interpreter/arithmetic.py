@@ -213,6 +213,51 @@ class __extend__(term.Number):
     def arith_div_float(self, other_float):
         return term.Float(other_float / float(self.num))
 
+    # ------------------ power ------------------ 
+    def arith_pow(self, other):
+        return other.arith_pow_number(self.num)
+
+    def arith_pow_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num ** self.num)
+        except OverflowError:
+            return self.arith_pow_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_pow_bigint(self, other_value):
+        return term.BigInt(other_value.pow(rbigint.fromint(self.num)))
+
+    def arith_pow_float(self, other_float):
+        return term.Float(other_float ** float(self.num))
+
+    # ------------------ shift right ------------------ 
+    def arith_shr(self, other):
+        return other.arith_shr_number(self.num)
+
+    def arith_shr_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num >> self.num)
+        except OverflowError:
+            return self.arith_shr_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_shr_bigint(self, other_value):
+        return term.BigInt(other_value.rshift(self.num))
+
+    # ------------------ shift left ------------------ 
+    def arith_shl(self, other):
+        return other.arith_shl_number(self.num)
+
+    def arith_shl_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(intmask(other_num << self.num))
+        except OverflowError:
+            return self.arith_shl_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_shl_bigint(self, other_value):
+        return term.BigInt(other_value.lshift(self.num))
+
 
 class __extend__(term.Float):    
     # ------------------ addition ------------------ 
@@ -267,6 +312,19 @@ class __extend__(term.Float):
     def arith_div_float(self, other_float):
         return term.Float(other_float / self.floatval)
 
+    # ------------------ power ------------------ 
+    def arith_pow(self, other):
+        return other.arith_pow_float(self.floatval)
+
+    def arith_pow_number(self, other_num):
+        return term.Float(float(other_num) ** self.floatval)
+
+    def arith_pow_bigint(self, other_value):
+        return term.Float(other_value.tofloat() ** self.floatval)
+
+    def arith_pow_float(self, other_float):
+        return term.Float(other_float ** self.floatval)
+
 
 class __extend__(term.BigInt):
     # ------------------ addition ------------------ 
@@ -320,3 +378,57 @@ class __extend__(term.BigInt):
 
     def arith_div_float(self, other_float):
         return term.Float(other_float / self.value.tofloat())
+
+    # ------------------ power ------------------ 
+    def arith_pow(self, other):
+        return other.arith_pow_bigint(self.value)
+
+    def arith_pow_number(self, other_num):
+        return term.BigInt(rbigint.fromint(other_num).pow(self.value))
+
+    def arith_pow_bigint(self, other_value):
+        return term.BigInt(other_value.pow(self.value))
+
+    def arith_pow_float(self, other_float):
+        return term.Float(other_float ** self.value.tofloat())
+
+    # ------------------ shift right ------------------ 
+    def arith_shr(self, other):
+        return other.arith_shr_bigint(self.value)
+
+    def arith_shr_number(self, other_num):
+        try:
+            num = rarithmetic.ovfcheck(int(self.value.str()))
+        except OverflowError:
+            raise ValueError('Right operand too big')
+        return term.Number(other_num >> num)
+
+    def arith_shr_bigint(self, other_value):
+        try:
+            num = rarithmetic.ovfcheck(int(self.value.str()))
+        except OverflowError:
+            raise ValueError('Right operand too big')
+        return term.BigInt(other_value.rshift(num))
+
+    # ------------------ shift left ------------------ 
+    def arith_shl(self, other):
+        return other.arith_shl_bigint(self.value)
+
+    def arith_shl_number(self, other_num):
+        try:
+            num = rarithmetic.ovfcheck(int(self.value.str()))
+        except OverflowError:
+            raise ValueError('Right operand too big')
+        else:
+            try:
+                res = rarithmetic.ovfcheck(other_num << num)
+            except OverflowError:
+                return term.BigInt(rbigint.fromint(other_num).lshift(num))
+            return term.Number(res)
+
+    def arith_shl_bigint(self, other_value):
+        try:
+            num = rarithmetic.ovfcheck(int(self.value.str()))
+        except OverflowError:
+            raise ValueError('Right operand too big')
+        return term.BigInt(other_value.lshift(num))

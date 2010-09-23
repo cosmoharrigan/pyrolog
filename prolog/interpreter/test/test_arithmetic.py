@@ -93,7 +93,32 @@ class TestArithmeticMethod(object):
         py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Number(0))')
         py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Float(0))')
 
+    def test_power(self):
+        assert Number(5).arith_pow(Number(2)).num == 25
+        assert Float(2.3).arith_pow(Float(3.1)).floatval == 13.223800591254721
+        assert BigInt(rbigint.fromdecimalstr('1000000')).arith_pow(Number(4)).value.str() == '1000000000000000000000000'
+        assert BigInt(rbigint.fromdecimalstr('10')).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).value.str() == '10000000000'
+        assert Number(10).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).value.str() == '10000000000'
+        assert Float(10.0).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).floatval == 10000000000.0
+        assert BigInt(rbigint.fromdecimalstr('10')).arith_pow(Float(10.0)).floatval == 10000000000.0
 
+        assert BigInt(rbigint.fromdecimalstr('1000000000000000')).arith_pow(Number(0)).value.str() == '1'
+        assert Float(10000000000).arith_pow(BigInt(rbigint.fromdecimalstr('0'))).floatval == 1.0
+
+    def test_shr(self):
+        assert Number(8).arith_shr(Number(2)).num == 2
+        assert BigInt(rbigint.fromint(256)).arith_shr(Number(5)).value.str() == '8'
+        assert BigInt(rbigint.fromint(256)).arith_shr(BigInt(rbigint.fromint(5))).value.str() == '8'
+        assert Number(256).arith_shr(BigInt(rbigint.fromint(5))).num == 8
+
+        py.test.raises(ValueError, 'BigInt(rbigint.fromint(2)).arith_shr(BigInt(rbigint.fromdecimalstr(\'100000000000000000000000000000000000000000000000\')))')
+
+    def test_shl(self):
+        assert Number(2).arith_shl(Number(5)).num == 64
+        assert BigInt(rbigint.fromint(1000)).arith_shl(Number(1)).value.str() == '2000'
+        assert BigInt(rbigint.fromint(1000)).arith_shl(BigInt(rbigint.fromint(1))).value.str() == '2000'
+        assert Number(1000).arith_shl(BigInt(rbigint.fromint(1))).num == 2000
+        assert Number(1000).arith_shl(BigInt(rbigint.fromint(100))).value.str() == '1267650600228229401496703205376000'
 
 
 
