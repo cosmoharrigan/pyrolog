@@ -177,12 +177,12 @@ class TestArithmeticMethod(object):
         assert Float(20000).arith_min(BigInt(rbigint.fromdecimalstr('10000'))).floatval == 10000.0
 
     def test_float_misc(self):
-        #assert Float(7.4).arith_round().floatval == 7.0
-        assert Float(7.5).arith_round().floatval == 8.0
+        assert Float(7.4).arith_round().num == 7.0
+        assert Float(7.5).arith_round().num == 8.0
         assert Float(7.4).arith_floor().floatval == 7.0
         assert Float(7.9).arith_floor().floatval == 7.0
         assert Float(7.4).arith_ceiling().floatval == 8.0
-        #assert Float(7.4).arith_fractional_part().floatval == 0.4
+        assert Float(7.4).arith_fractional_part().floatval == 7.4 - 7
         assert Float(7.4).arith_integer_part().floatval == 7.0
 
 

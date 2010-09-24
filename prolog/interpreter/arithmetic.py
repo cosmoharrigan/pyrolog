@@ -474,7 +474,7 @@ class __extend__(term.Float):
 
     # ------------------ miscellanous ------------------
     def arith_round(self):
-        return term.Float(round(self.floatval + 0.5))
+        return term.Number(int(self.floatval + 0.5)) # XXX probably wrong for large floats, returns a BigInt then
 
     def arith_floor(self):
         return term.Float(math.floor(self.floatval))
