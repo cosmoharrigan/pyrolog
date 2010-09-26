@@ -496,6 +496,22 @@ class BigInt(NonVar):
     def __init__(self, value):
         self.value = value
 
+    def basic_unify(self, other, heap, occurs_check = False):
+        if isinstance(other, BigInt) and other.value.eq(self.value):
+            return
+        raise UnificationFailed
+
+    def copy_and_basic_unify(self, other, heap, env):
+        if isinstance(other, BigInt) and other.value.eq(self.value):
+            return self
+        raise UnificationFailed
+
+    def __str__(self):
+        return repr(self.value)
+
+    def __repr__(self):
+        return 'BigInt(rbigint(%s))' % self.value.str()
+
     
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2

@@ -35,6 +35,7 @@ class CodeCollector(object):
         return "\n".join(self.code)
 
 def wrap_builtin_operation(name, pattern, unwrap_spec, can_overflow, intversion):
+    """
     code = CodeCollector()
     code.start_block("def prolog_%s(engine, query):" % name)
     for i, spec in enumerate(unwrap_spec):
@@ -86,10 +87,33 @@ def wrap_builtin_operation(name, pattern, unwrap_spec, can_overflow, intversion)
     code.emit("return norm_float(term.Float(%s))" % pattern)
     code.end_block("def")
     miniglobals = globals().copy()
+    """
+    #print "___________ CODE _______________"
+    print 'NAME =', name
+    #print code.tostring()
+    #print "________________________________"
+    #### !!! ####
+    fcode = CodeCollector()
+    fcode.start_block('def prolog_%s(engine, query):' % name)
+    for i, _ in enumerate(unwrap_spec):
+        fcode.emit('var%s = eval_arithmetic(engine, query.argument_at(%s))' % (i, i))
+    if len(unwrap_spec) == 1:
+        fcode.emit('return var0.arith_%s()' % name)
+    elif len(unwrap_spec) == 2:
+        fcode.emit('return var0.arith_%s(var1)' % name)
+    fcode.end_block('def')
+    miniglobals = globals().copy()
+    exec py.code.Source(fcode.tostring()).compile() in miniglobals
+    result = miniglobals['prolog_' + name]
+    return result
+
+    #print '=== F C O D E ===\n', fcode.tostring(), '\n============'
+    #############
+    """
     exec py.code.Source(code.tostring()).compile() in miniglobals
     result = miniglobals["prolog_" + name]
     return result
-
+    """
 wrap_builtin_operation._annspecialcase_ = 'specialize:memo'
 
 def eval_arithmetic(engine, query):
@@ -107,7 +131,7 @@ simple_functions = [
     ("-",                     ["expr", "expr"], "v0 - v1", True, True),
     ("*",                     ["expr", "expr"], "v0 * v1", True, True),
     ("//",                    ["int",  "int"],  "v0 / v1", True, False),
-    ("**",                    ["expr", "expr"], "math.pow(float(v0), float(v1))", True, False),
+    
     (">>",                    ["int", "int"],   "v0 >> v1", False, False),
     ("<<",                    ["int", "int"],   "intmask(v0 << v1)", False,
                                                                      False),
@@ -133,6 +157,14 @@ for prolog_name, unwrap_spec, pattern, overflow, intversion in simple_functions:
     else:
         import unicodedata
         name = "".join([unicodedata.name(unicode(c)).replace(" ", "_").replace("-", "").lower() for c in prolog_name])
+    """
+    print '____________________________'
+    print 'prolog_name =', prolog_name
+    print 'pattern = ', pattern
+    print 'unwrap_spec =', unwrap_spec
+    print '____________________________'
+    """
+
     f = wrap_builtin_operation(name, pattern, unwrap_spec, overflow,
                                intversion)
     
@@ -146,7 +178,7 @@ def get_arithmetic_function(signature):
 
 class __extend__(term.Number):
     # ------------------ addition ------------------ 
-    def arith_add(self, other):
+    def arith_plus_sign(self, other):
         return other.arith_add_number(self.num)
 
     def arith_add_number(self, other_num):
@@ -163,7 +195,7 @@ class __extend__(term.Number):
         return term.Float(other_float + float(self.num))
 
     # ------------------ subtraction ------------------ 
-    def arith_sub(self, other):
+    def arith_hyphenminus(self, other):
         return other.arith_sub_number(self.num)
 
     def arith_sub_number(self, other_num):
@@ -180,7 +212,7 @@ class __extend__(term.Number):
         return term.Float(other_float - float(self.num))
 
     # ------------------ multiplication ------------------ 
-    def arith_mul(self, other):
+    def arith_asterisk(self, other):
         return other.arith_mul_number(self.num)
 
     def arith_mul_number(self, other_num):
@@ -197,7 +229,7 @@ class __extend__(term.Number):
         return term.Float(other_float * float(self.num))
 
     # ------------------ division ------------------ 
-    def arith_div(self, other):
+    def arith_solidussolidus(self, other):
         return other.arith_div_number(self.num)
 
     def arith_div_number(self, other_num):
@@ -231,7 +263,7 @@ class __extend__(term.Number):
         return term.Float(other_float ** float(self.num))
 
     # ------------------ shift right ------------------ 
-    def arith_shr(self, other):
+    def arith_greaterthan_signgreaterthan_sign(self, other):
         return other.arith_shr_number(self.num)
 
     def arith_shr_number(self, other_num):
@@ -245,7 +277,7 @@ class __extend__(term.Number):
         return term.BigInt(other_value.rshift(self.num))
 
     # ------------------ shift left ------------------ 
-    def arith_shl(self, other):
+    def arith_lessthan_signlessthan_sign(self, other):
         return other.arith_shl_number(self.num)
 
     def arith_shl_number(self, other_num):
@@ -259,7 +291,7 @@ class __extend__(term.Number):
         return term.BigInt(other_value.lshift(self.num))
 
     # ------------------ or ------------------ 
-    def arith_or(self, other):
+    def arith_reverse_solidussolidus(self, other):
         return other.arith_or_number(self.num)
 
     def arith_or_number(self, other_num):
@@ -273,7 +305,7 @@ class __extend__(term.Number):
         return term.BigInt(rbigint.fromint(self.num).or_(other_value))
 
     # ------------------ and ------------------ 
-    def arith_and(self, other):
+    def arith_solidusreverse_solidus(self, other):
         return other.arith_and_number(self.num)
 
     def arith_and_number(self, other_num):
@@ -311,7 +343,7 @@ class __extend__(term.Number):
         return term.BigInt(other_value.mod(rbigint.fromint(self.num)))
 
     # ------------------ inversion ------------------
-    def arith_invert(self):
+    def arith_reverse_solidus(self):
         try:
             val = rarithmetic.ovfcheck(~self.num)
         except OverflowError:
@@ -369,16 +401,16 @@ class __extend__(term.Number):
     def arith_ceiling(self):
         return self
 
-    def arith_fractional_part(self):
+    def arith_float_fractional_part(self):
         return term.Number(0)
 
-    def arith_integer_part(self):
+    def arith_float_integer_part(self):
         return self
 
 
 class __extend__(term.Float):    
     # ------------------ addition ------------------ 
-    def arith_add(self, other):
+    def arith_plus_sign(self, other):
         return other.arith_add_float(self.floatval)
 
     def arith_add_number(self, other_num):
@@ -388,10 +420,19 @@ class __extend__(term.Float):
         return term.Float(other_value.tofloat() + self.floatval)
 
     def arith_add_float(self, other_float):
+        """
+        if sum == int(sum):
+            try:
+                sum = rarithmetic.ovfcheck(other_float + self.float)
+                if int(sum) == sum:
+                    return term.Number(int(sum))
+            except OverflowError:
+                
+        """        
         return term.Float(other_float + self.floatval)
 
     # ------------------ subtraction ------------------ 
-    def arith_sub(self, other):
+    def arith_hyphenminus(self, other):
         return other.arith_sub_float(self.floatval)
 
     def arith_sub_number(self, other_num):
@@ -404,7 +445,7 @@ class __extend__(term.Float):
         return term.Float(other_float - self.floatval)
 
     # ------------------ multiplication ------------------ 
-    def arith_mul(self, other):
+    def arith_asterisk(self, other):
         return other.arith_mul_float(self.floatval)
 
     def arith_mul_number(self, other_num):
@@ -417,7 +458,7 @@ class __extend__(term.Float):
         return term.Float(other_float * self.floatval)
 
     # ------------------ division ------------------ 
-    def arith_div(self, other):
+    def arith_solidussolidus(self, other):
         return other.arith_div_float(self.floatval)
 
     def arith_div_number(self, other_num):
@@ -474,7 +515,7 @@ class __extend__(term.Float):
 
     # ------------------ miscellanous ------------------
     def arith_round(self):
-        return term.Number(int(self.floatval + 0.5)) # XXX probably wrong for large floats, returns a BigInt then
+        return term.Number(round(self.floatval)) # XXX
 
     def arith_floor(self):
         return term.Float(math.floor(self.floatval))
@@ -482,16 +523,16 @@ class __extend__(term.Float):
     def arith_ceiling(self):
         return term.Float(math.ceil(self.floatval))
 
-    def arith_fractional_part(self):
+    def arith_float_fractional_part(self):
         return term.Float(self.floatval - int(self.floatval))
 
-    def arith_integer_part(self):
+    def arith_float_integer_part(self):
         return term.Float(int(self.floatval))
 
 
 class __extend__(term.BigInt):
     # ------------------ addition ------------------ 
-    def arith_add(self, other):
+    def arith_plus_sign(self, other):
         return other.arith_add_bigint(self.value)
 
     def arith_add_number(self, other_num):
@@ -504,7 +545,7 @@ class __extend__(term.BigInt):
         return term.Float(other_float + self.value.tofloat())
 
     # ------------------ subtraction ------------------ 
-    def arith_sub(self, other):
+    def arith_hyphenminus(self, other):
         return other.arith_sub_bigint(self.value)
 
     def arith_sub_number(self, other_num):
@@ -517,7 +558,7 @@ class __extend__(term.BigInt):
         return term.Float(other_float - self.value.tofloat())
 
     # ------------------ multiplication ------------------ 
-    def arith_mul(self, other):
+    def arith_asterisk(self, other):
         return other.arith_mul_bigint(self.value)
 
     def arith_mul_number(self, other_num):
@@ -530,7 +571,7 @@ class __extend__(term.BigInt):
         return term.Float(other_float * self.value.tofloat())
 
     # ------------------ division ------------------ 
-    def arith_div(self, other):
+    def arith_solidussolidus(self, other):
         return other.arith_div_bigint(self.value)
 
     def arith_div_number(self, other_num):
@@ -556,7 +597,7 @@ class __extend__(term.BigInt):
         return term.Float(other_float ** self.value.tofloat())
 
     # ------------------ shift right ------------------ 
-    def arith_shr(self, other):
+    def arith_greaterthan_signgreaterthan_sign(self, other):
         return other.arith_shr_bigint(self.value)
 
     def arith_shr_number(self, other_num):
@@ -574,7 +615,7 @@ class __extend__(term.BigInt):
         return term.BigInt(other_value.rshift(num))
 
     # ------------------ shift left ------------------ 
-    def arith_shl(self, other):
+    def arith_lessthan_signlessthan_sign(self, other):
         return other.arith_shl_bigint(self.value)
 
     def arith_shl_number(self, other_num):
@@ -597,7 +638,7 @@ class __extend__(term.BigInt):
         return term.BigInt(other_value.lshift(num))
 
     # ------------------ or ------------------ 
-    def arith_or(self, other):
+    def arith_reverse_solidussolidus(self, other):
         return other.arith_or_bigint(self.value)
 
     def arith_or_number(self, other_num):
@@ -607,7 +648,7 @@ class __extend__(term.BigInt):
         return term.BigInt(other_value.or_(self.value))
 
     # ------------------ and ------------------ 
-    def arith_and(self, other):
+    def arith_solidusreverse_solidus(self, other):
         return other.arith_and_bigint(self.value)
 
     def arith_and_number(self, other_num):
@@ -636,8 +677,8 @@ class __extend__(term.BigInt):
     def arith_mod_bigint(self, other_value):
         return term.BigInt(other_value.mod(self.value))
 
-    # ------------------ mod ------------------ 
-    def arith_invert(self):
+    # ------------------ inversion ------------------ 
+    def arith_reverse_solidus(self):
         return term.BigInt(self.value.invert())
 
 
@@ -692,8 +733,8 @@ class __extend__(term.BigInt):
     def arith_ceiling(self):
         return self
 
-    def arith_fractional_part(self):
+    def arith_arith_fractional_part(self):
         return term.Number(0)
 
-    def arith_integer_part(self):
+    def arith_arith_integer_part(self):
         return self
