@@ -1,4 +1,7 @@
 import os, py
+from prolog.interpreter.test.tool import prolog_raises
+from prolog.interpreter.error import UncaughtError
+
 
 TESTDIR = str(py.path.local(__file__).dirpath().join('inriasuite')) # use this line instead of the next
 

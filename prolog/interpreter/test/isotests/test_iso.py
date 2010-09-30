@@ -6,6 +6,7 @@ from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true, prolog_raises
 from prolog.interpreter.test.isotests.fileutil import get_lines, get_files, deconstruct_list
+from prolog.interpreter.error import UncaughtError
 
 FAILURE = 'failure'
 SUCCESS = 'success'
@@ -27,14 +28,20 @@ def pytest_generate_tests(metafunc):
                 lists = deconstruct_list(right[1:-2])
                 if 'lists' in names:
                     metafunc.addcall(funcargs = dict(test = left, lists = lists))
-        
+
 
 def test_error(test, error):
-    prolog_raises(error, test)
+    try:
+        prolog_raises(error, test)
+    except UncaughtError, e:
+        msg = repr(e.term)
+        if 'existence_error' in msg:
+            py.test.skip(msg)
+        else:
+            raise
 
 
 def test_success_failure(test, mode):
-    print test
     try:
         if mode == FAILURE:
             assert_false(test)
@@ -50,6 +57,5 @@ def test_success_failure(test, mode):
 
 def test_multiple_lists(test, lists):
     for goal in lists:
-        assert_true(test + ', ' + goal.replace('<--', '=') + '.')
-
-
+        check = test + ', ' + goal.replace('<--', '=') + '.'
+        assert_true(check)
