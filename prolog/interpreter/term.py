@@ -538,8 +538,7 @@ class Float(NonVar):
         return "Float(%r)" % (self.floatval, )
     
     def eval_arithmetic(self, engine):
-        from prolog.interpreter.arithmetic import norm_float
-        return norm_float(self)
+        return self
     
     def cmp_standard_order(self, other, heap):
         # XXX looks a bit terrible
