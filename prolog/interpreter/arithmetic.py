@@ -35,59 +35,6 @@ class CodeCollector(object):
         return "\n".join(self.code)
 
 def wrap_builtin_operation(name, pattern, unwrap_spec, can_overflow, intversion):
-    """
-    code = CodeCollector()
-    code.start_block("def prolog_%s(engine, query):" % name)
-    for i, spec in enumerate(unwrap_spec):
-        varname = "var%s" % (i, )
-        code.emit("%s = eval_arithmetic(engine, query.argument_at(%s))" %
-                  (varname, i))
-    for i, spec in enumerate(unwrap_spec):
-        varname = "var%s" % (i, )
-        if spec == "int":
-            code.start_block(
-                "if not isinstance(%s, term.Number):" % (varname, ))
-            code.emit("error.throw_type_error('int', %s)" % (varname, ))
-            code.end_block("if")
-    if "expr" in unwrap_spec and intversion:
-        # check whether all arguments are ints
-        for i, spec in enumerate(unwrap_spec):
-            varname = "var%s" % (i, )
-            if spec == "int":
-                continue
-            code.start_block(
-                "if isinstance(%s, term.Number):" % (varname, ))
-            code.emit("v%s = var%s.num" % (i, i))
-        code.emit("return term.Number(int(%s))" % (pattern, ))
-        for i, spec in enumerate(unwrap_spec):
-            if spec == "int":
-                continue
-            code.end_block("if")
-    
-    #general case in an extra function
-    args = ", ".join(["var%s" % i for i in range(len(unwrap_spec))])
-    code.emit("return general_%s(%s)" % (name, args))
-    code.end_block("def")
-    code.start_block("def general_%s(%s):" % (name, args))
-    for i, spec in enumerate(unwrap_spec):
-        varname = "var%s" % (i, )
-        code.emit("v%s = 0" % (i, ))
-        code.start_block("if isinstance(%s, term.Number):" % (varname, ))
-        code.emit("v%s = %s.num" % (i, varname))
-        code.end_block("if")
-        expected = 'int'
-        if spec == "expr":
-            code.start_block("elif isinstance(%s, term.Float):" % (varname, ))
-            code.emit("v%s = %s.floatval" % (i, varname))
-            code.end_block("elif")
-            expected = 'float'
-        code.start_block("else:")
-        code.emit("error.throw_type_error('%s', %s)" % (expected, varname, ))
-        code.end_block("else")
-    code.emit("return norm_float(term.Float(%s))" % pattern)
-    code.end_block("def")
-    miniglobals = globals().copy()
-    """
     #print "___________ CODE _______________"
     print 'NAME =', name
     #print code.tostring()
