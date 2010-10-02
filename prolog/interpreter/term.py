@@ -453,6 +453,7 @@ class Number(NonVar): #, UnboxedValue):
     __slots__ = ("num", )
     
     def __init__(self, num):
+        assert isinstance(num, int)
         self.num = num
     
     @specialize.arg(3)
