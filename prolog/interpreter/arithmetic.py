@@ -38,12 +38,8 @@ class CodeCollector(object):
         assert not self.blocks
         return "\n".join(self.code)
 
+
 def wrap_builtin_operation(name, num_args):
-    #print "___________ CODE _______________"
-    print 'NAME =', name
-    #print code.tostring()
-    #print "________________________________"
-    #### !!! ####
     fcode = CodeCollector()
     fcode.start_block('def prolog_%s(engine, query):' % name)
     for i in range(num_args):
@@ -57,9 +53,6 @@ def wrap_builtin_operation(name, num_args):
     exec py.code.Source(fcode.tostring()).compile() in miniglobals
     result = miniglobals['prolog_' + name]
     return result
-
-    #print '=== F C O D E ===\n', fcode.tostring(), '\n============'
-    #############
 
 
 # remove unneeded parts, use sane names for operations
@@ -437,10 +430,17 @@ class __extend__(term.Float):
     def arith_round(self):
         # XXX round is not RPython. What if the result doesn't fit into a Number?
         # use ovfcheck_float_to_int
+        fval = self.floatval
+        if fval >= 0:
+            factor = 1
+        else:
+            factor = -1
+
+        fval = fval * factor
         try:
-            val = ovfcheck_float_to_int(math.floor(self.floatval + 0.5))
+            val = ovfcheck_float_to_int(math.floor(fval + 0.5) * factor)
         except OverflowError:
-            return term.BigInt(rbigint.fromfloat(math.floor(self.floatval + 0.5)))
+            return term.BigInt(rbigint.fromfloat(math.floor(self.floatval + 0.5) * factor))
         return term.Number(val)
 
     def arith_floor(self):
