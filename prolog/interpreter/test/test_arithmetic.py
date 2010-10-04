@@ -188,10 +188,8 @@ class TestArithmeticMethod(object):
 
 def test_simple():
     assert_true("X is 1 + 2, X = 3.")
-    #assert_true("X is 1.2 + 2.8, X = 4.")
     assert_false("X is 1.1 + 2.8, X = 4.0.")
     assert_true("X is 1 - 2, X = -1.")
-    #assert_true("X is 1.2 - 1.2, X = 0.")
     assert_true("X is 2 * -2, X = -4.")
     assert_true("X is 2 * -2.1, X = -4.2.")
     assert_true("X is 2 + -2, X = 0.")
@@ -222,7 +220,7 @@ def test_simple():
     assert_true("X is round(-0.3), X = 0.")
     assert_true("X is round(-0.4), X = 0.")
     assert_true("X is round(-0.5), X = -1.")
-    assert_true("X is round(-0.6), X = -1.") #XXX fix round
+    assert_true("X is round(-0.6), X = -1.") 
     assert_true("X is round(-1), X = -1.")
 
     assert_true("X is ceiling(0), X = 0.")
@@ -271,7 +269,9 @@ def test_simple():
     assert_true("X is float_fractional_part(-1.4), X is -1.4 + 1, X = Y.")
     assert_true("X is float_fractional_part(-1.6), X is -1.6 + 1, X = Y.")
 
-    #assert_true("X is 2 ** 4, X = 16.")
+    assert_true("X is 2 ** 4, X = 16.")
+    assert_true("X is 100 ** 0.0, X = 1.0.")
+    assert_true("X is 0 ** 0, X = 1.")
 
 def test_comparison():
     assert_true("1 =:= 1.0.")
