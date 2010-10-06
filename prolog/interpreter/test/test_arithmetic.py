@@ -92,6 +92,8 @@ def test_simple():
     assert_true("X is float_fractional_part(-1.6), X is -1.6 + 1, X = Y.")
 
     assert_true("X is 2 ** 4, X = 16.")
+    assert_true("X is 0.0 ** 0.0, X = 1.0.")
+    assert_true("X is 1000 ** 0, X = 1.")
 
 def test_comparison():
     assert_true("1 =:= 1.0.")
