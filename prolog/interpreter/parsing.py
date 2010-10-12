@@ -6,6 +6,7 @@ from pypy.rlib.parsing.deterministic import DFA
 from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from pypy.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from pypy.rlib.parsing.regex import StringExpression
+from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 
 def make_regexes():
     regexs = [
