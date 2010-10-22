@@ -58,6 +58,8 @@ def unwrap_int(obj):
         f = obj.floatval; i = int(f)
         if f == i:
             return i
+    elif isinstance(obj, term.Var):
+        error.throw_instantiation_error()
     error.throw_type_error('integer', obj)
 
 def unwrap_atom(obj):
