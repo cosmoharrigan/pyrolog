@@ -96,5 +96,5 @@ def convert_to_str(obj):
         return str(obj.num)
     elif isinstance(obj, term.Float):
         return str(obj.floatval)
-    error.throw_type_error("atomic", obj)
+    error.throw_type_error("atom", obj)
 
