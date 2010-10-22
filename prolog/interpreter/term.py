@@ -7,6 +7,7 @@ from pypy.rlib.objectmodel import compute_unique_id
 from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
 from pypy.rlib import jit
+from pypy.tool.pairtype import extendabletype
 
 DEBUG = False
 
@@ -18,6 +19,7 @@ def debug_print(*args):
 class PrologObject(object):
     __slots__ = ()
     _immutable_ = True
+    __metaclass__ = extendabletype
     
     def getvalue(self, heap):
         return self
@@ -451,6 +453,7 @@ class Number(NonVar): #, UnboxedValue):
     __slots__ = ("num", )
     
     def __init__(self, num):
+        assert isinstance(num, int)
         self.num = num
     
     @specialize.arg(3)
@@ -488,6 +491,29 @@ class Number(NonVar): #, UnboxedValue):
             return True
         return isinstance(other, Number) and other.num == self.num
 
+
+class BigInt(NonVar):
+    # value is an instance of rbigint
+    def __init__(self, value):
+        self.value = value
+
+    def basic_unify(self, other, heap, occurs_check = False):
+        if isinstance(other, BigInt) and other.value.eq(self.value):
+            return
+        raise UnificationFailed
+
+    def copy_and_basic_unify(self, other, heap, env):
+        if isinstance(other, BigInt) and other.value.eq(self.value):
+            return self
+        raise UnificationFailed
+
+    def __str__(self):
+        return repr(self.value)
+
+    def __repr__(self):
+        return 'BigInt(rbigint(%s))' % self.value.str()
+
+    
 class Float(NonVar):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True
@@ -513,8 +539,7 @@ class Float(NonVar):
         return "Float(%r)" % (self.floatval, )
     
     def eval_arithmetic(self, engine):
-        from prolog.interpreter.arithmetic import norm_float
-        return norm_float(self)
+        return self
     
     def cmp_standard_order(self, other, heap):
         # XXX looks a bit terrible

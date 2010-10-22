@@ -2,6 +2,7 @@ import py
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.arithmetic import eval_arithmetic
 
 from pypy.rlib.objectmodel import we_are_translated
 
@@ -72,7 +73,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         elif spec == "atom":
             code.append("    %s = helper.unwrap_atom(%s)" % (varname, varname))
         elif spec == "arithmetic":
-            code.append("    %s = %s.eval_arithmetic(engine)" %
+            code.append("    %s = eval_arithmetic(engine, %s)" %
                         (varname, varname))
         elif spec == "list":
             code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
