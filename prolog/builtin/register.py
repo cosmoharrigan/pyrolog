@@ -65,6 +65,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
             code.append(
                 "    if not isinstance(%s, term.Callable):" % (varname,))
             code.append(
+                "        if isinstance(%s, term.Var):" % (varname,))
+            code.append(
+                "           error.throw_instantiation_error()")
+            code.append(
                 "        error.throw_type_error('callable', %s)" % (varname,))
         elif spec == "raw":
             code.append("    %s = query.argument_at(%s)" % (varname, i))

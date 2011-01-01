@@ -104,7 +104,7 @@ def test_error(test, error):
         prolog_raises(error, test)
     except UncaughtError, e:
         msg = repr(e.term)
-        if 'existence_error' in msg:
+        if 'existence_error' in msg or 'type_error' in msg:
             py.test.skip(msg)
         else:
             raise

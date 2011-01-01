@@ -158,6 +158,8 @@ class Engine(object):
 
     def call(self, query, scont, fcont, heap):
         if not isinstance(query, Callable):
+            if isinstance(query, Var):
+                raise error.throw_instantiation_error()
             raise error.throw_type_error('callable', query)
         signature = query.signature()        
         builtin = self.get_builtin(signature)
