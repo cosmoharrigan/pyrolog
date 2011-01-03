@@ -20,6 +20,7 @@ def assert_false(query, e=None):
     py.test.raises(UnificationFailed, e.run, term)
 
 def prolog_raises(exc, query, e=None):
+    print '=> catch(((%s), fail), error(%s), true).' % (query, exc)
     return assert_true("catch(((%s), fail), error(%s), true)." %
                        (query, exc), e)
 
