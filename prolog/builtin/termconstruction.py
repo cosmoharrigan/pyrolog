@@ -56,11 +56,6 @@ class ArgContinuation(continuation.ChoiceContinuation):
 @expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
 handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, scont, fcont):
-
-    print 'first  = ' + str(first)
-    print 'second = ' + str(second)
-    print 'third  = ' + str(third)
-
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
     if helper.is_atomic(second):
