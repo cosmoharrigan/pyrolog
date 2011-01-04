@@ -7,6 +7,8 @@ from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from pypy.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from pypy.rlib.parsing.regex import StringExpression
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
+from pypy.rlib.rarithmetic import ovfcheck
+from pypy.rlib.rbigint import rbigint
 
 def make_regexes():
     regexs = [
@@ -366,9 +368,13 @@ class TermBuilder(RPythonVisitor):
         return res
 
     def visit_NUMBER(self, node):
-        from prolog.interpreter.term import Number, Float
+        from prolog.interpreter.term import Number, Float, BigInt
         s = node.additional_info
         try:
+            try:
+                ovfcheck(int(s))
+            except OverflowError:
+                return BigInt(rbigint.fromdecimalstr(s))
             return Number(int(s))
         except ValueError:
             return Float(float(s))

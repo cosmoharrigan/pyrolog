@@ -322,6 +322,8 @@ class Callable(NonVar):
         if c != 0:
             return c
         c = rcmp(self.name(), other.name())
+        print self.name()
+        print other.name()
         if c != 0:
             return c
         for i in range(self.argument_count()):
@@ -448,7 +450,7 @@ class Atom(Callable):
         return self._signature
 
 class Number(NonVar): #, UnboxedValue):
-    TYPE_STANDARD_ORDER = 2
+    TYPE_STANDARD_ORDER = 3
     _immutable_ = True
     __slots__ = ("num", )
     
@@ -482,7 +484,10 @@ class Number(NonVar): #, UnboxedValue):
         if isinstance(other, Number):
             return rcmp(self.num, other.num)
         elif isinstance(other, Float):
-            return rcmp(self.num, other.floatval)
+            # return rcmp(self.num, other.floatval)
+            return 1
+        elif isinstance(other, BigInt):
+            return bigint_cmp(rbigint.fromint(self.num), other.value)
         assert 0
 
     def quick_unify_check(self, other):
@@ -493,6 +498,7 @@ class Number(NonVar): #, UnboxedValue):
 
 
 class BigInt(NonVar):
+    TYPE_STANDARD_ORDER = 3
     # value is an instance of rbigint
     def __init__(self, value):
         self.value = value
@@ -512,6 +518,15 @@ class BigInt(NonVar):
 
     def __repr__(self):
         return 'BigInt(rbigint(%s))' % self.value.str()
+
+    def cmp_standard_order(self, other, heap):
+        if isinstance(other, Number):
+            return bigint_cmp(self.value, rbigint.fromint(other.num))
+        elif isinstance(other, Float):
+            return 1
+        elif isinstance(other, BigInt):
+            return bigint_cmp(self.value, other.value)
+        assert 0
 
     
 class Float(NonVar):
@@ -544,9 +559,12 @@ class Float(NonVar):
     def cmp_standard_order(self, other, heap):
         # XXX looks a bit terrible
         if isinstance(other, Number):
-            return rcmp(self.floatval, other.num)
+            # return rcmp(self.floatval, other.num)
+            return -1
         elif isinstance(other, Float):
             return rcmp(self.floatval, other.floatval)
+        elif isinstance(other, BigInt):
+            return -1
         assert 0
 
 Float.e = Float(math.e)
@@ -571,7 +589,7 @@ def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
     obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)
 
 class Term(Callable):
-    TYPE_STANDARD_ORDER = 3
+    TYPE_STANDARD_ORDER = 4
     _immutable_ = True
     _immutable_fields_ = ["_args[*]"]
     __slots__ = ('_name', '_signature', '_args')
@@ -604,6 +622,13 @@ def rcmp(a, b): # RPython does not support cmp...
     if a == b:
         return 0
     if a < b:
+        return -1
+    return 1
+
+def bigint_cmp(a, b):
+    if a.eq(b):
+        return 0
+    if a.lt(b):
         return -1
     return 1
 

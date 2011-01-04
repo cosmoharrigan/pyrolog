@@ -64,7 +64,10 @@ def driver(scont, fcont, heap):
                 scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
+            print 'scont is None: ' + str(scont is None)
+            print scont.__class__.__name__
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+
     assert isinstance(scont, DoneContinuation)
     if scont.failed:
         raise error.UnificationFailed
@@ -216,6 +219,7 @@ class Engine(object):
             return fcont.fail(heap)
         except error.CatchableError, e:
             return scont.engine.throw(e.term, scont, fcont, heap)
+
     continue_._always_inline_ = True
     continue_ = staticmethod(continue_)
 
@@ -329,7 +333,7 @@ class BodyContinuation(Continuation):
         return "<BodyContinuation %r>" % (self.body, )
 
 class BuiltinContinuation(Continuation):
-    """ Rerpresents the call to a builtin. """
+    """ Represents the call to a builtin. """
     def __init__(self, engine, nextcont, builtin, query):
         Continuation.__init__(self, engine, nextcont)
         self.builtin = builtin

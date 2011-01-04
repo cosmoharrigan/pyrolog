@@ -450,6 +450,35 @@ def test_standard_comparison():
     assert_true("'\\\\=='(f(X, Y), 12).")
     assert_true("X = f(a), Y = f(b), Y @> X.")
 
+def test_structural_comparison():
+    assert_true("1.0 @< 1.")
+    assert_true("2.0 @< 1.")
+    assert_true("10000000000000000000000000000000000.0 @< 1.")
+    assert_true("1.0 @< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @< 1000000000000000000000000000001.")
+    assert_true("@<(1.0, 1).")
+
+    assert_false("1.0 @> 1.")
+    assert_false("2.0 @> 1.")
+    assert_false("10000000000000000000000000000000000.0 @> 1.")
+    assert_false("1.0 @> 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @> 1000000000000000000000000000001.")
+    assert_false("@>(1.0, 1).")
+
+    assert_false("1.0 @>= 1.")
+    assert_false("2.0 @>= 1.")
+    assert_false("10000000000000000000000000000000000.0 @>= 1.")
+    assert_false("1.0 @>= 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @>= 1000000000000000000000000000001.")
+    assert_false("@>=(1.0, 1).")
+
+    assert_true("1.0 @=< 1.")
+    assert_true("2.0 @=< 1.")
+    assert_true("10000000000000000000000000000000000.0 @=< 1.")
+    assert_true("1.0 @=< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
+    assert_true("@=<(1.0, 1).")
+
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
     assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")
@@ -525,3 +554,6 @@ def test_write_term():
                   "write_term(a, [quoted(af)])")
     prolog_raises("type_error(list, E)",
                   "write_term(a, asdf)")
+
+def test_number_chars():
+    assert_true("number_chars(123, ['1', '2', '3']).")

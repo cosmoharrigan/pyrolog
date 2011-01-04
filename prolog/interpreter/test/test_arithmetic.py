@@ -193,7 +193,7 @@ def test_simple():
     assert_true("X is 2 * -2, X = -4.")
     assert_true("X is 2 * -2.1, X = -4.2.")
     assert_true("X is 2 + -2, X = 0.")
-    assert_true("X is 2 // -2, X = -1.")
+    assert_true("X is 2 / -2, X = -1.")
 
     assert_true("X is 1 << 4, X = 16.")
     assert_true("X is 128 >> 7, X = 1.")

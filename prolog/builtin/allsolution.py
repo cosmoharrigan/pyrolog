@@ -45,6 +45,7 @@ class DoneWithFindallContinuation(continuation.FailureContinuation):
 @expose_builtin("findall", unwrap_spec=['raw', 'callable', 'raw'],
                 handles_continuation=True)
 def impl_findall(engine, heap, template, goal, bag, scont, fcont):
+    print 'IMPL_FINDALL => GOAL = ' + str(goal)
     newheap = heap.branch()
     collector = FindallContinuation(engine, template, heap)
     newscont = continuation.BodyContinuation(engine, collector, goal)
