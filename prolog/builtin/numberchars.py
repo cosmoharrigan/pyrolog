@@ -82,6 +82,8 @@ def impl_number_chars(engine, heap, num, charlist):
     cons_cls = specialized_term_classes[".", 2]
     valid_list_type = isinstance(charlist, cons_cls) or isinstance(charlist, term.Var)
 
+    if isinstance(num, term.Var) and isinstance(charlist, term.Var):
+        error.throw_instantiation_error(num)
     if isinstance(num, term.Number) or isinstance(num, term.Float) or isinstance(num, term.BigInt):
         if not valid_list_type:
             error.throw_type_error("list", charlist)

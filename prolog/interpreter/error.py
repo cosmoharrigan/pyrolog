@@ -31,7 +31,7 @@ def throw_existence_error(object_type, obj):
     t = term.Callable.build("existence_error", [term.Callable.build(object_type), obj])
     raise wrap_error(t)
 
-def throw_instantiation_error():
+def throw_instantiation_error(obj = None):
     from prolog.interpreter import term
     raise wrap_error(term.Callable.build("instantiation_error"))
 
