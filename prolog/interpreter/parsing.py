@@ -303,7 +303,7 @@ class TermBuilder(RPythonVisitor):
         return self.dispatch(node)
 
     def general_nonterminal_visit(self, node):
-        from prolog.interpreter.term import Callable, Number, Float
+        from prolog.interpreter.term import Callable, Number, Float, BigInt
         children = []
         name = ""
         for child in node.children:
@@ -322,6 +322,8 @@ class TermBuilder(RPythonVisitor):
                 return Number(factor * child.num)
             if isinstance(child, Float):
                 return Float(factor * child.floatval)
+            if isinstance(child, BigInt):
+                return BigInt(rbigint.fromint(factor).mul(child.value))
         return Callable.build(name, children)
 
     def build_list(self, node):
