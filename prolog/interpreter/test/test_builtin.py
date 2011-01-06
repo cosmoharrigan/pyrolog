@@ -562,3 +562,13 @@ def test_number_chars():
     assert_true("number_chars(-123, ['-', '1', '2', '3']).")
     assert_true("number_chars(123.1, ['1', '2', '3', '.', '1']).")
     assert_true("number_chars(1000000000000000, ['1','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0']).")
+    prolog_raises("instantiation_error", "number_chars(X, Y)")
+
+def test_atom_chars():
+    assert_true("atom_chars(abc, X), X = [a, b, c].")
+    assert_true("atom_chars(a12, [a, '1', '2']).")
+    assert_true("atom_chars('', []).")
+    prolog_raises("instantiation_error", "atom_chars(X, Y)")
+    assert_true("atom_chars(X, [a, b, '1']), X = ab1.")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [a, b, '10'])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, a)")

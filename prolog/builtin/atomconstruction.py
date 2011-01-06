@@ -2,10 +2,14 @@ import py
 from prolog.interpreter import helper, term, error
 from prolog.interpreter import continuation
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.term import specialized_term_classes
+from prolog.interpreter.term import Callable
+import re
 
 # ___________________________________________________________________
 # analysing and construction atoms
 
+atomreg = re.compile("[0-9a-zA-Z_]")
 
 class AtomConcatContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, var1, var2, result):
@@ -197,4 +201,71 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
         cls = SubAtomElseContinuation
     cont =  cls(engine, scont, fcont, heap, s, before, length, after, sub)
     return cont, fcont, heap
+
+
+def atom_2_cons(atom):
+    name = atom.name()[::-1]
+    cons = Callable.build("[]")
+    for c in name:
+        cons = Callable.build(".", [term.Atom(c), cons])
+    return cons
+        
+        
+def cons_2_atom(cons):
+    atomname = "".join(get_atom_list(cons))
+    if atomname.startswith("_"):
+        error.throw_instantiation_error()
+    return term.Atom(atomname)
+
+
+def get_atom_list(cons):
+    args = cons.arguments()
+    innerlist = []
+    for arg in args:
+        if isinstance(arg, term.Atom):
+            name = arg.name()
+            if name != "[]":
+                if not valid_name(name):
+                    error.throw_type_error("text", arg)
+                innerlist.append(name)
+        else:
+            innerlist += get_atom_list(arg)
+    return innerlist
+
+
+def valid_name(name):
+    if len(name) != 1:
+        return False
+    import re
+    if not atomreg.search(name):
+        return False
+    return True
+
+
+@expose_builtin("atom_chars", unwrap_spec=["obj", "obj"])
+def impl_atom_chars(engine, heap, atom, charlist):
+    cons_cls = specialized_term_classes[".", 2] 
+
+    if isinstance(atom, term.Atom):
+        if not(isinstance(charlist, term.Var) or isinstance(charlist, cons_cls)):
+            if isinstance(charlist, term.Atom) and charlist.name() == "[]":
+                charlist = Callable.build("[]")
+            else:
+                error.throw_type_error("list", charlist)
+        atom_2_cons(atom).unify(charlist, heap)
+
+    elif isinstance(atom, term.Var) and isinstance(charlist, cons_cls):
+        cons_2_atom(charlist).unify(atom, heap)
+
+    elif isinstance(atom, term.Var) and isinstance(charlist, term.Atom)\
+    and charlist.name() == "[]":
+        Callable.build("[]").unify(atom, heap)
+
+    else:
+        if isinstance(atom, term.Var) and isinstance(charlist, term.Var):
+            error.throw_instantiation_error()
+        elif isinstance(atom, term.Var) and isinstance(charlist, term.Atom):
+            error.throw_type_error("list", charlist)
+        error.throw_type_error("atom", atom)
+
 

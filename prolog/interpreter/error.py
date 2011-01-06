@@ -40,7 +40,7 @@ def throw_type_error(valid_type, obj):
     # valid types are:
     # atom, atomic, byte, callable, character
     # evaluable, in_byte, in_character, integer, list
-    # number, predicate_indicator, variable
+    # number, predicate_indicator, variable, text
     from prolog.interpreter import term
     raise wrap_error(
         term.Callable.build("type_error", [term.Callable.build(valid_type), obj]))
