@@ -557,3 +557,8 @@ def test_write_term():
 
 def test_number_chars():
     assert_true("number_chars(123, ['1', '2', '3']).")
+    assert_true("number_chars(123, X), X = ['1', '2', '3'].")
+    assert_true("number_chars(X, ['1', '2', '3']), X = 123.")
+    assert_true("number_chars(-123, ['-', '1', '2', '3']).")
+    assert_true("number_chars(123.1, ['1', '2', '3', '.', '1']).")
+    assert_true("number_chars(1000000000000000, ['1','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0']).")
