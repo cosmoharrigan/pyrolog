@@ -228,8 +228,13 @@ def get_atom_list(cons):
                 if not valid_name(name):
                     error.throw_type_error("text", arg)
                 innerlist.append(name)
-        else:
+        elif isinstance(arg, specialized_term_classes[".", 2]):
             innerlist += get_atom_list(arg)
+        else:
+            # XXX ugly
+            if arg.__class__.__name__.find("Generic") != -1:
+                error.throw_type_error("text", arg)
+            error.throw_instantiation_error()
     return innerlist
 
 
