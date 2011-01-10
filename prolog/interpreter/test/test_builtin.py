@@ -197,6 +197,12 @@ def test_call_cut():
     heaps = collect_all(e, "f(!).")
     assert len(heaps) == 1
 
+def test_bug_or_exposing_problem_of_cyclic_term_support():
+    e = get_engine("""
+        f(X) :- (X = 1; X = 2), X = 2.
+    """)
+    assert_true("f(X).", e)
+
 def test_or_and_call_with_cut():
     e = get_engine("""
         f :- (!, fail); true.
