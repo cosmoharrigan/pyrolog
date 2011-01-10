@@ -5,7 +5,6 @@ from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true, prolog_raises
-#from prolog.interpreter.test.isotests.fileutil import get_lines, get_files, deconstruct_list
 from prolog.interpreter.error import UncaughtError
 
 TESTDIR = str(py.path.local(__file__).dirpath().join('inriasuite'))
@@ -125,6 +124,14 @@ def test_success_failure(test, mode):
 
 
 def test_multiple_lists(test, lists):
-    for goal in lists:
-        check = test + ', ' + goal.replace('<--', '=') + '.'
-        assert_true(check)
+    try:
+        for goal in lists:
+            check = test + ', ' + goal.replace('<--', '=') + '.'
+            assert_true(check)
+    except (error.UncaughtError, error.CatchableError), e:
+        msg = repr(e.term)
+        if 'existence_error' in msg:
+            py.test.skip(msg)
+        else:
+            raise
+        
