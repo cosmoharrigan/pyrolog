@@ -9,6 +9,7 @@ from pypy.rlib.parsing.regex import StringExpression
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 from pypy.rlib.rarithmetic import ovfcheck
 from pypy.rlib.rbigint import rbigint
+from prolog.interpreter.continuation import Engine
 
 def make_regexes():
     regexs = [
@@ -387,7 +388,12 @@ class TermBuilder(RPythonVisitor):
             return Float(float(s))
 
     def visit_STRING(self, node):
-        print node.additional_info
+        from prolog.interpreter import helper
+        from prolog.interpreter.term import Callable, Number
+        info = node.additional_info
+        s = unicode(info[1:len(info) - 1], "utf8")
+        l = [Number(ord(c)) for c in s]
+        return helper.wrap_list(l)
 
     def visit_complexterm(self, node):
         from prolog.interpreter.term import Callable

@@ -1,7 +1,0 @@
-- implement test runner for ISO standard test
-	- fileutil not as own file
-	- functor test, wrong call
-
-- understand SWI's module system
-
-

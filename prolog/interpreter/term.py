@@ -503,7 +503,7 @@ class BigInt(NonVar):
     def __init__(self, value):
         self.value = value
 
-    def basic_unify(self, other, heap, occurs_check = False):
+    def basic_unify(self, other, heap, occurs_check=False):
         if isinstance(other, BigInt) and other.value.eq(self.value):
             return
         raise UnificationFailed
@@ -567,9 +567,9 @@ class Float(NonVar):
             return -1
         assert 0
 
+
 Float.e = Float(math.e)
 Float.pi = Float(math.pi)
-
 
 # helper functions for various Term methods
 
