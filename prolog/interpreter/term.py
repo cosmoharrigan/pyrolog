@@ -589,7 +589,7 @@ def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
     obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)
 
 class Term(Callable):
-    TYPE_STANDARD_ORDER = 5
+    TYPE_STANDARD_ORDER = 4
     _immutable_ = True
     _immutable_fields_ = ["_args[*]"]
     __slots__ = ('_name', '_signature', '_args')
