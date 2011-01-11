@@ -571,25 +571,6 @@ class Float(NonVar):
 Float.e = Float(math.e)
 Float.pi = Float(math.pi)
 
-
-class String(NonVar):
-    TYPE_STANDARD_ORDER = 4
-    
-    def __init__(self, strval, code_points):
-        self.str_val = strval
-        self.code_points = code_points
-
-    def basic_unify(self, other, heap, occurs_check=False):
-        if isinstance(other, String) and other.code_points == self.code_points:
-            return
-        raise UnificationFailed
-
-    def __str__(self):
-        return repr(self.str_val)
-
-    def __repr__(self):
-        return "String(" + str(strval) + ", " + str(code_points) + ")"
-
 # helper functions for various Term methods
 
 def _term_copy(obj, i, heap, memo):
