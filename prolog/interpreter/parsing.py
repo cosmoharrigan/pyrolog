@@ -388,14 +388,12 @@ class TermBuilder(RPythonVisitor):
             return Float(float(s))
 
     def visit_STRING(self, node):
+        from prolog.interpreter import helper
         from prolog.interpreter.term import Callable, Number
         info = node.additional_info
         s = unicode(info[1:len(info) - 1], "utf8")
-        l = Callable.build("[]")
-        size = len(s)
-        for i in range(size):
-            l = Callable.build(".", [Number(ord(s[size - i - 1])), l])
-        return l
+        l = [Number(ord(c)) for c in s]
+        return helper.wrap_list(l)
 
     def visit_complexterm(self, node):
         from prolog.interpreter.term import Callable
