@@ -98,5 +98,7 @@ def convert_to_str(obj):
         return str(obj.num)
     elif isinstance(obj, term.Float):
         return str(obj.floatval)
+    elif isinstance(obj, term.BigInt):
+        return obj.value.str()
     error.throw_type_error("atom", obj)
 
