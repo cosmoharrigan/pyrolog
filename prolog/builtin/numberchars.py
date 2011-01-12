@@ -35,13 +35,17 @@ def cons_to_num(charlist):
         numlist.append(digit)
     
     numstr = "".join(numlist)
-    if "." in numstr:
+
+    try:
+        return term.Number(ovfcheck(int(numstr)))
+    except OverflowError:
+        return term.BigInt(rbigint.fromdecimalstr(numstr))
+    except ValueError:
+        pass
+    try:
         return term.Float(float(numstr))
-    else:
-        try:
-            return term.Number(ovfcheck(int(numstr)))
-        except OverflowError:
-            return term.BigInt(rbigint.fromdecimalstr(numstr))
+    except ValueError:
+        error.throw_syntax_error("Illegal number")
 
 
 @expose_builtin("number_chars", unwrap_spec=["obj", "obj"])
