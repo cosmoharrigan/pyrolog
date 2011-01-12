@@ -21,9 +21,9 @@ def wrap_error(t):
 class UnificationFailed(PrologError):
     pass
 
-def throw_syntax_error(obj):
+def throw_syntax_error(msg):
     from prolog.interpreter import term
-    t = term.Callable.build("syntax_error", [obj])
+    t = term.Callable.build("syntax_error", [term.Callable.build(msg)])
     raise wrap_error(t)
 
 def throw_existence_error(object_type, obj):
