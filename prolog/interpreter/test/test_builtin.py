@@ -583,3 +583,6 @@ def test_atom_chars():
     assert_true("atom_chars(X, [a, b, '1']), X = ab1.")
     prolog_raises("type_error(text, E)", "atom_chars(X, [a, b, '10'])")
     prolog_raises("type_error(list, E)", "atom_chars(X, a)")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [f(a)])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, f(a))")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [[]])")
