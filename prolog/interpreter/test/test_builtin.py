@@ -558,7 +558,9 @@ def test_write_term():
 def test_number_chars():
     assert_true("number_chars(123, ['1', '2', '3']).")
     assert_true("number_chars(123, X), X = ['1', '2', '3'].")
+    prolog_raises("type_error(text)", "number_chars(X, [f(a)])")
     prolog_raises("syntax_error(list)", "number_chars(X, a)")
+    prolog_raises("syntax_error(Illegal number)", "number_chars(X, a)")
     assert_true("number_chars(X, ['1', '2', '3']), X = 123.")
     assert_true("number_chars(-123, [-, '1', '2', '3']).")
     assert_true("number_chars(123.1, ['1', '2', '3', '.', '1']).")
