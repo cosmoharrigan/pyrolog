@@ -346,12 +346,16 @@ def test_copy_term():
 
 def test_type_checks():
     assert_true("integer(123).")
+    assert_true("integer(1000000000000000000000000000000000000).")
+    assert_true("integer(-1000000000000000000000000000000000000).")
     assert_false("integer(a).")
     assert_false("integer(X).")
     assert_true("float(123.12).")
     assert_false("float(a).")
     assert_false("float(12).")
     assert_true("number(123).")
+    assert_true("number(1000000000000000000000000000000000000).")
+    assert_true("number(-1000000000000000000000000000000000000).")
     assert_true("number(42.42).")
     assert_false("number(abc).")
     assert_false("integer(a).")
