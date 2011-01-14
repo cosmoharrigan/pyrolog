@@ -127,7 +127,7 @@ class Engine(object):
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
-        if isinstance(term, Term) and term.signature().eq(callsig):
+        if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0))
         else:
             self.add_rule(term)
