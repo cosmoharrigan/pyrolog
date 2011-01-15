@@ -5,3 +5,4 @@ class Module(object):
         self.name = name
         self.functions = {}
         self.exports = []
+        self.uses = []

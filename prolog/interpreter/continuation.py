@@ -77,9 +77,9 @@ class Engine(object):
         self.heap = Heap()
         self.parser = None
         self.operations = None
-        self.modules = {}
         self.user_module = Module("user")
         self.currently_parsed_module = self.user_module
+        self.modules = {"user": self.user_module}
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -127,7 +127,7 @@ class Engine(object):
         try:
             function = self.currently_parsed_module.functions[signature]
         except KeyError:
-            function = Function()
+            function = Function(self.currently_parsed_module.name)
             self.currently_parsed_module.functions[signature] = function
         return function
             
@@ -147,11 +147,7 @@ class Engine(object):
 
     def runstring(self, s, module = None):
         from prolog.interpreter.parsing import parse_file
-        if module is None:
-            trees = parse_file(s, self.parser, Engine._build_and_run, self)
-        else:
-            trees = parse_file(s, self.parse)
-            terms = builder.build_many(tree)
+        trees = parse_file(s, self.parser, Engine._build_and_run, self)
 
     def parse(self, s):
         from prolog.interpreter.parsing import parse_file, TermBuilder
@@ -208,8 +204,10 @@ class Engine(object):
         self.currently_parsed_module = mod
         for export in exports:
             mod.exports.append(Signature(*unwrap_predicate_indicator(export)))
-        
+     
 
+    def use_module(self, modulname):
+        self.currently_parsed_module.uses.append(modulname)
 
     # _____________________________________________________
     # error handling

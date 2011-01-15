@@ -28,6 +28,26 @@ def test_module_exports():
     assert len(exports) == 1 and exports[0].eq(Signature("g", 2))
 
 
+def test_module_uses():
+    e = get_engine("""
+    :- use_module(a).
+    """,
+    a = """
+    :- module(a, [f/1]).
+    :- use_module(b).
+    f(X) :- h(X).
+    g(a).
+    """,
+    b = """
+    :- module(b, [h/1]).
+    h(z).
+    """)
+    assert len(e.modules) == 3
+    assert e.modules["a"].uses == ["b"]
+    assert e.modules["b"].uses == []
+    assert e.modules["user"].uses == ["a"]
+
+
 def test_modules_integration():
     e = get_engine("""
         :- use_module(m).
