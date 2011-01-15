@@ -10,6 +10,7 @@ from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 from pypy.rlib.rarithmetic import ovfcheck
 from pypy.rlib.rbigint import rbigint
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.module import Module
 
 def make_regexes():
     regexs = [
@@ -464,6 +465,9 @@ def unescape(s):
 def get_engine(source, **modules):
     from prolog.interpreter.continuation import Engine
     e = Engine()
+    for name, module in modules.iteritems():
+        e.runstring(module)
+    e.currently_parsed_module = e.user_module
     e.runstring(source)
     return e
 

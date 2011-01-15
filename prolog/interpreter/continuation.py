@@ -8,6 +8,8 @@ from prolog.interpreter.term import Term, Atom, Var, Callable
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.module import Module
+from prolog.interpreter.helper import unwrap_predicate_indicator
 
 Signature.register_extr_attr("function", engine=True)
 
@@ -64,8 +66,6 @@ def driver(scont, fcont, heap):
                 scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
-            print 'scont is None: ' + str(scont is None)
-            print scont.__class__.__name__
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
@@ -77,6 +77,9 @@ class Engine(object):
         self.heap = Heap()
         self.parser = None
         self.operations = None
+        self.modules = {}
+        self.user_module = Module("user")
+        self.currently_parsed_module = self.user_module
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -102,8 +105,8 @@ class Engine(object):
         if self.get_builtin(signature):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
+
         function = self._lookup(signature)
-        
         function.add_rule(rule, end)
 
     @jit.purefunction_promote("0")
@@ -113,12 +116,21 @@ class Engine(object):
 
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
+        """
         assert signature.cached
         function = self.get_function(signature)
         if function is None:
             function = Function()
             signature.set_extra_engine_local("function", function, self)
         return function
+        """
+        try:
+            function = self.currently_parsed_module.functions[signature]
+        except KeyError:
+            function = Function()
+            self.currently_parsed_module.functions[signature] = function
+        return function
+            
 
     # _____________________________________________________
     # parsing-related functionality
@@ -133,9 +145,13 @@ class Engine(object):
             self.add_rule(term)
         return self.parser
 
-    def runstring(self, s):
+    def runstring(self, s, module = None):
         from prolog.interpreter.parsing import parse_file
-        trees = parse_file(s, self.parser, Engine._build_and_run, self)
+        if module is None:
+            trees = parse_file(s, self.parser, Engine._build_and_run, self)
+        else:
+            trees = parse_file(s, self.parse)
+            terms = builder.build_many(tree)
 
     def parse(self, s):
         from prolog.interpreter.parsing import parse_file, TermBuilder
@@ -181,6 +197,19 @@ class Engine(object):
         scont = UserCallContinuation(self, scont, query,
                                      rulechain)
         return self.continue_(scont, fcont, heap)
+
+
+    # _____________________________________________________
+    # module handling
+
+    def set_currently_parsed_module(self, name, exports = []):
+        mod = Module(name)
+        self.modules[name] = mod
+        self.currently_parsed_module = mod
+        for export in exports:
+            mod.exports.append(Signature(*unwrap_predicate_indicator(export)))
+        
+
 
     # _____________________________________________________
     # error handling
