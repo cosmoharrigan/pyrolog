@@ -183,6 +183,7 @@ class Engine(object):
 
         # do a real call
         function = self._lookup(signature)
+        #function = self.fetch_function(signature, module)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -203,11 +204,23 @@ class Engine(object):
         self.modules[name] = mod
         self.currently_parsed_module = mod
         for export in exports:
-            mod.exports.append(Signature(*unwrap_predicate_indicator(export)))
+            mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
      
 
     def use_module(self, modulname):
         self.currently_parsed_module.uses.append(modulname)
+
+
+    def fetch_function(self, signature, modulename):
+        module = self.modules[modulename]
+        sig = Signature.getsignature(signature.name, signature.numargs)
+        try:
+            return module.functions[sig]
+        except KeyError:
+            for mname in module.uses:
+                used = self.modules[mname]
+                if sig in used.exports:
+                    return used.functions[sig]
 
     # _____________________________________________________
     # error handling
