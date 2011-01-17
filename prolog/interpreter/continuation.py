@@ -117,14 +117,6 @@ class Engine(object):
 
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
-        """
-        assert signature.cached
-        function = self.get_function(signature)
-        if function is None:
-            function = Function()
-            signature.set_extra_engine_local("function", function, self)
-        return function
-        """
         try:
             function = self.currently_parsed_module.functions[signature]
         except KeyError:
@@ -169,10 +161,13 @@ class Engine(object):
     def run_query(self, query, continuation=None):
         if continuation is None:
             continuation = DoneContinuation(self)
-        driver(*self.call(query, continuation, DoneContinuation(self), Heap()))
+            module = self.user_module
+        else:
+            module = continuation.module
+        driver(*self.call(query, module, continuation, DoneContinuation(self), Heap()))
     run = run_query
 
-    def call(self, query, scont, fcont, heap):
+    def call(self, query, module, scont, fcont, heap):
         if not isinstance(query, Callable):
             if isinstance(query, Var):
                 raise error.throw_instantiation_error()
@@ -183,8 +178,7 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, scont, builtin, query), fcont, heap)
 
         # do a real call
-        function = self._lookup(signature)
-        #function = self.fetch_function(signature, module)
+        function = module.fetch_function(signature)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -209,18 +203,11 @@ class Engine(object):
      
 
     def use_module(self, modulname):
+        module = self.modules[modulname]
+        for sig in module.exports:
+            self.currently_parsed_module.functions[sig] = module.functions[sig]
         self.currently_parsed_module.uses.append(modulname)
 
-
-    def fetch_function(self, signature, module):
-        sig = Signature.getsignature(signature.name, signature.numargs)
-        try:
-            return module.functions[sig]
-        except KeyError:
-            for mname in module.uses:
-                used = self.modules[mname]
-                if sig in used.exports:
-                    return used.functions[sig]
 
     # _____________________________________________________
     # error handling
@@ -240,7 +227,7 @@ class Engine(object):
             else:
                 # XXX discard the heap?
                 return self.call(
-                    scont.recover, scont.nextcont, scont.fcont, heap)
+                    scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc)
 
 
@@ -367,7 +354,7 @@ class BodyContinuation(Continuation):
         self.body = body
 
     def activate(self, fcont, heap):
-        return self.engine.call(self.body, self.nextcont, fcont, heap)
+        return self.engine.call(self.body, self.nextcont.module, self.nextcont, fcont, heap)
 
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
@@ -482,7 +469,7 @@ class RuleContinuation(Continuation):
         rule = jit.hint(self._rule, promote=True)
         nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            return self.engine.call(nextcall, nextcont, fcont, heap)
+            return self.engine.call(nextcall, self._rule.module, nextcont, fcont, heap)
         else:
             cont = nextcont
         return cont, fcont, heap

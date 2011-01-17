@@ -9,7 +9,7 @@ cutsig = Signature.getsignature("!", 0)
 class Rule(object):
     _immutable_ = True
     _immutable_fields_ = ["headargs[*]"]
-    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature']
+    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature', 'module']
     unrolling_attrs = unroll.unrolling_iterable(_attrs_)
     
     def __init__(self, head, body, module, next = None):

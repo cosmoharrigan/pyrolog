@@ -49,7 +49,7 @@ def impl_and(engine, heap, call1, call2, scont, fcont):
     if not isinstance(call2, term.Var) and not isinstance(call2, term.Callable):
         return error.throw_type_error('callable', call2)
     scont = continuation.BodyContinuation(engine, scont, call2)
-    return engine.call(call1, scont, fcont, heap)
+    return engine.call(call1, scont.module, scont, fcont, heap)
 
 class OrContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
@@ -60,7 +60,7 @@ class OrContinuation(continuation.FailureContinuation):
 
     def activate(self, fcont, heap):
         assert self.undoheap is None
-        return self.engine.call(self.altcall, self.nextcont, fcont, heap)
+        return self.engine.call(self.altcall, self.nextcont.module, self.nextcont, fcont, heap)
 
     def cut(self, heap):
         assert self.undoheap is not None

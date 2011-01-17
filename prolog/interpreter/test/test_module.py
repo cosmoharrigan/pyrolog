@@ -30,22 +30,23 @@ def test_module_exports():
 
 def test_module_uses():
     e = get_engine("""
-    :- use_module(a).
-    """,
-    a = """
-    :- module(a, [f/1]).
     :- use_module(b).
+    """,
+    b = """
+    :- module(b, [f/1]).
+    :- use_module(a).
     f(X) :- h(X).
     g(a).
     """,
-    b = """
-    :- module(b, [h/1]).
+    a = """
+    :- module(a, [h/1]).
     h(z).
     """)
+
     assert len(e.modules) == 3
-    assert e.modules["a"].uses == ["b"]
-    assert e.modules["b"].uses == []
-    assert e.modules["user"].uses == ["a"]
+    assert e.modules["b"].uses == ["a"]
+    assert e.modules["a"].uses == []
+    assert e.modules["user"].uses == ["b"]
 
 
 def test_fetch_function():
@@ -58,15 +59,19 @@ def test_fetch_function():
     g(a, b).
     h(w).
     """)
+
     f_sig = Signature.getsignature("f", 1)
     g_sig = Signature.getsignature("g", 2)
     h_sig = Signature.getsignature("h", 1)
-    assert e.fetch_function(f_sig, e.modules["user"]) == e.modules["user"].functions[f_sig]
-    assert e.fetch_function(g_sig, e.modules["user"]) == e.modules["m"].functions[g_sig]
-    assert e.fetch_function(h_sig, e.modules["user"]) is None
-    assert e.fetch_function(g_sig, e.modules["m"]) == e.modules["m"].functions[g_sig]
-    assert e.fetch_function(f_sig, e.modules["m"]) is None
-    assert e.fetch_function(h_sig, e.modules["m"]) == e.modules["m"].functions[h_sig]
+    user = e.modules["user"]
+    m = e.modules["m"]
+
+    assert user.fetch_function(f_sig) == user.functions[f_sig]
+    assert user.fetch_function(g_sig) == m.functions[g_sig]
+    assert user.fetch_function(h_sig) is None
+    assert m.fetch_function(g_sig) == m.functions[g_sig]
+    assert m.fetch_function(f_sig) is None
+    assert m.fetch_function(h_sig) == m.functions[h_sig]
 
 
 def test_modules_use_module():
