@@ -48,7 +48,7 @@ def impl_cut(engine, heap, scont, fcont):
 def impl_and(engine, heap, call1, call2, scont, fcont):
     if not isinstance(call2, term.Var) and not isinstance(call2, term.Callable):
         return error.throw_type_error('callable', call2)
-    scont = continuation.BodyContinuation(engine, scont, call2)
+    scont = continuation.BodyContinuation(engine, scont.module, scont, call2)
     return engine.call(call1, scont.module, scont, fcont, heap)
 
 class OrContinuation(continuation.FailureContinuation):
