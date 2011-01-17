@@ -93,11 +93,12 @@ class Engine(object):
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
             if rule.signature().eq(predsig):
-                rule = Rule(rule.argument_at(0), rule.argument_at(1))
+                rule = Rule(rule.argument_at(0), rule.argument_at(1),
+                        self.currently_parsed_module)
             else:
-                rule = Rule(rule, None)
+                rule = Rule(rule, None, self.currently_parsed_module)
         elif isinstance(rule, Atom):
-            rule = Rule(rule, None)
+            rule = Rule(rule, None, self.currently_parsed_module)
         else:
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
@@ -211,8 +212,7 @@ class Engine(object):
         self.currently_parsed_module.uses.append(modulname)
 
 
-    def fetch_function(self, signature, modulename):
-        module = self.modules[modulename]
+    def fetch_function(self, signature, module):
         sig = Signature.getsignature(signature.name, signature.numargs)
         try:
             return module.functions[sig]

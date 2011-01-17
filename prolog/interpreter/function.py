@@ -12,7 +12,7 @@ class Rule(object):
     _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature']
     unrolling_attrs = unroll.unrolling_iterable(_attrs_)
     
-    def __init__(self, head, body, next = None):
+    def __init__(self, head, body, module, next = None):
         from prolog.interpreter import helper
         assert isinstance(head, Callable)
         memo = EnumerationMemo()
@@ -29,7 +29,7 @@ class Rule(object):
         self.size_env = memo.size()
         self.signature = head.signature()        
         self._does_contain_cut()
-
+        self.module = module
         self.next = next
 
     def _does_contain_cut(self):
@@ -117,8 +117,8 @@ class Rule(object):
 
 
 class Function(object):
-    def __init__(self, modulename, firstrule=None):
-        self.modulename = modulename
+    def __init__(self, module, firstrule=None):
+        self.module = module
         if firstrule is None:
             self.rulechain = self.last = None
         else:

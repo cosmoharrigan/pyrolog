@@ -61,12 +61,12 @@ def test_fetch_function():
     f_sig = Signature.getsignature("f", 1)
     g_sig = Signature.getsignature("g", 2)
     h_sig = Signature.getsignature("h", 1)
-    assert e.fetch_function(f_sig, "user") == e.modules["user"].functions[f_sig]
-    assert e.fetch_function(g_sig, "user") == e.modules["m"].functions[g_sig]
-    assert e.fetch_function(h_sig, "user") is None
-    assert e.fetch_function(g_sig, "m") == e.modules["m"].functions[g_sig]
-    assert e.fetch_function(f_sig, "m") is None
-    assert e.fetch_function(h_sig, "m") == e.modules["m"].functions[h_sig]
+    assert e.fetch_function(f_sig, e.modules["user"]) == e.modules["user"].functions[f_sig]
+    assert e.fetch_function(g_sig, e.modules["user"]) == e.modules["m"].functions[g_sig]
+    assert e.fetch_function(h_sig, e.modules["user"]) is None
+    assert e.fetch_function(g_sig, e.modules["m"]) == e.modules["m"].functions[g_sig]
+    assert e.fetch_function(f_sig, e.modules["m"]) is None
+    assert e.fetch_function(h_sig, e.modules["m"]) == e.modules["m"].functions[h_sig]
 
 
 def test_modules_use_module():
