@@ -106,3 +106,46 @@ def test_modules_integration():
         """)
     assert_true("findall(X, h(X), L), L = [b].", e)
     assert_true("both(X, Y), X == a, Y == b.", e)
+
+
+def test_builtin_module_or():
+    e = get_engine("""
+    :- use_module(m).
+    t :- h, x.
+    x.
+    """,
+    m = """
+    :- module(m, [h/0]).
+    h :- f; g.
+    f.
+    g.
+    """)
+    assert_true("t.", e)
+
+
+def test_builtin_module_and():
+    e = get_engine("""
+    :- use_module(m).
+    t :- h, x.
+    x.
+    """,
+    m = """
+    :- module(m, [h/0]).
+    h :- f, g.
+    f.
+    g.
+    """)
+    assert_true("t.", e)
+
+
+def test_catch_error():
+    e = get_engine("""
+    :- use_module(m).
+    h :- catch(f, X, g).
+    g.
+    """,
+    m = """
+    :- module(m, [f/0]).
+    f :- throw(foo).
+    """)
+    assert_true("h.", e)

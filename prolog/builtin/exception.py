@@ -7,10 +7,10 @@ from prolog.builtin.type import impl_ground
 # exception handling
 
 @expose_builtin("catch", unwrap_spec=["callable", "obj", "callable"],
-                handles_continuation=True)
-def impl_catch(engine, heap, goal, catcher, recover, scont, fcont):
-    scont = continuation.CatchingDelimiter(engine, scont, fcont, catcher, recover, heap)
-    return continuation.BodyContinuation(engine, scont, goal), fcont, heap
+                handles_continuation=True, needs_module=True)
+def impl_catch(engine, heap, module, goal, catcher, recover, scont, fcont):
+    scont = continuation.CatchingDelimiter(engine, module, scont, fcont, catcher, recover, heap)
+    return continuation.BodyContinuation(engine, module, scont, goal), fcont, heap
 
 @expose_builtin("throw", unwrap_spec=["obj"], handles_continuation=True)
 def impl_throw(engine, heap, exc, scont, fcont):

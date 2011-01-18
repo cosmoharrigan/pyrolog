@@ -8,5 +8,5 @@ def impl_module(engine, heap, name, exports):
 
 
 @expose_builtin("use_module", unwrap_spec = ["atom"])
-def impl_use_module(engine, heap, module):
-    engine.use_module(module)
+def impl_use_module(engine, heap, modulename):
+    engine.use_module(modulename)

@@ -28,8 +28,8 @@ def impl_asserta(engine, heap, rule):
     engine.add_rule(rule.getvalue(heap), end=False)
 
 
-@expose_builtin("retract", unwrap_spec=["callable"])
-def impl_retract(engine, heap, pattern):
+@expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
+def impl_retract(engine, heap, module, pattern):
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
@@ -40,7 +40,7 @@ def impl_retract(engine, heap, pattern):
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = engine.get_function(head.signature())
+    function = module.fetch_function(head.signature())
     if function is None:
         raise error.UnificationFailed
     rulechain = function.rulechain

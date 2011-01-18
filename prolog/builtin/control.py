@@ -44,23 +44,24 @@ def impl_cut(engine, heap, scont, fcont):
         fcont = fcont.cut(heap)
     return scont, fcont, heap
 
-@expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)
-def impl_and(engine, heap, call1, call2, scont, fcont):
+@expose_builtin(",", unwrap_spec=["callable", "raw"], 
+        handles_continuation=True, needs_module=True)
+def impl_and(engine, heap, module, call1, call2, scont, fcont):
     if not isinstance(call2, term.Var) and not isinstance(call2, term.Callable):
         return error.throw_type_error('callable', call2)
-    scont = continuation.BodyContinuation(engine, scont.module, scont, call2)
-    return engine.call(call1, scont.module, scont, fcont, heap)
+    scont = continuation.BodyContinuation(engine, module, scont, call2)
+    return engine.call(call1, module, scont, fcont, heap)
 
 class OrContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
-        continuation.FailureContinuation.__init__(self, engine, nextcont.module, nextcont)
+    def __init__(self, engine, module, nextcont, undoheap, orig_fcont, altcall):
+        continuation.FailureContinuation.__init__(self, engine, module, nextcont)
         self.altcall = altcall
         self.undoheap = undoheap
         self.orig_fcont = orig_fcont
 
     def activate(self, fcont, heap):
         assert self.undoheap is None
-        return self.engine.call(self.altcall, self.nextcont.module, self.nextcont, fcont, heap)
+        return self.engine.call(self.altcall, self.module, self.nextcont, fcont, heap)
 
     def cut(self, heap):
         assert self.undoheap is not None
@@ -77,26 +78,26 @@ class OrContinuation(continuation.FailureContinuation):
 
             
 @expose_builtin(";", unwrap_spec=["callable", "callable"],
-                handles_continuation=True)
-def impl_or(engine, heap, call1, call2, scont, fcont):
+                handles_continuation=True, needs_module=True)
+def impl_or(engine, heap, module, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
     if call1.signature().eq(ifsig):
         assert helper.is_term(call1)
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
-        fcont = OrContinuation(engine, scont, heap, fcont, call2)
+        fcont = OrContinuation(engine, module, scont, heap, fcont, call2)
         newscont, fcont, heap = impl_if(
                 engine, heap, helper.ensure_callable(call1.argument_at(0)),
                 call1.argument_at(1), scont, fcont, insert_cutdelimiter=False)
         return engine.continue_(newscont, fcont, heap.branch())
     else:
-        fcont = OrContinuation(engine, scont, heap, fcont, call2)
-        newscont = continuation.BodyContinuation(engine, scont.module, scont, call1)
+        fcont = OrContinuation(engine, module, scont, heap, fcont, call2)
+        newscont = continuation.BodyContinuation(engine, module, scont, call1)
         return engine.continue_(newscont, fcont, heap.branch())
 
 class NotSuccessContinuation(continuation.Continuation):
-    def __init__(self, engine, nextcont, heap):
+    def __init__(self, engine, module, nextcont, heap):
         assert isinstance(nextcont, continuation.FailureContinuation)
-        continuation.Continuation.__init__(self, engine, nextcont)
+        continuation.Continuation.__init__(self, engine, module, nextcont)
         self.undoheap = heap
 
     def activate(self, fcont, heap):
@@ -109,7 +110,7 @@ class NotSuccessContinuation(continuation.Continuation):
 
 class NotFailureContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, nextcont)
+        continuation.FailureContinuation.__init__(self, engine, nextcont.module, nextcont)
         self.undoheap = heap
         self.orig_fcont = orig_fcont
 
@@ -124,9 +125,9 @@ class NotFailureContinuation(continuation.FailureContinuation):
 @expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
                 handles_continuation=True)
 def impl_not(engine, heap, call, scont, fcont):
-    notscont = NotSuccessContinuation(engine, fcont, heap)
+    notscont = NotSuccessContinuation(engine, fcont.module, fcont, heap)
     notfcont = NotFailureContinuation(engine, scont, fcont, heap)
-    newscont = continuation.BodyContinuation(engine, notscont, call)
+    newscont = continuation.BodyContinuation(engine, notscont.module, notscont, call)
     return engine.continue_(newscont, notfcont, heap.branch())
 
 

@@ -86,9 +86,6 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def get_function(self, signature):
-        return signature.get_extra_engine_local("function", self)
-
     def add_rule(self, rule, end=True):
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
@@ -178,8 +175,11 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
+        print 'sig =', signature
+        print 'module =', module.name
         function = module.fetch_function(signature)
         startrulechain = jit.hint(function.rulechain, promote=True)
+        #import pdb; pdb.set_trace()
         if startrulechain is None:
             return error.throw_existence_error(
                 "procedure", query.get_prolog_signature())
@@ -354,7 +354,7 @@ class BodyContinuation(Continuation):
         self.body = body
 
     def activate(self, fcont, heap):
-        return self.engine.call(self.body, self.nextcont.module, self.nextcont, fcont, heap)
+        return self.engine.call(self.body, self.module, self.nextcont, fcont, heap)
 
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
@@ -365,9 +365,11 @@ class BuiltinContinuation(Continuation):
         Continuation.__init__(self, engine, module, nextcont)
         self.builtin = builtin
         self.query = query
+        self.module = module
 
     def activate(self, fcont, heap):
-        return self.builtin.call(self.engine, self.query, self.nextcont, fcont, heap)
+        return self.builtin.call(self.engine, self.query, self.module, 
+                self.nextcont, fcont, heap)
 
     def __repr__(self):
         return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
