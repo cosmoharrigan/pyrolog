@@ -6,6 +6,8 @@ from prolog.interpreter.arithmetic import eval_arithmetic
 
 from pypy.rlib.objectmodel import we_are_translated
 
+import inspect
+
 Signature.register_extr_attr("builtin")
 
 class Builtin(object):
@@ -16,8 +18,8 @@ class Builtin(object):
         self.numargs = numargs
         self.signature = signature
 
-    def call(self, engine, query, scont, fcont, heap):
-        return self.function(engine, query, scont, fcont, heap)
+    def call(self, engine, query, module, scont, fcont, heap):
+        return self.function(engine, query, module, scont, fcont, heap)
         
     def _freeze_(self):
         return True
@@ -28,7 +30,7 @@ def expose_builtin(*args, **kwargs):
     return really_expose
 
 def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
-                   translatable=True):
+                   translatable=True, needs_module=False):
     if isinstance(name, list):
         expose_as = name
         name = name[0]
@@ -36,12 +38,15 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         expose_as = [name]
     if not name.isalnum():
         name = func.func_name
+    orig_funcargs = inspect.getargs(func.func_code)[0]
     funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
-    code = ["def %s(engine, query, scont, fcont, heap):" % (funcname, )]
+    code = ["def %s(engine, query, module, scont, fcont, heap):" % (funcname, )]
     if not translatable:
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
     subargs = ["engine", "heap"]
+    assert orig_funcargs[0] == "engine"
+    assert orig_funcargs[1] == "heap"
     code.append("    assert isinstance(query, term.Callable)")
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
@@ -83,9 +88,14 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
             code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
         else:
             assert 0, "not implemented " + spec
+    if needs_module:
+        subargs.insert(2, "module")
+        assert orig_funcargs[2] == "module"
     if handles_continuation:
         subargs.append("scont")
         subargs.append("fcont")
+        assert orig_funcargs[subargs.index("scont")] == "scont"
+        assert orig_funcargs[subargs.index("fcont")] == "fcont"
     call = "    result = %s(%s)" % (func.func_name, ", ".join(subargs))
     code.append(call)
     if not handles_continuation:
