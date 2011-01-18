@@ -175,7 +175,7 @@ class Engine(object):
         signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return self.continue_(BuiltinContinuation(self, scont.module, scont, builtin, query), fcont, heap)
+            return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
         function = module.fetch_function(signature)
@@ -518,8 +518,9 @@ class CutDelimiter(FailureContinuation):
                     nextcont.cutcell is fcont.cutcell):
                 assert not fcont.cutcell.activated
                 return nextcont, fcont
-        scont = CutScopeNotifier(engine, nextcont)
-        fcont = CutDelimiter(engine, fcont, scont.cutcell)
+        scont = CutScopeNotifier(engine, nextcont.module, nextcont)
+        # XXX not sure which module to take
+        fcont = CutDelimiter(engine, nextcont.module, fcont, scont.cutcell)
         return scont, fcont
 
     def activate(self, *args):

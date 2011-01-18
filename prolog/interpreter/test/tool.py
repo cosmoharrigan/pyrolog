@@ -26,10 +26,11 @@ def prolog_raises(exc, query, e=None):
 
 class CollectAllContinuation(Continuation):
     nextcont = None
-    def __init__(self, vars):
+    def __init__(self, module, vars):
         self.heaps = []
         self.vars = vars
         self._candiscard = True
+        self.module = module
 
     def activate(self, fcont, heap):
         self.heaps.append(dict([(name, var.dereference(heap))
@@ -40,7 +41,7 @@ class CollectAllContinuation(Continuation):
 def collect_all(engine, s):
     terms, vars = engine.parse(s)
     term, = terms
-    collector = CollectAllContinuation(vars)
+    collector = CollectAllContinuation(engine.user_module, vars)
     py.test.raises(UnificationFailed, engine.run, term,
                    collector)
     return collector.heaps

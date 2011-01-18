@@ -53,7 +53,7 @@ def impl_and(engine, heap, call1, call2, scont, fcont):
 
 class OrContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
-        continuation.FailureContinuation.__init__(self, engine, nextcont)
+        continuation.FailureContinuation.__init__(self, engine, nextcont.module, nextcont)
         self.altcall = altcall
         self.undoheap = undoheap
         self.orig_fcont = orig_fcont
@@ -90,7 +90,7 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
         return engine.continue_(newscont, fcont, heap.branch())
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
-        newscont = continuation.BodyContinuation(engine, scont, call1)
+        newscont = continuation.BodyContinuation(engine, scont.module, scont, call1)
         return engine.continue_(newscont, fcont, heap.branch())
 
 class NotSuccessContinuation(continuation.Continuation):

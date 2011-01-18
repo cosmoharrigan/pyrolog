@@ -9,7 +9,7 @@ from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
 
 def test_driver():
     order = []
-    done = DoneContinuation(None)
+    done = DoneContinuation(None, None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -44,7 +44,7 @@ def test_driver():
 def test_failure_continuation():
     order = []
     h = Heap()
-    done = DoneContinuation(None)
+    done = DoneContinuation(None, None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -93,8 +93,10 @@ def test_failure_continuation():
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
     all = []
+    e = Engine()
     class CollectContinuation(object):
         rule = None
+        module = e.user_module
         candiscard = lambda self: True
         def is_done(self):
             return False
@@ -103,7 +105,6 @@ def test_full():
         def activate(self, fcont, heap):
             all.append(query.getvalue(heap))
             raise error.UnificationFailed
-    e = Engine()
     e.add_rule(Callable.build("f", [Callable.build("x")]), True)
     e.add_rule(Callable.build("f", [Callable.build("y")]), True)
     e.add_rule(Callable.build("g", [Callable.build("a")]), True)
@@ -122,19 +123,19 @@ def test_full():
     assert all[3].argument_at(1).argument_at(0).name()== "b"
 
 def test_cut_can_be_discarded():
-    cont = DoneContinuation(None)
+    cont = DoneContinuation(None, None)
     assert not cont.candiscard()
-    cont = RuleContinuation(None, cont, None, None)
+    cont = RuleContinuation(None, None, cont, None, None)
     assert not cont.candiscard()
-    cont = CutScopeNotifier(None, None)
+    cont = CutScopeNotifier(None, None, None)
     assert cont.candiscard()
-    cont = RuleContinuation(None, cont, None, None)
+    cont = RuleContinuation(None, None, cont, None, None)
     assert cont.candiscard()
 
-    cont = CutScopeNotifier(None, None)
+    cont = CutScopeNotifier(None, None, None)
     cont.discard()
     assert not cont.candiscard()
-    cont = RuleContinuation(None, cont, None, None)
+    cont = RuleContinuation(None, None, cont, None, None)
     assert not cont.candiscard()
 
 
@@ -143,11 +144,12 @@ def test_cut_not_reached():
         def __init__(self):
             self.nextcont = None
             self._candiscard = True
+            self.module = e.user_module
         def is_done(self):
             return False
         def activate(self, fcont, heap):
             assert fcont.nextcont.is_done()
-            return DoneContinuation(e), DoneContinuation(e), heap
+            return DoneContinuation(e, None), DoneContinuation(e, None), heap
     e = get_engine("""
         g(X, Y) :- X > 0, !, Y = a.
         g(_, b).

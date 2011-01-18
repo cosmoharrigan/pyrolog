@@ -14,3 +14,7 @@ class Module(object):
             return self.functions[sig]
         except KeyError:
             return None
+
+    def use_module(self, other_module):
+        # XXX
+        pass
