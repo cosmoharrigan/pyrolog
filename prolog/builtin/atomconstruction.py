@@ -12,7 +12,7 @@ import re
 
 class AtomConcatContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, var1, var2, result):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        continuation.ChoiceContinuation.__init__(self, engine, scont.module, scont)
         self.undoheap = heap
         self.orig_fcont = fcont
         self.var1 = var1
@@ -68,7 +68,7 @@ def impl_atom_length(engine, heap, s, length):
 
 class SubAtomContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, atom, before, length, after, sub):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        continuation.ChoiceContinuation.__init__(self, engine, scont.module, scont)
         self.undoheap = heap
         self.orig_fcont = fcont
         self.atom = atom

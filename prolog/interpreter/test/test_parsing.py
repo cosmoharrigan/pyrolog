@@ -62,6 +62,7 @@ def test_quoted_atoms():
     builder = TermBuilder()
     fact1, fact2, = builder.build(t)
     assert fact1.name()== fact2.name()
+
 def test_parenthesis():
     t = parse_file("""
         g(X, Y) :- (g(x, y); g(a, b)), /* this too is a comment

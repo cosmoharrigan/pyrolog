@@ -161,3 +161,31 @@ def test_abolish():
     prolog_raises("existence_error(A, B)", "g(a)", e)
     assert len(e.modules["user"].functions) == 0
     assert len(e.modules["m"].functions) == 1
+
+def test_if():
+    e = get_engine("""
+    :- use_module(m).
+    f(X) :- (X = b
+        -> g(X)
+        ; h(X)).
+    g(c).
+    """, 
+    m = """
+    :- module(m, [h/1]).
+    h(a).
+    """)
+    assert_true("f(a).", e)
+    assert_false("f(b).", e)
+
+def test_once():
+    e = get_engine("""
+    :- use_module(m).
+    x :- f, h.
+    h.
+    """,
+    m = """
+    :- module(m, [f/0]).
+    f :- once(g).
+    g.
+    """)
+    assert_true("x.", e)

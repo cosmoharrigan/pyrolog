@@ -6,23 +6,22 @@ from prolog.builtin.register import expose_builtin
 # meta-call predicates
 
 @expose_builtin("call", unwrap_spec=["callable"],
-                handles_continuation=True)
-def impl_call(engine, heap, call, scont, fcont):
-    print 'IMPL_CALL, call = ' + str(call)
+                handles_continuation=True, needs_module=True)
+def impl_call(engine, heap, module, call, scont, fcont):
     scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
-    return engine.call(call, scont, fcont, heap)
+    return engine.call(call, module, scont, fcont, heap)
 
 class OnceContinuation(continuation.Continuation):
-    def __init__(self, engine, nextcont, fcont):
-        continuation.Continuation.__init__(self, engine, nextcont)
+    def __init__(self, engine, module, nextcont, fcont):
+        continuation.Continuation.__init__(self, engine, module, nextcont)
         self.fcont = fcont
 
     def activate(self, fcont, heap):
         return self.nextcont, self.fcont, heap
 
 @expose_builtin("once", unwrap_spec=["callable"],
-                handles_continuation=True)
-def impl_once(engine, heap, clause, scont, fcont):
-    scont = OnceContinuation(engine, scont, fcont)
-    return engine.call(clause, scont, fcont, heap)
+                handles_continuation=True, needs_module=True)
+def impl_once(engine, heap, module, clause, scont, fcont):
+    scont = OnceContinuation(engine, module, scont, fcont)
+    return engine.call(clause, module, scont, fcont, heap)
 

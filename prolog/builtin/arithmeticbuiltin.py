@@ -7,7 +7,7 @@ from prolog.builtin.register import expose_builtin
 
 class BetweenContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, lower, upper, varorint):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        continuation.ChoiceContinuation.__init__(self, engine, scont.module, scont)
         self.undoheap = heap
         self.orig_fcont = fcont
         self.lower = lower

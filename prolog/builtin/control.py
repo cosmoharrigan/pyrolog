@@ -23,7 +23,7 @@ def impl_repeat(engine, heap, scont, fcont):
 
 class RepeatContinuation(continuation.FailureContinuation):
     def __init__(self, engine, scont, fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, scont)
+        continuation.FailureContinuation.__init__(self, scont.module, engine, scont)
         self.fcont = fcont
         self.undoheap = heap
         
@@ -135,8 +135,8 @@ def impl_not(engine, heap, call, scont, fcont):
                 handles_continuation=True)
 def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
             insert_cutdelimiter=True):
-    scont = continuation.BodyContinuation(engine, scont, then_clause)
+    scont = continuation.BodyContinuation(engine, scont.module, scont, then_clause)
     if insert_cutdelimiter:
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
     body = term.Callable.build(",", [if_clause, CUTATOM])
-    return engine.continue_(continuation.BodyContinuation(engine, scont, body), fcont, heap)
+    return engine.continue_(continuation.BodyContinuation(engine, scont.module, scont, body), fcont, heap)
