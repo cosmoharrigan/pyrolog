@@ -13,6 +13,7 @@ class CheckContinuation(Continuation):
         self.nextcont = None
         self._candiscard = True
         self.seen = seen
+        self.module = self.engine.user_module
     def is_done(self):
         return False
     def activate(self, fcont, heap):
@@ -34,7 +35,7 @@ class CheckContinuation(Continuation):
             heap = heap.prev
         assert depth < self.seen
         assert numvars < self.seen
-        return DoneContinuation(self.engine), DoneContinuation(self.engine), heap
+        return DoneContinuation(self.engine, self.module), DoneContinuation(self.engine, self.module), heap
 
 def test_cut():
     e = get_engine("""
