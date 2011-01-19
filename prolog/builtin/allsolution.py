@@ -7,7 +7,7 @@ from prolog.builtin.register import expose_builtin
 
 class FindallContinuation(continuation.Continuation):
     def __init__(self, engine, template, heap):
-        continuation.Continuation.__init__(self, engine, engine.user_module, None)
+        continuation.Continuation.__init__(self, engine, None)
         self.resultvar = self.fullsolution = heap.newvar()
         self.template = template
         self.heap = heap
@@ -23,7 +23,7 @@ class FindallContinuation(continuation.Continuation):
 
 class DoneWithFindallContinuation(continuation.FailureContinuation):
     def __init__(self, engine, heap, collector, scont, fcont, bag):
-        continuation.Continuation.__init__(self, engine, scont.module, scont)
+        continuation.Continuation.__init__(self, engine, scont)
         self.collector = collector
         self.orig_fcont = fcont
         self.undoheap = heap

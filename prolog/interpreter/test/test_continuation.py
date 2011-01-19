@@ -9,7 +9,7 @@ from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
 
 def test_driver():
     order = []
-    done = DoneContinuation(None, None)
+    done = DoneContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -44,7 +44,7 @@ def test_driver():
 def test_failure_continuation():
     order = []
     h = Heap()
-    done = DoneContinuation(None, None)
+    done = DoneContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -123,16 +123,16 @@ def test_full():
     assert all[3].argument_at(1).argument_at(0).name()== "b"
 
 def test_cut_can_be_discarded():
-    cont = DoneContinuation(None, None)
+    cont = DoneContinuation(None)
     assert not cont.candiscard()
     cont = RuleContinuation(None, None, cont, None, None)
     assert not cont.candiscard()
-    cont = CutScopeNotifier(None, None, None)
+    cont = CutScopeNotifier(None, None)
     assert cont.candiscard()
     cont = RuleContinuation(None, None, cont, None, None)
     assert cont.candiscard()
 
-    cont = CutScopeNotifier(None, None, None)
+    cont = CutScopeNotifier(None, None)
     cont.discard()
     assert not cont.candiscard()
     cont = RuleContinuation(None, None, cont, None, None)
@@ -149,7 +149,7 @@ def test_cut_not_reached():
             return False
         def activate(self, fcont, heap):
             assert fcont.nextcont.is_done()
-            return DoneContinuation(e, None), DoneContinuation(e, None), heap
+            return DoneContinuation(e), DoneContinuation(e), heap
     e = get_engine("""
         g(X, Y) :- X > 0, !, Y = a.
         g(_, b).

@@ -157,11 +157,11 @@ class Engine(object):
 
     def run_query(self, query, continuation=None):
         if continuation is None:
-            continuation = DoneContinuation(self, self.user_module)
+            continuation = DoneContinuation(self)
             module = self.user_module
         else:
             module = continuation.module
-        driver(*self.call(query, module, continuation, DoneContinuation(self, self.user_module), Heap()))
+        driver(*self.call(query, module, continuation, DoneContinuation(self), Heap()))
     run = run_query
 
     def call(self, query, module, scont, fcont, heap):
@@ -177,17 +177,16 @@ class Engine(object):
         # do a real call
         function = module.fetch_function(signature)
         if function is None:
-            error.throw_existence_error("undefine_procedure", 
+            error.throw_existence_error("procedure", 
                     query.get_prolog_signature())
         startrulechain = jit.hint(function.rulechain, promote=True)
-        #import pdb; pdb.set_trace()
         if startrulechain is None:
             return error.throw_existence_error(
                 "procedure", query.get_prolog_signature())
         rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             raise error.UnificationFailed
-        scont = UserCallContinuation(self, scont.module, scont, query, rulechain)
+        scont = UserCallContinuation(self, module, scont, query, rulechain)
         return self.continue_(scont, fcont, heap)
 
 
@@ -260,10 +259,9 @@ class Continuation(object):
     """ Represents a continuation of the Prolog computation. This can be seen
     as an RPython-compatible way to express closures. """
 
-    def __init__(self, engine, module, nextcont):
+    def __init__(self, engine, nextcont):
         self.engine = engine
         self.nextcont = nextcont
-        self.module = module
         if nextcont is not None:
             self._candiscard = nextcont.candiscard()
         else:
@@ -301,6 +299,14 @@ class Continuation(object):
             for line in self.nextcont._dot(seen):
                 yield line
 
+class ContinuationWithModule(Continuation):
+    """ This class represents continuations which need
+    to take care of the module system. """
+
+    def __init__(self, engine, module, nextcont):
+        Continuation.__init__(self, engine, nextcont)
+        self.module = module
+
 def view(*objects):
     from dotviewer import graphclient
     content = ["digraph G{"]
@@ -333,8 +339,8 @@ class FailureContinuation(Continuation):
         return self
 
 class DoneContinuation(FailureContinuation):
-    def __init__(self, engine, module):
-        Continuation.__init__(self, engine, module, None)
+    def __init__(self, engine):
+        Continuation.__init__(self, engine, None)
         self.failed = False
 
     def activate(self, fcont, heap):
@@ -348,10 +354,10 @@ class DoneContinuation(FailureContinuation):
         return True
 
 
-class BodyContinuation(Continuation):
+class BodyContinuation(ContinuationWithModule):
     """ Represents a bit of Prolog code that is still to be called. """
     def __init__(self, engine, module, nextcont, body):
-        Continuation.__init__(self, engine, module, nextcont)
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
         self.body = body
 
     def activate(self, fcont, heap):
@@ -360,13 +366,12 @@ class BodyContinuation(Continuation):
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
 
-class BuiltinContinuation(Continuation):
+class BuiltinContinuation(ContinuationWithModule):
     """ Represents the call to a builtin. """
     def __init__(self, engine, module, nextcont, builtin, query):
-        Continuation.__init__(self, engine, module, nextcont)
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
         self.builtin = builtin
         self.query = query
-        self.module = module
 
     def activate(self, fcont, heap):
         return self.builtin.call(self.engine, self.query, self.module, 
@@ -430,9 +435,10 @@ class ChoiceContinuation(FailureContinuation):
 
 class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, module, nextcont, query, rulechain):
-        ChoiceContinuation.__init__(self, engine, module, nextcont)
+        ChoiceContinuation.__init__(self, engine, nextcont)
         self.query = query
         self.rulechain = rulechain
+        self.module = module
 
     def activate(self, fcont, heap):
         rulechain = jit.hint(self.rulechain, promote=True)
@@ -455,7 +461,7 @@ class UserCallContinuation(ChoiceContinuation):
                 self.query, self.rulechain)
     
 
-class RuleContinuation(Continuation):
+class RuleContinuation(ContinuationWithModule):
     """ A Continuation that represents the application of a rule, i.e.:
         - standardizing apart of the rule
         - unifying the rule head with the query
@@ -463,7 +469,7 @@ class RuleContinuation(Continuation):
     """
 
     def __init__(self, engine, module, nextcont, rule, query):
-        Continuation.__init__(self, engine, module, nextcont)
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
         self._rule = rule
         self.query = query
 
@@ -481,8 +487,8 @@ class RuleContinuation(Continuation):
         return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
 
 class CutScopeNotifier(Continuation):
-    def __init__(self, engine, module, nextcont):
-        Continuation.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, nextcont):
+        Continuation.__init__(self, engine, nextcont)
         self.cutcell = CutCell()
 
     def candiscard(self):
@@ -503,8 +509,8 @@ class CutCell(object):
         self.discarded = False
 
 class CutDelimiter(FailureContinuation):
-    def __init__(self, engine, module, nextcont, cutcell):
-        FailureContinuation.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, nextcont, cutcell):
+        FailureContinuation.__init__(self, engine, nextcont)
         self.cutcell = cutcell
 
     def candiscard(self):
@@ -521,9 +527,9 @@ class CutDelimiter(FailureContinuation):
                     nextcont.cutcell is fcont.cutcell):
                 assert not fcont.cutcell.activated
                 return nextcont, fcont
-        scont = CutScopeNotifier(engine, nextcont.module, nextcont)
+        scont = CutScopeNotifier(engine, nextcont)
         # XXX not sure which module to take
-        fcont = CutDelimiter(engine, nextcont.module, fcont, scont.cutcell)
+        fcont = CutDelimiter(engine, fcont, scont.cutcell)
         return scont, fcont
 
     def activate(self, *args):
@@ -555,9 +561,9 @@ class CutDelimiter(FailureContinuation):
             yield line
 
 
-class CatchingDelimiter(Continuation):
+class CatchingDelimiter(ContinuationWithModule):
     def __init__(self, engine, module, nextcont, fcont, catcher, recover, heap):
-        Continuation.__init__(self, engine, module, nextcont)
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
         self.catcher = catcher
         self.recover = recover
         self.fcont = fcont

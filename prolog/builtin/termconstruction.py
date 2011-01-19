@@ -31,8 +31,8 @@ def impl_functor(engine, heap, t, functor, arity):
                     heap)
 
 class ArgContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, module, scont, fcont, heap, first, second, third):
-        continuation.ChoiceContinuation.__init__(self, engine, module, scont)
+    def __init__(self, engine, scont, fcont, heap, first, second, third):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
         self.undoheap = heap
         self.orig_fcont = fcont
         self.first = first
@@ -65,7 +65,7 @@ def impl_arg(engine, heap, first, second, third, scont, fcont):
         error.throw_type_error("compound", second)
     assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
-        a = ArgContinuation(engine, scont.module, scont, fcont, heap, first, second, third)
+        a = ArgContinuation(engine, scont, fcont, heap, first, second, third)
         return a, fcont, heap
     elif isinstance(first, term.Number):
         num = first.num

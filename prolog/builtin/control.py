@@ -23,7 +23,7 @@ def impl_repeat(engine, heap, scont, fcont):
 
 class RepeatContinuation(continuation.FailureContinuation):
     def __init__(self, engine, scont, fcont, heap):
-        continuation.FailureContinuation.__init__(self, scont.module, engine, scont)
+        continuation.FailureContinuation.__init__(self, engine, scont)
         self.fcont = fcont
         self.undoheap = heap
         
@@ -54,10 +54,11 @@ def impl_and(engine, heap, module, call1, call2, scont, fcont):
 
 class OrContinuation(continuation.FailureContinuation):
     def __init__(self, engine, module, nextcont, undoheap, orig_fcont, altcall):
-        continuation.FailureContinuation.__init__(self, engine, module, nextcont)
+        continuation.FailureContinuation.__init__(self, engine, nextcont)
         self.altcall = altcall
         self.undoheap = undoheap
         self.orig_fcont = orig_fcont
+        self.module = module
 
     def activate(self, fcont, heap):
         assert self.undoheap is None
@@ -86,7 +87,7 @@ def impl_or(engine, heap, module, call1, call2, scont, fcont):
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
         fcont = OrContinuation(engine, module, scont, heap, fcont, call2)
         newscont, fcont, heap = impl_if(
-                engine, heap, helper.ensure_callable(call1.argument_at(0)),
+                engine, heap, module, helper.ensure_callable(call1.argument_at(0)),
                 call1.argument_at(1), scont, fcont, insert_cutdelimiter=False)
         return engine.continue_(newscont, fcont, heap.branch())
     else:
@@ -95,9 +96,9 @@ def impl_or(engine, heap, module, call1, call2, scont, fcont):
         return engine.continue_(newscont, fcont, heap.branch())
 
 class NotSuccessContinuation(continuation.Continuation):
-    def __init__(self, engine, module, nextcont, heap):
+    def __init__(self, engine, nextcont, heap):
         assert isinstance(nextcont, continuation.FailureContinuation)
-        continuation.Continuation.__init__(self, engine, module, nextcont)
+        continuation.Continuation.__init__(self, engine, nextcont)
         self.undoheap = heap
 
     def activate(self, fcont, heap):
@@ -110,7 +111,7 @@ class NotSuccessContinuation(continuation.Continuation):
 
 class NotFailureContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, nextcont.module, nextcont)
+        continuation.FailureContinuation.__init__(self, engine, nextcont)
         self.undoheap = heap
         self.orig_fcont = orig_fcont
 
@@ -123,20 +124,20 @@ class NotFailureContinuation(continuation.FailureContinuation):
 
 
 @expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
-                handles_continuation=True)
-def impl_not(engine, heap, call, scont, fcont):
-    notscont = NotSuccessContinuation(engine, fcont.module, fcont, heap)
+                handles_continuation=True, needs_module=True)
+def impl_not(engine, heap, module, call, scont, fcont):
+    notscont = NotSuccessContinuation(engine, fcont, heap)
     notfcont = NotFailureContinuation(engine, scont, fcont, heap)
-    newscont = continuation.BodyContinuation(engine, notscont.module, notscont, call)
+    newscont = continuation.BodyContinuation(engine, module, notscont, call)
     return engine.continue_(newscont, notfcont, heap.branch())
 
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
-                handles_continuation=True)
-def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
+                handles_continuation=True, needs_module=True)
+def impl_if(engine, heap, module, if_clause, then_clause, scont, fcont,
             insert_cutdelimiter=True):
-    scont = continuation.BodyContinuation(engine, scont.module, scont, then_clause)
+    scont = continuation.BodyContinuation(engine, module, scont, then_clause)
     if insert_cutdelimiter:
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
     body = term.Callable.build(",", [if_clause, CUTATOM])
-    return engine.continue_(continuation.BodyContinuation(engine, scont.module, scont, body), fcont, heap)
+    return engine.continue_(continuation.BodyContinuation(engine, module, scont, body), fcont, heap)
