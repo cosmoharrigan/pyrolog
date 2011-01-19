@@ -6,8 +6,8 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # database
 
-@expose_builtin("abolish", unwrap_spec=["obj"])
-def impl_abolish(engine, heap, predicate):
+@expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
+def impl_abolish(engine, heap, module, predicate):
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
         error.throw_domain_error("not_less_than_zero", term.Number(arity))
@@ -15,9 +15,11 @@ def impl_abolish(engine, heap, predicate):
     if signature.get_extra("builtin"):
         error.throw_permission_error("modify", "static_procedure",
                                      predicate)
-    function = engine.get_function(signature)
-    if function is not None:
-        function.rulechain = None
+
+    try:
+        module.functions.pop(signature)
+    except KeyError:
+        pass
 
 @expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
 def impl_assert(engine, heap, rule):

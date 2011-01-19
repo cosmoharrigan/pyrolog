@@ -175,9 +175,10 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
-        print 'sig =', signature
-        print 'module =', module.name
         function = module.fetch_function(signature)
+        if function is None:
+            error.throw_existence_error("undefine_procedure", 
+                    query.get_prolog_signature())
         startrulechain = jit.hint(function.rulechain, promote=True)
         #import pdb; pdb.set_trace()
         if startrulechain is None:

@@ -17,7 +17,6 @@ def test_set_currently_parsed_module():
     e.add_rule(atom)
     assert atom.signature() in mod1.functions
 
-
 def test_module_exports():
     e = get_engine("""
     :- module(m, [g/2]).
@@ -26,7 +25,6 @@ def test_module_exports():
     """)
     exports = e.modules["m"].exports
     assert len(exports) == 1 and exports[0].eq(Signature("g", 2))
-
 
 def test_module_uses():
     e = get_engine("""
@@ -47,7 +45,6 @@ def test_module_uses():
     assert e.modules["b"].uses == ["a"]
     assert e.modules["a"].uses == []
     assert e.modules["user"].uses == ["b"]
-
 
 def test_fetch_function():
     e = get_engine("""
@@ -73,7 +70,6 @@ def test_fetch_function():
     assert m.fetch_function(f_sig) is None
     assert m.fetch_function(h_sig) == m.functions[h_sig]
 
-
 def test_modules_use_module():
     e = get_engine("""
     :- use_module(m).
@@ -91,7 +87,6 @@ def test_modules_use_module():
     assert_true("h(a).", e)
     assert_false("h(b).", e)
 
-
 def test_modules_integration():
     e = get_engine("""
         :- use_module(m).
@@ -107,7 +102,6 @@ def test_modules_integration():
     assert_true("findall(X, h(X), L), L = [b].", e)
     assert_true("both(X, Y), X == a, Y == b.", e)
 
-
 def test_builtin_module_or():
     e = get_engine("""
     :- use_module(m).
@@ -121,7 +115,6 @@ def test_builtin_module_or():
     g.
     """)
     assert_true("t.", e)
-
 
 def test_builtin_module_and():
     e = get_engine("""
@@ -137,7 +130,6 @@ def test_builtin_module_and():
     """)
     assert_true("t.", e)
 
-
 def test_catch_error():
     e = get_engine("""
     :- use_module(m).
@@ -149,3 +141,23 @@ def test_catch_error():
     f :- throw(foo).
     """)
     assert_true("h.", e)
+
+def test_abolish():
+    e = get_engine("""
+    :- use_module(m).
+    f(a).
+    """,
+    m = """
+    :- module(m, [g/1]).
+    g(a).
+    """)
+
+    assert_true("f(a).", e)
+    assert len(e.modules["user"].functions) == 2
+    assert_true("abolish(f/1).", e)
+    prolog_raises("existence_error(A, B)", "f(a)", e)
+    assert_true("g(a).", e)
+    assert_true("abolish(g/1).", e)
+    prolog_raises("existence_error(A, B)", "g(a)", e)
+    assert len(e.modules["user"].functions) == 0
+    assert len(e.modules["m"].functions) == 1
