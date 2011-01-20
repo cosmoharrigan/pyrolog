@@ -186,3 +186,35 @@ def test_once():
     g.
     """)
     assert_true("x.", e)
+
+def test_module_switch_1():
+    e = get_engine("""
+    :- use_module(m).
+    :- module(m).
+    """,
+    m = """
+    :- module(m, [g/0]).
+    g.
+    f.
+    """)
+    assert e.current_module.name == "m"
+    assert_true("g.", e)
+    assert_true("f.", e)
+
+def test_module_switch_2():
+    e = get_engine("""
+    :- use_module(m).
+    :- module(m).
+    f.
+    """,
+    m = """
+    :- module(m, []).
+    g.
+    """)
+    assert e.current_module.name == "m"
+    prolog_raises("existence_error(X, Y)", "f", e)
+    assert_true("g.", e)
+    assert_true("module(user).", e)
+    assert e.current_module.name == "user"
+    prolog_raises("existence_error(X, Y)", "g", e)
+    assert_true("f.", e)

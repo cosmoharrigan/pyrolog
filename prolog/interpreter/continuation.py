@@ -80,6 +80,7 @@ class Engine(object):
         self.user_module = Module("user")
         self.currently_parsed_module = self.user_module
         self.modules = {"user": self.user_module}
+        self.current_module = self.user_module
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -131,7 +132,7 @@ class Engine(object):
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
             # XXX don't know whether user_module is correct here
-            self.run(term.argument_at(0), self.user_module)
+            self.run(term.argument_at(0), self.current_module)
         else:
             self.add_rule(term)
         return self.parser
@@ -201,6 +202,9 @@ class Engine(object):
         self.currently_parsed_module = mod
         for export in exports:
             mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
+
+    def set_current_module(self, modulename):
+        self.current_module = self.modules[modulename]
      
     # _____________________________________________________
     # error handling

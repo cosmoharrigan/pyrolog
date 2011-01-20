@@ -9,7 +9,7 @@ def assert_true(query, e=None):
         e = Engine()
     terms, vars = e.parse(query)
     term, = terms
-    e.run(term, e.user_module)
+    e.run(term, e.current_module)
     return dict([(name, var.dereference(e.heap))
                      for name, var in vars.iteritems()])
 
@@ -42,7 +42,7 @@ def collect_all(engine, s):
     terms, vars = engine.parse(s)
     term, = terms
     collector = CollectAllContinuation(engine.user_module, vars)
-    py.test.raises(UnificationFailed, engine.run, term, engine.user_module,
+    py.test.raises(UnificationFailed, engine.run, term, engine.current_module,
                    collector)
     return collector.heaps
 
