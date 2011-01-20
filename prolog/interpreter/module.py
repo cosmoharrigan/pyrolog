@@ -15,6 +15,9 @@ class Module(object):
         except KeyError:
             return None
 
-    def use_module(self, other_module):
-        # XXX
-        pass
+    def use_module(self, engine, modulename):
+        module = engine.modules[modulename]
+        for sig in module.exports:
+            keysig = Signature.getsignature(sig.name, sig.numargs)
+            self.functions[keysig] = module.functions[keysig]
+        self.uses.append(modulename)

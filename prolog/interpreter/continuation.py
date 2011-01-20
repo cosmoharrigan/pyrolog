@@ -201,13 +201,6 @@ class Engine(object):
             mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
      
 
-    def use_module(self, modulname):
-        module = self.modules[modulname]
-        for sig in module.exports:
-            self.currently_parsed_module.functions[sig] = module.functions[sig]
-        self.currently_parsed_module.uses.append(modulname)
-
-
     # _____________________________________________________
     # error handling
 

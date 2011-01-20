@@ -9,4 +9,4 @@ def impl_module(engine, heap, name, exports):
 
 @expose_builtin("use_module", unwrap_spec = ["atom"])
 def impl_use_module(engine, heap, modulename):
-    engine.use_module(modulename)
+    engine.currently_parsed_module.use_module(engine, modulename)
