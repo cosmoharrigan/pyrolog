@@ -6,7 +6,6 @@ class Module(object):
         self.name = name
         self.functions = {}
         self.exports = []
-        self.uses = []
 
     def fetch_function(self, signature):
         sig = Signature.getsignature(signature.name, signature.numargs)
@@ -20,4 +19,3 @@ class Module(object):
         for sig in module.exports:
             keysig = Signature.getsignature(sig.name, sig.numargs)
             self.functions[keysig] = module.functions[keysig]
-        self.uses.append(modulename)

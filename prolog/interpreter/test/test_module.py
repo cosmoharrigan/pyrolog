@@ -42,9 +42,6 @@ def test_module_uses():
     """)
 
     assert len(e.modules) == 3
-    assert e.modules["b"].uses == ["a"]
-    assert e.modules["a"].uses == []
-    assert e.modules["user"].uses == ["b"]
 
 def test_fetch_function():
     e = get_engine("""
