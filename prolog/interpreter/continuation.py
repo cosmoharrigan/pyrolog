@@ -130,7 +130,8 @@ class Engine(object):
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
-            self.run(term.argument_at(0))
+            # XXX don't know whether user_module is correct here
+            self.run(term.argument_at(0), self.user_module)
         else:
             self.add_rule(term)
         return self.parser
@@ -155,12 +156,13 @@ class Engine(object):
     # _____________________________________________________
     # Prolog execution
 
-    def run_query(self, query, continuation=None):
+    def run_query(self, query, module, continuation=None):
+        assert isinstance(module, Module)
         if continuation is None:
             continuation = DoneContinuation(self)
-            module = self.user_module
-        else:
-            module = continuation.module
+       #     module = self.user_module
+       # else:
+       #     module = continuation.module
         driver(*self.call(query, module, continuation, DoneContinuation(self), Heap()))
     run = run_query
 
@@ -177,8 +179,8 @@ class Engine(object):
         # do a real call
         function = module.fetch_function(signature)
         if function is None:
-            error.throw_existence_error("procedure", 
-                    query.get_prolog_signature())
+            return error.throw_existence_error(
+                    "procedure", query.get_prolog_signature())
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -200,7 +202,6 @@ class Engine(object):
         for export in exports:
             mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
      
-
     # _____________________________________________________
     # error handling
 

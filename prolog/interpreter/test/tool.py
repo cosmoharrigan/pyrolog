@@ -9,7 +9,7 @@ def assert_true(query, e=None):
         e = Engine()
     terms, vars = e.parse(query)
     term, = terms
-    e.run(term)
+    e.run(term, e.user_module)
     return dict([(name, var.dereference(e.heap))
                      for name, var in vars.iteritems()])
 
@@ -17,7 +17,7 @@ def assert_false(query, e=None):
     if e is None:
         e = Engine()
     term = e.parse(query)[0][0]
-    py.test.raises(UnificationFailed, e.run, term)
+    py.test.raises(UnificationFailed, e.run, term, e.user_module)
 
 def prolog_raises(exc, query, e=None):
     print '=> catch(((%s), fail), error(%s), true).' % (query, exc)
@@ -42,7 +42,7 @@ def collect_all(engine, s):
     terms, vars = engine.parse(s)
     term, = terms
     collector = CollectAllContinuation(engine.user_module, vars)
-    py.test.raises(UnificationFailed, engine.run, term,
+    py.test.raises(UnificationFailed, engine.run, term, engine.user_module,
                    collector)
     return collector.heaps
 

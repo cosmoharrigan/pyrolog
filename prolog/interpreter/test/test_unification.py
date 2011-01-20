@@ -118,10 +118,10 @@ def test_run():
     e.add_rule(c2)
     X = e.heap.newvar()
     c3 = Callable.build("f", [Callable.build("b"), X])
-    e.run(c3)
+    e.run(c3, e.user_module)
     assert X.dereference(e.heap).name()== "b"
     query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
-    e.run(query)
+    e.run(query, e.user_module)
 
 
 def test_quick_unify_check():

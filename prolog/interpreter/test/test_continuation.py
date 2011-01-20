@@ -112,7 +112,7 @@ def test_full():
             
     query = Callable.build(",", [Callable.build("f", [Var()]), Callable.build("g", [Var()])])
     py.test.raises(error.UnificationFailed,
-                   e.run_query, query, CollectContinuation())
+                   e.run_query, query, e.user_module, CollectContinuation())
     assert all[0].argument_at(0).argument_at(0).name()== "x"
     assert all[0].argument_at(1).argument_at(0).name()== "a"
     assert all[1].argument_at(0).argument_at(0).name()== "x"
@@ -154,7 +154,7 @@ def test_cut_not_reached():
         g(X, Y) :- X > 0, !, Y = a.
         g(_, b).
     """)
-    e.run(parse_query_term("g(-1, Y), Y == b, g(1, Z), Z == a."), CheckContinuation())
+    e.run(parse_query_term("g(-1, Y), Y == b, g(1, Z), Z == a."), e.user_module, CheckContinuation())
 
 # ___________________________________________________________________
 # integration tests
@@ -164,7 +164,7 @@ def test_trivial():
         f(a).
     """)
     t, vars = get_query_and_vars("f(X).")
-    e.run(t)
+    e.run(t, e.user_module)
     assert vars['X'].dereference(e.heap).name()== "a"
 
 def test_and():
@@ -174,9 +174,9 @@ def test_and():
         g(b, c).
         f(X, Z) :- g(X, Y), g(Y, Z).
     """)
-    e.run(parse_query_term("f(a, c)."))
+    e.run(parse_query_term("f(a, c)."), e.user_module)
     t, vars = get_query_and_vars("f(X, c).")
-    e.run(t)
+    e.run(t, e.user_module)
     assert vars['X'].dereference(e.heap).name()== "a"
 
 def test_and_long():
@@ -205,21 +205,21 @@ def test_numeral():
         if n == 0:
             return "0"
         return "succ(%s)" % nstr(n - 1)
-    e.run(parse_query_term("num(0)."))
-    e.run(parse_query_term("num(succ(0))."))
+    e.run(parse_query_term("num(0)."), e.user_module)
+    e.run(parse_query_term("num(succ(0))."), e.user_module)
     t, vars = get_query_and_vars("num(X).")
-    e.run(t)
+    e.run(t, e.user_module)
     assert vars['X'].dereference(e.heap).num == 0
-    e.run(parse_query_term("add(0, 0, 0)."))
+    e.run(parse_query_term("add(0, 0, 0)."), e.user_module)
     py.test.raises(UnificationFailed, e.run, parse_query_term("""
-        add(0, 0, succ(0))."""))
-    e.run(parse_query_term("add(succ(0), succ(0), succ(succ(0)))."))
-    e.run(parse_query_term("mul(succ(0), 0, 0)."))
-    e.run(parse_query_term("mul(succ(succ(0)), succ(0), succ(succ(0)))."))
-    e.run(parse_query_term("mul(succ(succ(0)), succ(succ(0)), succ(succ(succ(succ(0)))))."))
-    e.run(parse_query_term("factorial(0, succ(0))."))
-    e.run(parse_query_term("factorial(succ(0), succ(0))."))
-    e.run(parse_query_term("factorial(%s, %s)." % (nstr(5), nstr(120))))
+        add(0, 0, succ(0))."""), e.user_module)
+    e.run(parse_query_term("add(succ(0), succ(0), succ(succ(0)))."), e.user_module)
+    e.run(parse_query_term("mul(succ(0), 0, 0)."), e.user_module)
+    e.run(parse_query_term("mul(succ(succ(0)), succ(0), succ(succ(0)))."), e.user_module)
+    e.run(parse_query_term("mul(succ(succ(0)), succ(succ(0)), succ(succ(succ(succ(0)))))."), e.user_module)
+    e.run(parse_query_term("factorial(0, succ(0))."), e.user_module)
+    e.run(parse_query_term("factorial(succ(0), succ(0))."), e.user_module)
+    e.run(parse_query_term("factorial(%s, %s)." % (nstr(5), nstr(120))), e.user_module)
 
 def test_or_backtrack():
     e = get_engine("""
@@ -230,7 +230,7 @@ def test_or_backtrack():
         f(X, Y, Z) :- (g(X, Z); g(X, Z); g(Z, Y)), a(Z).
         """)
     t, vars = get_query_and_vars("f(a, b, Z).")
-    e.run(t)
+    e.run(t, e.user_module)
     assert vars['Z'].dereference(e.heap).name()== "a"
     f = collect_all(e, "X = 1; X = 2.")
     assert len(f) == 2
@@ -267,7 +267,7 @@ def test_lists():
         append([],L,L).
         append([X|Y],L,[X|Z]) :- append(Y,L,Z).
     """)
-    e.run(parse_query_term("append(%s, %s, X)." % (range(30), range(10))))
+    e.run(parse_query_term("append(%s, %s, X)." % (range(30), range(10))), e.user_module)
     return
     e.run(parse_query_term("nrev(%s, X)." % (range(15), )))
     e.run(parse_query_term("nrev(%s, %s)." % (range(8), range(7, -1, -1))))
@@ -280,10 +280,10 @@ def test_indexing():
                                 for i in range(97, 122)]))
     t = parse_query_term("f(x, g(y)).")
     for i in range(200):
-        e.run(t)
+        e.run(t, e.user_module)
     t = parse_query_term("f(x, g(y, a)).")
     for i in range(200):
-        py.test.raises(UnificationFailed, e.run, t)
+        py.test.raises(UnificationFailed, e.run, t, e.user_module)
 
 def test_indexing2():
     e = get_engine("""

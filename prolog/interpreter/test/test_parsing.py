@@ -34,17 +34,17 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     assert e.modules["user"].fetch_function(Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name() == "null"
     four = Callable.build("succ", [Callable.build("succ", [Callable.build("succ",
                 [Callable.build("succ", [Callable.build("null")])])])])
-    e.run(parse_query_term("numeral(succ(succ(null)))."))
+    e.run(parse_query_term("numeral(succ(succ(null)))."), e.user_module)
     term = parse_query_term(
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")
-    e.run(term)
+    e.run(term, e.user_module)
     var = Var().getvalue(e.heap)
     print var, e.heap
     # does not raise
     var.unify(four, e.heap)
     term = parse_query_term(
         """greater_than(succ(succ(succ(null))), succ(succ(null))).""")
-    e.run(term)
+    e.run(term, e.user_module)
 
 def test_quoted_atoms():
     t = parse_file("""
