@@ -78,7 +78,6 @@ class Engine(object):
         self.parser = None
         self.operations = None
         self.user_module = Module("user")
-        self.currently_parsed_module = self.user_module
         self.modules = {"user": self.user_module}
         self.current_module = self.user_module
         from prolog.builtin.statistics import Clocks
@@ -92,11 +91,11 @@ class Engine(object):
             assert isinstance(rule, Callable)
             if rule.signature().eq(predsig):
                 rule = Rule(rule.argument_at(0), rule.argument_at(1),
-                        self.currently_parsed_module)
+                        self.current_module)
             else:
-                rule = Rule(rule, None, self.currently_parsed_module)
+                rule = Rule(rule, None, self.current_module)
         elif isinstance(rule, Atom):
-            rule = Rule(rule, None, self.currently_parsed_module)
+            rule = Rule(rule, None, self.current_module)
         else:
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
@@ -116,10 +115,10 @@ class Engine(object):
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
         try:
-            function = self.currently_parsed_module.functions[signature]
+            function = self.current_module.functions[signature]
         except KeyError:
-            function = Function(self.currently_parsed_module.name)
-            self.currently_parsed_module.functions[signature] = function
+            function = Function(self.current_module.name)
+            self.current_module.functions[signature] = function
         return function
             
 
@@ -131,7 +130,6 @@ class Engine(object):
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
-            # XXX don't know whether user_module is correct here
             self.run(term.argument_at(0), self.current_module)
         else:
             self.add_rule(term)
@@ -161,9 +159,6 @@ class Engine(object):
         assert isinstance(module, Module)
         if continuation is None:
             continuation = DoneContinuation(self)
-       #     module = self.user_module
-       # else:
-       #     module = continuation.module
         driver(*self.call(query, module, continuation, DoneContinuation(self), Heap()))
     run = run_query
 
@@ -196,15 +191,20 @@ class Engine(object):
     # _____________________________________________________
     # module handling
 
-    def set_currently_parsed_module(self, name, exports = []):
+    def add_module(self, name, exports = []):
         mod = Module(name)
         self.modules[name] = mod
-        self.currently_parsed_module = mod
+        self.current_module = mod
         for export in exports:
             mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
 
     def set_current_module(self, modulename):
-        self.current_module = self.modules[modulename]
+        try:
+            self.current_module = self.modules[modulename]
+        except KeyError:
+            module = Module(modulename)
+            self.modules[modulename] = module
+            self.current_module = module
      
     # _____________________________________________________
     # error handling

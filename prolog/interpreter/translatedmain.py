@@ -72,8 +72,7 @@ def run(query, var_to_pos, engine):
     try:
         if query is None:
             return
-        # XXX will have to be changed when we have module/1
-        engine.run(query, engine.user_module, ContinueContinuation(engine, var_to_pos, printmessage))
+        engine.run(query, engine.current_module, ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("no\n")
     except (error.UncaughtError, error.CatchableError), e:
@@ -136,7 +135,6 @@ def repl(engine):
             run(goal, var_to_pos, engine)
  
 def execute(e, filename):
-    # XXX s. o.
     e.run(term.Callable.build("consult", [term.Callable.build(filename)]), e.user_module)
 
 if __name__ == '__main__':

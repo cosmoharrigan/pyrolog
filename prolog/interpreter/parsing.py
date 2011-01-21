@@ -467,7 +467,7 @@ def get_engine(source, **modules):
     e = Engine()
     for name, module in modules.iteritems():
         e.runstring(module)
-    e.currently_parsed_module = e.user_module
+    e.current_module = e.user_module
     e.runstring(source)
     return e
 

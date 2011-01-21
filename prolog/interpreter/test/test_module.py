@@ -2,13 +2,14 @@ import py
 from prolog.interpreter.test.tool import get_engine, assert_true, assert_false, prolog_raises
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.continuation import Engine
 
 def test_set_currently_parsed_module():
     e = get_engine("""
     f(a).
     """)
-    assert e.currently_parsed_module == e.user_module
-    e.set_currently_parsed_module("m1", [])
+    assert e.current_module == e.user_module
+    e.add_module("m1", [])
     assert "m1" in e.modules
     mod1 = e.modules["m1"]
     assert mod1.exports == []
@@ -204,8 +205,8 @@ def test_module_switch_1():
 def test_module_switch_2():
     e = get_engine("""
     :- use_module(m).
-    :- module(m).
     f.
+    :- module(m).
     """,
     m = """
     :- module(m, []).
@@ -218,3 +219,30 @@ def test_module_switch_2():
     assert e.current_module.name == "user"
     prolog_raises("existence_error(X, Y)", "g", e)
     assert_true("f.", e)
+
+def test_switch_to_nonexistent_module():
+    e = get_engine("""
+    :- module(m).
+    """)
+    prolog_raises("existence_error(X, Y)", "x", e)
+    assert_true("assert(x).", e)
+    assert_true("x.", e)
+    assert_true("module(user).", e)
+    prolog_raises("existence_error(X, Y)", "x", e)
+
+def test_module_assert_retract():
+    e = Engine()
+    assert_true("module(m).", e)
+    assert_true("assert(x).", e)
+    assert_true("asserta(y).", e)
+    assert_true("x, y.", e)
+    assert_true("module(user).", e)
+    assert_false("retract(x).", e)
+    assert_false("retract(y).", e)
+    assert_true("assert(x).", e)
+    assert_true("x.", e)
+    assert_true("module(m).", e)
+    assert_true("retract(x).", e)
+    prolog_raises("existence_error(X, Y)", "x", e)
+    assert_true("module(user).", e)
+    assert_true("x.", e)
