@@ -13,3 +13,10 @@ def impl_use_module(engine, heap, modulename):
 @expose_builtin("module", unwrap_spec = ["atom"])
 def impl_module_1(engine, heap, name):
     engine.set_current_module(name)   
+
+@expose_builtin(":", unwrap_spec = ["atom", "callable"], 
+        handles_continuation=True)
+def impl_module_prefixing(engine, heap, modulename, 
+        call, scont, fcont):
+    module = engine.modules[modulename]
+    return engine.call(call, module, scont, fcont, heap)

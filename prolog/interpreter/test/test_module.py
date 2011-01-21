@@ -246,3 +246,20 @@ def test_module_assert_retract():
     prolog_raises("existence_error(X, Y)", "x", e)
     assert_true("module(user).", e)
     assert_true("x.", e)
+
+def test_module_prefixing():
+    e = get_engine("""
+    a.
+    """,
+    m = """
+    :- module(m, []).
+    f(a).
+    f(b).
+    """)
+    assert_true("m:f(a), m:f(b).", e)
+    assert_true("m:f(a), a.", e)
+    prolog_raises("existence_error(X, Y)", "m:a", e)
+    assert_true("module(m).", e)
+    prolog_raises("existence_error(X, Y)", "a", e)
+    assert_true("user:a.", e)
+
