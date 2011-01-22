@@ -1,8 +1,21 @@
 import py
+import os
 from prolog.interpreter.test.tool import get_engine, assert_true, assert_false, prolog_raises
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
+
+def create_file(name, content):
+    try:
+        delete_file(name)
+    except OSError:  
+        pass
+    fd = os.open(name, os.O_CREAT|os.O_RDWR, 0666)
+    os.write(fd, content)
+    os.close(fd)
+
+def delete_file(name):
+    os.unlink(name)
 
 def test_set_currently_parsed_module():
     e = get_engine("""
@@ -27,32 +40,55 @@ def test_module_exports():
     exports = e.modules["m"].exports
     assert len(exports) == 1 and exports[0].eq(Signature("g", 2))
 
-def test_module_uses():
+def test_use_module_simple():
+    modname = "m"
+    create_file(modname, """
+    :- module(m, [f/0]).
+    f.
+    """)
+    
     e = get_engine("""
-    :- use_module(b).
-    """,
-    b = """
+    :- use_module(m).
+    """)
+    assert len(e.modules) == 2
+    assert_true("f.", e)
+    delete_file(modname)
+
+def test_module_uses():
+    moda = "a"
+    modb = "b"
+
+    create_file(modb, """
     :- module(b, [f/1]).
     :- use_module(a).
     f(X) :- h(X).
     g(a).
-    """,
-    a = """
+    """)
+
+    create_file(moda, """
     :- module(a, [h/1]).
     h(z).
     """)
 
+    e = get_engine("""
+    :- use_module(b).
+    """)
     assert len(e.modules) == 3
+    delete_file(moda)
+    delete_file(modb)
 
 def test_fetch_function():
-    e = get_engine("""
-    :- use_module(m).
-    f(a) :- g(a, b).
-    """,
-    m = """
+    mod = "m"
+
+    create_file(mod, """
     :- module(m, [g/2]).
     g(a, b).
     h(w).
+    """)
+
+    e = get_engine("""
+    :- use_module(m).
+    f(a) :- g(a, b).
     """)
 
     f_sig = Signature.getsignature("f", 1)
@@ -67,87 +103,107 @@ def test_fetch_function():
     assert m.fetch_function(g_sig) == m.functions[g_sig]
     assert m.fetch_function(f_sig) is None
     assert m.fetch_function(h_sig) == m.functions[h_sig]
+    delete_file(mod)
 
 def test_modules_use_module():
+    mod = "m"
+    create_file(mod, """
+    :- module(m, [g/1]).
+    g(a).
+    h(b).
+    """)
+
     e = get_engine("""
     :- use_module(m).
     f(X) :- g(X).
     f(b).
     h(a).
-    """, 
-    m = """
-    :- module(m, [g/1]).
-    g(a).
-    h(b).
     """)
+
     assert_true("f(a).", e)
     assert_true("f(b).", e)
     assert_true("h(a).", e)
     assert_false("h(b).", e)
+    delete_file(mod)
 
 def test_modules_integration():
-    e = get_engine("""
-        :- use_module(m).
-        f(X) :- g(X).
-        h(b).
-        both(X, Y) :- f(X), h(Y).
-    """,
-    m = """
-        :- module(m, [g/1]).
-        g(X) :- h(X).
-        h(a).
-        """)
-    assert_true("findall(X, h(X), L), L = [b].", e)
-    assert_true("both(X, Y), X == a, Y == b.", e)
+    mod = "m"
+    create_file(mod, """
+    :- module(m, [g/1]).
+    g(X) :- h(X).
+    h(a).
+    """)
 
-def test_builtin_module_or():
     e = get_engine("""
     :- use_module(m).
-    t :- h, x.
-    x.
-    """,
-    m = """
+    f(X) :- g(X).
+    h(b).
+    both(X, Y) :- f(X), h(Y).
+    """)
+
+    assert_true("findall(X, h(X), L), L = [b].", e)
+    assert_true("both(X, Y), X == a, Y == b.", e)
+    delete_file(mod)
+
+def test_builtin_module_or():
+    mod = "m"
+    create_file(mod, """
     :- module(m, [h/0]).
     h :- f; g.
     f.
     g.
     """)
-    assert_true("t.", e)
 
-def test_builtin_module_and():
     e = get_engine("""
     :- use_module(m).
     t :- h, x.
     x.
-    """,
-    m = """
+    """)
+    assert_true("t.", e)
+    delete_file(mod)
+
+def test_builtin_module_and():
+    mod = "m"
+    create_file(mod, """
     :- module(m, [h/0]).
     h :- f, g.
     f.
     g.
     """)
+
+    e = get_engine("""
+    :- use_module(m).
+    t :- h, x.
+    x.
+    """)
     assert_true("t.", e)
+    delete_file(mod)
 
 def test_catch_error():
+    mod = "m"
+    create_file(mod, """
+    :- module(m, [f/0]).
+    f :- throw(foo).
+    """)
+
     e = get_engine("""
     :- use_module(m).
     h :- catch(f, X, g).
     g.
-    """,
-    m = """
-    :- module(m, [f/0]).
-    f :- throw(foo).
     """)
     assert_true("h.", e)
+    delete_file(mod)
 
 def test_abolish():
+    mod = "m"
+    create_file(mod, """
+    :- module(m, [g/1]).
+    g(a).
+    """)
+
     e = get_engine("""
     :- use_module(m).
     f(a).
-    """,
-    m = """
-    :- module(m, [g/1]).
-    g(a).
     """)
 
     assert_true("f(a).", e)
@@ -159,59 +215,73 @@ def test_abolish():
     prolog_raises("existence_error(A, B)", "g(a)", e)
     assert len(e.modules["user"].functions) == 0
     assert len(e.modules["m"].functions) == 1
+    delete_file(mod)
 
 def test_if():
+    mod = "m"
+    create_file(mod, """
+    :- module(m, [h/1]).
+    h(a).
+    """)
+
     e = get_engine("""
     :- use_module(m).
     f(X) :- (X = b
         -> g(X)
         ; h(X)).
     g(c).
-    """, 
-    m = """
-    :- module(m, [h/1]).
-    h(a).
     """)
+
     assert_true("f(a).", e)
     assert_false("f(b).", e)
+    delete_file(mod)
 
 def test_once():
-    e = get_engine("""
-    :- use_module(m).
-    x :- f, h.
-    h.
-    """,
-    m = """
+    mod = "m"
+    create_file(mod, """
     :- module(m, [f/0]).
     f :- once(g).
     g.
     """)
-    assert_true("x.", e)
 
-def test_module_switch_1():
     e = get_engine("""
     :- use_module(m).
-    :- module(m).
-    """,
-    m = """
+    x :- f, h.
+    h.
+    """)
+    assert_true("x.", e)
+    delete_file(mod)
+
+def test_module_switch_1():
+    mod = "m"
+    create_file(mod, """
     :- module(m, [g/0]).
     g.
     f.
     """)
+
+    e = get_engine("""
+    :- use_module(m).
+    :- module(m).
+    """)
     assert e.current_module.name == "m"
     assert_true("g.", e)
     assert_true("f.", e)
+    delete_file(mod)
 
 def test_module_switch_2():
+    mod = "m"
+    create_file(mod, """
+    :- module(m, []).
+    g.
+    """)
+
     e = get_engine("""
     :- use_module(m).
     f.
     :- module(m).
-    """,
-    m = """
-    :- module(m, []).
-    g.
     """)
+
     assert e.current_module.name == "m"
     prolog_raises("existence_error(X, Y)", "f", e)
     assert_true("g.", e)
@@ -219,6 +289,7 @@ def test_module_switch_2():
     assert e.current_module.name == "user"
     prolog_raises("existence_error(X, Y)", "g", e)
     assert_true("f.", e)
+    delete_file(mod)
 
 def test_switch_to_nonexistent_module():
     e = get_engine("""

@@ -119,7 +119,12 @@ def run(query, var_to_pos, engine):
 def repl(engine):
     printmessage("welcome!\n")
     while 1:
-        printmessage(">?- ")
+        module = engine.current_module.name
+        if module == "user":
+            module = ""
+        else:
+            module += ":  "
+        printmessage(module + ">?- ")
         line = readline()
         if line == "halt.\n":
             break
