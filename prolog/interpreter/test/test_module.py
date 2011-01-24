@@ -334,3 +334,16 @@ def test_module_prefixing():
     prolog_raises("existence_error(X, Y)", "a", e)
     assert_true("user:a.", e)
 
+def test_recursive_use_module():
+    mod = "m"
+
+    create_file(mod, """
+    :- module(m, []).
+    :- use_module(m).
+    """)
+
+    e = get_engine("""
+    :- use_module(m).
+    """)
+
+    delete_file(mod)
