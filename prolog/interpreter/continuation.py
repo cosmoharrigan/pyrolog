@@ -196,7 +196,8 @@ class Engine(object):
         self.modules[name] = mod
         self.current_module = mod
         for export in exports:
-            mod.exports.append(Signature.getsignature(*unwrap_predicate_indicator(export)))
+            mod.exports.append(Signature.getsignature(
+                    *unwrap_predicate_indicator(export)))
 
     def set_current_module(self, modulename):
         try:

@@ -25,5 +25,8 @@ def impl_module_1(engine, heap, name):
         handles_continuation=True)
 def impl_module_prefixing(engine, heap, modulename, 
         call, scont, fcont):
-    module = engine.modules[modulename]
+    try:
+        module = engine.modules[modulename]
+    except KeyError:
+        error.throw_existence_error("procedure", call)
     return engine.call(call, module, scont, fcont, heap)
