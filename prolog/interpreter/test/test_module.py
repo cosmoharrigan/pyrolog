@@ -1,21 +1,10 @@
 import py
 import os
 from prolog.interpreter.test.tool import get_engine, assert_true, assert_false, prolog_raises
+from prolog.interpreter.test.tool import create_file, delete_file
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
-
-def create_file(name, content):
-    try:
-        delete_file(name)
-    except OSError:  
-        pass
-    fd = os.open(name, os.O_CREAT|os.O_RDWR, 0666)
-    os.write(fd, content)
-    os.close(fd)
-
-def delete_file(name):
-    os.unlink(name)
 
 def test_set_currently_parsed_module():
     e = get_engine("""

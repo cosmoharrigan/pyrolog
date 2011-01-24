@@ -51,3 +51,16 @@ def parse(inp):
     builder = TermBuilder()
     return builder.build(t)
 
+def create_file(name, content):
+    import os
+    try:
+        delete_file(name)
+    except OSError:  
+        pass
+    fd = os.open(name, os.O_CREAT|os.O_RDWR, 0666)
+    os.write(fd, content)
+    os.close(fd)
+
+def delete_file(name):
+    import os
+    os.unlink(name)
