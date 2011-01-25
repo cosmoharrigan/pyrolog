@@ -1,4 +1,5 @@
 import py
+import os
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.continuation import Continuation, Heap, Engine
@@ -52,15 +53,23 @@ def parse(inp):
     return builder.build(t)
 
 def create_file(name, content):
-    import os
-    try:
-        delete_file(name)
-    except OSError:  
-        pass
     fd = os.open(name, os.O_CREAT|os.O_RDWR, 0666)
     os.write(fd, content)
     os.close(fd)
 
 def delete_file(name):
-    import os
     os.unlink(name)
+
+def create_dir(name):
+    os.mkdir(name)
+
+def delete_dir(name):
+    current_dir = os.path.abspath(name)
+    items = os.listdir(current_dir)
+    for item in items:
+        abspath = os.path.abspath(item)
+        if os.isfile(abspath):
+            delete_file(abspath)
+        else:
+            delete_dir(abspath)
+    os.rmdir(current_dir)
