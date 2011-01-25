@@ -1,7 +1,8 @@
 import py
 import os
 from prolog.interpreter.test.tool import get_engine, assert_true, assert_false, prolog_raises
-from prolog.interpreter.test.tool import create_file, delete_file
+from prolog.interpreter.test.tool import create_file, delete_file, create_dir, delete_dir
+from prolog.interpreter.test.tool import collect_all
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
@@ -339,3 +340,42 @@ def test_impl_module():
         assert "blub" in e.modules.keys()
     finally:
         delete_file("blub")
+
+def test_add_library_dir():
+    e = Engine()
+    assert e.libs == {}
+    prolog_raises("existence_error(X, Y)", "add_library_dir('does_not_exist')", e)
+
+    lib1 = "__lib1__"
+    lib2 = "__lib2__"
+    create_dir(lib1)
+    create_dir(lib2)
+
+    try:
+        assert_true("add_library_dir('%s')." % lib1, e)
+        assert_true("add_library_dir('%s')." % lib2, e)
+        assert len(e.libs) == 2
+    finally:
+        delete_dir(lib1)
+        delete_dir(lib2)
+
+def test_library_directory():
+    e = Engine()
+    assert e.libs == {}
+    libs = collect_all(e, "library_directory(X).")
+    assert len(libs) == 0
+
+    tempdir1 = "__tempdir1__"
+    tempdir2 = "__tempdir2__"
+    create_dir(tempdir1)
+    create_dir(tempdir2)
+
+    try:
+        assert_true("add_library_dir('%s')." % tempdir1, e)
+        assert_true("add_library_dir('%s')." % tempdir2, e)
+        libs = collect_all(e, "library_directory(X).")
+        assert len(libs) == 2
+        assert len(e.libs) == 2
+    finally:
+        delete_dir(tempdir1)
+        delete_dir(tempdir2)
