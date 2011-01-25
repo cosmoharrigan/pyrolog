@@ -296,3 +296,26 @@ def test_recursive_use_module():
     :- use_module(m).
     """)
     delete_file(mod)
+
+def test_impl_module():
+    from prolog.builtin.modules import impl_use_module
+    from prolog.interpreter.heap import Heap
+    filecontent = """
+    :- module(blub, []).
+    """
+    e = Engine()
+    h = Heap()
+    create_file("blub.pl", filecontent)
+    try:
+        impl_use_module(e, h, "blub.pl")
+        assert "blub" in e.modules.keys()
+    finally:
+        delete_file("blub.pl")
+
+    create_file("blub", filecontent)
+    e.modules = {}
+    try:
+        impl_use_module(e, h, "blub")
+        assert "blub" in e.modules.keys()
+    finally:
+        delete_file("blub")
