@@ -297,6 +297,26 @@ def test_recursive_use_module():
     """)
     delete_file(mod)
 
+def test_use_same_module_twice():
+    # if this test fails, one will recognize it by
+    # waiting very long ...
+    e = get_engine(
+    """
+    :- use_module(m1).
+    :- use_module(m2).
+    h(X) :- g(X), f(X).
+    """,
+    m1 = """
+    :- module(m1, [f/1]).
+    f(a).
+    """,
+    m2 = """
+    :- module(m2, [g/1]).
+    :- use_module(m1).
+    g(X) :- f(X).
+    """)
+    assert_true("h(X), X == a.", e)
+
 def test_impl_module():
     from prolog.builtin.modules import impl_use_module
     from prolog.interpreter.heap import Heap
