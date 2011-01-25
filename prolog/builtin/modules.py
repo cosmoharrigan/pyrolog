@@ -10,7 +10,9 @@ def impl_module(engine, heap, name, exports):
 
 @expose_builtin("use_module", unwrap_spec = ["atom"])
 def impl_use_module(engine, heap, modulename):
-    if not modulename in engine.modules.keys(): # prevent recursive imports
+    try:
+        engine.modules[modulename] # prevent recursive imports
+    except KeyError:
         current_module = engine.current_module
         file_content = get_source(modulename)
         engine.runstring(file_content)

@@ -6,6 +6,7 @@ class Module(object):
         self.name = name
         self.functions = {}
         self.exports = []
+        self.flags = {}
 
     def fetch_function(self, signature):
         sig = Signature.getsignature(signature.name, signature.numargs)

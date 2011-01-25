@@ -80,6 +80,7 @@ class Engine(object):
         self.user_module = Module("user")
         self.modules = {"user": self.user_module}
         self.current_module = self.user_module
+        self.flags = {}
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
