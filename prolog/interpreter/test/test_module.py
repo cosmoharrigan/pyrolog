@@ -44,7 +44,7 @@ def test_use_module_with_file():
 def test_module_uses():
     e = get_engine("""
     :- use_module(b).
-    """, True,
+    """,
     a = """
     :- module(a, [h/1]).
     h(z).
@@ -62,7 +62,7 @@ def test_fetch_function():
     e = get_engine("""
     :- use_module(m).
     f(a) :- g(a, b).
-    """, True,
+    """,
     m = """
     :- module(m, [g/2]).
     g(a, b).
@@ -88,7 +88,7 @@ def test_modules_use_module():
     f(X) :- g(X).
     f(b).
     h(a).
-    """, True,
+    """,
     m = """
     :- module(m, [g/1]).
     g(a).
@@ -106,7 +106,7 @@ def test_modules_integration():
     f(X) :- g(X).
     h(b).
     both(X, Y) :- f(X), h(Y).
-    """, True, 
+    """,
     m = """
     :- module(m, [g/1]).
     g(X) :- h(X).
@@ -121,7 +121,7 @@ def test_builtin_module_or():
     :- use_module(m).
     t :- h, x.
     x.
-    """, True,
+    """,
     m = """
     :- module(m, [h/0]).
     h :- f; g.
@@ -135,7 +135,7 @@ def test_builtin_module_and():
     :- use_module(m).
     t :- h, x.
     x.
-    """, True,
+    """,
     m = """
     :- module(m, [h/0]).
     h :- f, g.
@@ -149,7 +149,7 @@ def test_catch_error():
     :- use_module(m).
     h :- catch(f, X, g).
     g.
-    """, True,
+    """,
     m = """
     :- module(m, [f/0]).
     f :- throw(foo).
@@ -160,7 +160,7 @@ def test_abolish():
     e = get_engine("""
     :- use_module(m).
     f(a).
-    """, True,
+    """,
     m = """
     :- module(m, [g/1]).
     g(a).
@@ -183,7 +183,7 @@ def test_if():
         -> g(X)
         ; h(X)).
     g(c).
-    """, True,
+    """,
     m = """
     :- module(m, [h/1]).
     h(a).
@@ -197,7 +197,7 @@ def test_once():
     :- use_module(m).
     x :- f, h.
     h.
-    """, True,
+    """,
     m = """
     :- module(m, [f/0]).
     f :- once(g).
@@ -209,7 +209,7 @@ def test_module_switch_1():
     e = get_engine("""
     :- use_module(m).
     :- module(m).
-    """, True,
+    """,
     m = """
     :- module(m, [g/0]).
     g.
@@ -224,7 +224,7 @@ def test_module_switch_2():
     :- use_module(m).
     f.
     :- module(m).
-    """, True,
+    """,
     m = """
     :- module(m, []).
     g.
@@ -328,7 +328,7 @@ def test_impl_module():
     h = Heap()
     create_file("blub.pl", filecontent)
     try:
-        impl_use_module(e, h, "blub.pl")
+        impl_use_module(e, e.user_module, h, "blub.pl")
         assert "blub" in e.modules.keys()
     finally:
         delete_file("blub.pl")
@@ -336,7 +336,7 @@ def test_impl_module():
     create_file("blub", filecontent)
     e.modules = {}
     try:
-        impl_use_module(e, h, "blub")
+        impl_use_module(e, e.user_module, h, "blub")
         assert "blub" in e.modules.keys()
     finally:
         delete_file("blub")

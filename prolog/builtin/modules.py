@@ -7,27 +7,26 @@ from prolog.interpreter import continuation
 
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
-    engine.add_module(name, exports)    
+    engine.add_module(name, exports)
 
-@expose_builtin("use_module", unwrap_spec=["atom"])
-def impl_use_module(engine, heap, path):
-    try:
-        engine.modules[path] # prevent recursive imports
-    except KeyError:
+@expose_builtin("use_module", unwrap_spec=["atom"], needs_module=True)
+def impl_use_module(engine, heap, module, path):
+    from os.path import basename
+    modulename = basename(path)
+    if path.endswith(".pl"):
+        modulename = modulename[:len(modulename) - 3]
+    if modulename not in engine.modules: # prevent recursive imports
         current_module = engine.current_module
         file_content = get_source(path)
         engine.runstring(file_content)
-        engine.set_current_module(current_module.name)
+        module = engine.current_module = current_module
         # XXX should use name argument of module here like SWI
-        from os.path import basename
-        modulename = basename(path)
-        if path.endswith(".pl"):
-            modulename = modulename[:len(modulename) - 3]
-        engine.current_module.use_module(engine, modulename)
+    imported_module = engine.modules[modulename]
+    module.use_module(engine, imported_module)
 
 @expose_builtin("module", unwrap_spec=["atom"])
 def impl_module_1(engine, heap, name):
-    engine.set_current_module(name)   
+    engine.set_current_module(name)
 
 @expose_builtin(":", unwrap_spec=["atom", "callable"], 
         handles_continuation=True)

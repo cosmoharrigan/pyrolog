@@ -207,6 +207,7 @@ class Engine(object):
             module = Module(modulename)
             self.modules[modulename] = module
             self.current_module = module
+        return self.current_module
      
     # _____________________________________________________
     # error handling
