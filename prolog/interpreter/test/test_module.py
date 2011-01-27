@@ -55,7 +55,6 @@ def test_module_uses():
     f(X) :- h(X).
     g(a).
     """)
-
     assert len(e.modules) == 3
 
 def test_fetch_function():
@@ -68,19 +67,18 @@ def test_fetch_function():
     g(a, b).
     h(w).
     """)
-
     f_sig = Signature.getsignature("f", 1)
     g_sig = Signature.getsignature("g", 2)
     h_sig = Signature.getsignature("h", 1)
     user = e.modules["user"]
     m = e.modules["m"]
 
-    assert user.fetch_function(f_sig) == user.functions[f_sig]
-    assert user.fetch_function(g_sig) == m.functions[g_sig]
-    assert user.fetch_function(h_sig) is None
-    assert m.fetch_function(g_sig) == m.functions[g_sig]
-    assert m.fetch_function(f_sig) is None
-    assert m.fetch_function(h_sig) == m.functions[h_sig]
+    assert user.fetch_function(e, f_sig) == e.module_functions["user"][f_sig]
+    assert user.fetch_function(e, g_sig) == e.module_functions["m"][g_sig]
+    assert user.fetch_function(e, h_sig) is None
+    assert m.fetch_function(e, g_sig) == e.module_functions["m"][g_sig]
+    assert m.fetch_function(e, f_sig) is None
+    assert m.fetch_function(e, h_sig) == e.module_functions["m"][h_sig]
 
 def test_modules_use_module():
     e = get_engine("""
@@ -293,10 +291,63 @@ def test_recursive_use_module():
     :- use_module(m).
     """)
 
+    try:
+        e = get_engine("""
+        :- use_module(m).
+        """)
+    finally:
+        delete_file(mod)
+
+def test_alternating_recursive_import():
     e = get_engine("""
-    :- use_module(m).
+    :- use_module(m1).
+    """, True,
+    m1 = """
+    :- module(m1, [f/1]).
+    :- use_module(m2).
+    f(a).
+    """,
+    m2 = """
+    :- module(m2, [g/1]).
+    :- use_module(m1).
+    g(b).
     """)
-    delete_file(mod)
+    assert_true("f(X), X = a.", e)
+    prolog_raises("existence_error(X, Y)", "g(X)", e)
+
+def test_recursive_ring_import():
+    e = get_engine("""
+    :- use_module(m1).
+    z(a).
+    """, True,
+    m1 = """
+    :- module(m1, [f/1]).
+    :- use_module(m2).
+    f(a).
+    """,
+    m2 = """
+    :- module(m2, [g/1]).
+    :- use_module(m3).
+    g(a).
+    """, 
+    m3 = """
+    :- module(m3, [h/1]).
+    :- use_module(m1).
+    h(a).
+    """)
+    assert len(e.modules) == 4
+    assert len(e.modules["user"].functions) == 2
+    assert len(e.modules["m1"].functions) == 2
+    assert len(e.modules["m2"].functions) == 2
+    assert len(e.modules["m3"].functions) == 2
+    assert_true("z(a).", e)
+    assert_true("f(a).", e)
+    assert_true("m1:f(a).", e)
+    assert_true("m1:g(a).", e)
+    assert_true("m2:g(a).", e)
+    assert_true("m2:h(a).", e)
+    assert_true("m3:h(a).", e)
+    assert_true("m3:f(a).", e)
 
 def test_use_same_module_twice():
     # if this test fails, one will recognize it by
@@ -306,7 +357,7 @@ def test_use_same_module_twice():
     :- use_module(m1).
     :- use_module(m2).
     h(X) :- g(X), f(X).
-    """,
+    """, True,
     m1 = """
     :- module(m1, [f/1]).
     f(a).
@@ -318,7 +369,7 @@ def test_use_same_module_twice():
     """)
     assert_true("h(X), X == a.", e)
 
-def test_impl_module():
+def test_impl_use_module():
     from prolog.builtin.modules import impl_use_module
     from prolog.interpreter.heap import Heap
     filecontent = """
@@ -334,6 +385,7 @@ def test_impl_module():
         delete_file("blub.pl")
 
     create_file("blub", filecontent)
+    e.module_imports["user"] = {}
     e.modules = {}
     try:
         impl_use_module(e, h, "blub")

@@ -78,7 +78,9 @@ class Engine(object):
         self.parser = None
         self.operations = None
         self.user_module = Module("user")
-        self.modules = {"user": self.user_module}
+        self.modules = {"user": self.user_module} # all known modules
+        self.module_imports = {"user": {}}      # mapping of modules to imported modules
+        self.module_functions = {"user": {}}    # the functions a module sees
         self.current_module = self.user_module
         self.libs = {}
         from prolog.builtin.statistics import Clocks
@@ -116,10 +118,11 @@ class Engine(object):
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
         try:
-            function = self.current_module.functions[signature]
+            function = self.module_functions[self.current_module.name][signature]
         except KeyError:
             function = Function(self.current_module.name)
-            self.current_module.functions[signature] = function
+            self.current_module.functions[signature] = self.current_module.name
+            self.module_functions[self.current_module.name][signature] = function
         return function
             
 
@@ -174,7 +177,7 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
-        function = module.fetch_function(signature)
+        function = module.fetch_function(self, signature)
         if function is None:
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
@@ -195,6 +198,8 @@ class Engine(object):
     def add_module(self, name, exports = []):
         mod = Module(name)
         self.modules[name] = mod
+        self.module_imports[name] = {}
+        self.module_functions[name] = {}
         self.current_module = mod
         for export in exports:
             mod.exports.append(Signature.getsignature(
@@ -206,6 +211,7 @@ class Engine(object):
         except KeyError:
             module = Module(modulename)
             self.modules[modulename] = module
+            self.module_functions[modulename] = {}
             self.current_module = module
      
     # _____________________________________________________

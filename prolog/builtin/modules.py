@@ -11,18 +11,22 @@ def impl_module(engine, heap, name, exports):
 
 @expose_builtin("use_module", unwrap_spec=["atom"])
 def impl_use_module(engine, heap, path):
+    from os.path import basename
+    modulename = basename(path)
+    if path.endswith(".pl"):
+        modulename = modulename[:len(modulename) - 3]
+    current_module = engine.current_module
     try:
-        engine.modules[path] # prevent recursive imports
+        # check whether the current module has already imported that module
+        engine.module_imports[current_module.name][modulename]
     except KeyError:
-        current_module = engine.current_module
-        file_content = get_source(path)
-        engine.runstring(file_content)
+        try:
+            engine.modules[modulename]
+        except KeyError:
+            file_content = get_source(path)
+            engine.runstring(file_content)
         engine.set_current_module(current_module.name)
         # XXX should use name argument of module here like SWI
-        from os.path import basename
-        modulename = basename(path)
-        if path.endswith(".pl"):
-            modulename = modulename[:len(modulename) - 3]
         engine.current_module.use_module(engine, modulename)
 
 @expose_builtin("module", unwrap_spec=["atom"])
