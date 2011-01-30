@@ -67,8 +67,8 @@ def delete_dir(name):
     current_dir = os.path.abspath(name)
     items = os.listdir(current_dir)
     for item in items:
-        abspath = os.path.abspath(item)
-        if os.isfile(abspath):
+        abspath = current_dir + "/" + item
+        if os.path.isfile(abspath):
             delete_file(abspath)
         else:
             delete_dir(abspath)

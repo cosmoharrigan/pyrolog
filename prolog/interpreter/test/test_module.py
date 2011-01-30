@@ -379,7 +379,7 @@ def test_impl_use_module():
     h = Heap()
     create_file("blub.pl", filecontent)
     try:
-        impl_use_module(e, h, "blub.pl")
+        impl_use_module(e, h, term.Callable.build("blub.pl"))
         assert "blub" in e.modules.keys()
     finally:
         delete_file("blub.pl")
@@ -388,7 +388,7 @@ def test_impl_use_module():
     e.module_imports["user"] = {}
     e.modules = {}
     try:
-        impl_use_module(e, h, "blub")
+        impl_use_module(e, h, term.Callable.build("blub"))
         assert "blub" in e.modules.keys()
     finally:
         delete_file("blub")
@@ -431,3 +431,43 @@ def test_library_directory():
     finally:
         delete_dir(tempdir1)
         delete_dir(tempdir2)
+
+def test_library_with_files():
+    from os.path import abspath
+    e = Engine()
+    tempdir = "__tempdir__"
+    mod1 = "m1"
+    mod2 = "m2.pl"
+
+    create_dir(tempdir)
+    create_file("%s/%s" % (tempdir, mod1), "")
+    create_file("%s/%s" % (tempdir, mod2), "")
+
+    try:
+        assert_true("add_library_dir('%s')." % tempdir, e)
+        assert len(e.libs) == 1
+        path = abspath(tempdir)
+        assert "m1" in e.libs[path]
+        assert "m2" in e.libs[path]
+    finally:
+        delete_dir(tempdir)
+
+def test_library():
+    tempdir = "__tempdir__"
+    mod = "m"
+
+    create_dir(tempdir)
+    create_file(tempdir + "/" + mod, """
+    :- module(m, [f/1]).
+    f(a).
+    g.
+    """)
+
+    try:
+        e = get_engine(":- add_library_dir('%s')." % tempdir)
+        assert len(e.libs) == 1
+        assert_true("use_module(library('%s'))." % mod, e)
+        assert_true("f(a).", e)
+        prolog_raises("existence_error(X, Y)", "g", e)
+    finally:
+        delete_dir(tempdir)
