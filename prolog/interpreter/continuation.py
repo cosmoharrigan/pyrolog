@@ -136,7 +136,7 @@ class Engine(object):
             self.add_rule(term)
         return self.parser
 
-    def runstring(self, s, module = None):
+    def runstring(self, s):
         from prolog.interpreter.parsing import parse_file
         trees = parse_file(s, self.parser, Engine._build_and_run, self)
 
