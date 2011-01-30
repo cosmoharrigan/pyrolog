@@ -298,6 +298,13 @@ def test_recursive_use_module():
         delete_file(mod)
 
 def test_alternating_recursive_import():
+    mod = "m2"
+    create_file(mod, """
+    :- module(m2, [g/1]).
+    :- use_module(m1).
+    g(b).
+    """)
+    
     e = get_engine("""
     :- use_module(m1).
     """,
@@ -305,16 +312,29 @@ def test_alternating_recursive_import():
     :- module(m1, [f/1]).
     f(a).
     :- use_module(m2).
-    """,
-    m2 = """
-    :- module(m2, [g/1]).
-    :- use_module(m1).
-    g(b).
     """)
-    assert_true("f(X), X = a.", e)
-    prolog_raises("existence_error(X, Y)", "g(X)", e)
+    try:
+        assert_true("f(X), X = a.", e)
+        prolog_raises("existence_error(X, Y)", "g(X)", e)
+    finally:
+        delete_file(mod)
 
 def test_recursive_ring_import():
+    mod2 = "m2"
+    mod3 = "m3"
+
+    create_file(mod2, """
+    :- module(m2, [g/1]).
+    :- use_module(m3).
+    g(a).
+    """)
+
+    create_file(mod3, """
+    :- module(m3, [h/1]).
+    :- use_module(m1).
+    h(a).
+    """)
+
     e = get_engine("""
     :- use_module(m1).
     z(a).
@@ -323,30 +343,24 @@ def test_recursive_ring_import():
     :- module(m1, [f/1]).
     f(a).
     :- use_module(m2).
-    """,
-    m2 = """
-    :- module(m2, [g/1]).
-    :- use_module(m3).
-    g(a).
-    """,
-    m3 = """
-    :- module(m3, [h/1]).
-    :- use_module(m1).
-    h(a).
     """)
-    assert len(e.modules) == 4
-    assert len(e.modules["user"].functions) == 2
-    assert len(e.modules["m1"].functions) == 2
-    assert len(e.modules["m2"].functions) == 2
-    assert len(e.modules["m3"].functions) == 2
-    assert_true("z(a).", e)
-    assert_true("f(a).", e)
-    assert_true("m1:f(a).", e)
-    assert_true("m1:g(a).", e)
-    assert_true("m2:g(a).", e)
-    assert_true("m2:h(a).", e)
-    assert_true("m3:h(a).", e)
-    assert_true("m3:f(a).", e)
+    try:
+        assert len(e.modules) == 4
+        assert len(e.modules["user"].functions) == 2
+        assert len(e.modules["m1"].functions) == 2
+        assert len(e.modules["m2"].functions) == 2
+        assert len(e.modules["m3"].functions) == 2
+        assert_true("z(a).", e)
+        assert_true("f(a).", e)
+        assert_true("m1:f(a).", e)
+        assert_true("m1:g(a).", e)
+        assert_true("m2:g(a).", e)
+        assert_true("m2:h(a).", e)
+        assert_true("m3:h(a).", e)
+        assert_true("m3:f(a).", e)
+    finally:
+        delete_file(mod2)
+        delete_file(mod3)
 
 def test_use_same_module_twice():
     # if this test fails, one will recognize it by

@@ -200,14 +200,13 @@ class Engine(object):
             mod.exports.append(Signature.getsignature(
                     *unwrap_predicate_indicator(export)))
 
-    def set_current_module(self, modulename):
+    def switch_module(self, modulename):
         try:
             self.current_module = self.modules[modulename]
         except KeyError:
             module = Module(modulename)
             self.modules[modulename] = module
             self.current_module = module
-        return self.current_module
 
     # _____________________________________________________
     # error handling

@@ -40,7 +40,7 @@ def impl_use_module(engine, heap, module, path):
 
 @expose_builtin("module", unwrap_spec=["atom"])
 def impl_module_1(engine, heap, name):
-    engine.set_current_module(name)
+    engine.switch_module(name)
 
 @expose_builtin(":", unwrap_spec=["atom", "callable"], 
         handles_continuation=True)
