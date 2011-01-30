@@ -76,6 +76,4 @@ class TestLLtype(LLJitMixin):
         option.view = False
         option.viewloops = True
         self.meta_interp(interp_w, [6], listcomp=True, backendopt=True,
-                         listops=True, optimizer=OPTIMIZER_FULL)
-        #self.meta_interp(interp_w, [3], listcomp=True,
-        #                 listops=True, optimizer=OPTIMIZER_FULL)
+                         listops=True, optimizer=OPTIMIZER_FULL, view=True)

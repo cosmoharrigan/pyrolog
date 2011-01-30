@@ -42,7 +42,7 @@ def impl_retract(engine, heap, module, pattern):
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = module.fetch_function(head.signature())
+    function = module.fetch_function(engine, head.signature())
     if function is None:
         raise error.UnificationFailed
     rulechain = function.rulechain
