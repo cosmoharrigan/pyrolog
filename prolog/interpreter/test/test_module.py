@@ -483,3 +483,45 @@ def test_library():
         prolog_raises("existence_error(X, Y)", "g", e)
     finally:
         delete_dir(tempdir)
+
+def test_import_list_simple():
+    e = get_engine("""
+    :- use_module(m, [f/1, g/0]).
+    h(X) :- f(X), g.
+    """,
+    m = """
+    :- module(m, [f/1, g/0]).
+    f(a).
+    g.
+    q.
+    """)
+    assert_true("h(a).", e)
+    prolog_raises("existence_error(X, Y)", "q", e)
+
+def test_empty_import_list():
+    e = get_engine("""
+    :- use_module(m, []).
+    """,
+    m = """
+    :- module(m, [f/1, g/0]).
+    f(a).
+    g.
+    q.
+    """)
+    assert len(e.modules["user"].functions) == 0
+    prolog_raises("existence_error(X, Y)", "f(a)", e)
+    prolog_raises("existence_error(X, Y)", "g", e)
+    prolog_raises("existence_error(X, Y)", "q", e)
+
+def test_nonexisting_predicates_in_import_list():
+    e = get_engine("""
+    :- use_module(m, [z/0, g/1]).
+    """,
+    m = """
+    :- module(m, [f/1, g/0]).
+    f(a).
+    g.
+    q.
+    """)
+    prolog_raises("existence_error(X, Y)", "z", e)
+    prolog_raises("existence_error(X, Y)", "g(A)", e)

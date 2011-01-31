@@ -4,14 +4,14 @@ from prolog.interpreter.term import Atom, Callable, Var, Term
 from prolog.interpreter import error
 from prolog.builtin.sourcehelper import get_source
 from prolog.interpreter import continuation
-from prolog.interpreter.helper import is_term
+from prolog.interpreter.helper import is_term, unwrap_predicate_indicator
+from prolog.interpreter.signature import Signature
 
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
 
-@expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
-def impl_use_module(engine, heap, module, path):
+def handle_use_module(engine, heap, module, path, imports=None):
     if is_term(path):
         if path.name() == "library":
             import os
@@ -23,6 +23,7 @@ def impl_use_module(engine, heap, module, path):
                     break
                 except KeyError:
                     pass
+
     if isinstance(path, Atom):
         from os.path import basename
         path = path.name()
@@ -36,7 +37,19 @@ def impl_use_module(engine, heap, module, path):
             module = engine.current_module = current_module
             # XXX should use name argument of module here like SWI
         imported_module = engine.modules[modulename]
-        module.use_module(engine, imported_module)
+        module.use_module(engine, imported_module, imports)
+
+@expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
+def impl_use_module(engine, heap, module, path):
+    handle_use_module(engine, heap, module, path)
+
+@expose_builtin("use_module", unwrap_spec=["obj", "list"], needs_module=True)
+def impl_use_module_with_importlist(engine, heap, module, path, imports):
+    importlist = []
+    for sigatom in imports:
+        importlist.append(Signature.getsignature(
+                *unwrap_predicate_indicator(sigatom)))
+    handle_use_module(engine, heap, module, path, importlist)
 
 @expose_builtin("module", unwrap_spec=["atom"])
 def impl_module_1(engine, heap, name):

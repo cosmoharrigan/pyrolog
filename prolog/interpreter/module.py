@@ -13,6 +13,13 @@ class Module(object):
         except KeyError:
             return None
 
-    def use_module(self, engine, module):
-        for sig in module.exports:
-            self.functions[sig] = module.functions[sig]
+    def use_module(self, engine, module, imports=None):
+        if imports is None:
+            importlist = module.exports
+        else:
+            importlist = imports
+        for sig in importlist:
+            try:
+                self.functions[sig] = module.functions[sig]
+            except KeyError:
+                pass
