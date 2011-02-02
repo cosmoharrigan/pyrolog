@@ -21,7 +21,7 @@ def impl_open(engine, heap, srcpath, mode, stream):
         else:
             cls = PrologOutputStream
         prolog_stream = cls(open_file_as_stream(srcpath, mode, False))
-        engine.streams[prolog_stream.fd] = prolog_stream
+        engine.streamwrapper.streams[prolog_stream.fd] = prolog_stream
         stream.unify(prolog_stream, heap)
     except KeyError:
         error.throw_domain_error("io_mode", term.Callable.build(mode))
@@ -30,7 +30,7 @@ def impl_open(engine, heap, srcpath, mode, stream):
 
 @expose_builtin("close", unwrap_spec=["stream"])
 def impl_close(engine, heap, stream):
-    engine.streams.pop(stream).close()
+    engine.streamwrapper.streams.pop(stream).close()
 
 def read_unicode_char(stream):
     c = stream.read(1)
@@ -42,11 +42,7 @@ def read_unicode_char(stream):
 
 @expose_builtin("get_char", unwrap_spec=["stream", "obj"])
 def impl_get_char(engine, heap, fd, obj):
-    stream = engine.streams[fd]
+    stream = engine.streamwrapper.streams[fd]
     if isinstance(stream, PrologInputStream):
         char = read_unicode_char(stream)
         obj.unify(term.Callable.build(char), heap)
-        
-
-
-

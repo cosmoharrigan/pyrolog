@@ -9,10 +9,10 @@ prolog_raises, assert_true, assert_false
 
 def test_current_stream_after_startup():
     e = get_engine("")
-    assert isinstance(e.current_instream, PrologInputStream)
-    assert isinstance(e.current_outstream, PrologOutputStream)
-    assert e.current_instream.fd() == 0
-    assert e.current_outstream.fd() == 1
+    assert isinstance(e.streamwrapper.current_instream, PrologInputStream)
+    assert isinstance(e.streamwrapper.current_outstream, PrologOutputStream)
+    assert e.streamwrapper.current_instream.fd() == 0
+    assert e.streamwrapper.current_outstream.fd() == 1
 
 def test_open():
     src = "__src__"
@@ -21,7 +21,7 @@ def test_open():
     try:
         e = Engine()
         assert_true("open('%s', read, S)." % src, e)
-        assert len(e.streams) == 3
+        assert len(e.streamwrapper.streams) == 3
 
         prolog_raises("existence_error(X, Y)", "open('does_not_exist', read, S)")
         prolog_raises("type_error(X, Y)", "open('%s', read, a)" % src)
@@ -39,9 +39,9 @@ def test_close():
         e = get_engine("""
         :- open('%s', read, S), close(S).
         """ % src)
-        assert len(e.streams) == 2
-        assert 0 in e.streams
-        assert 1 in e.streams
+        assert len(e.streamwrapper.streams) == 2
+        assert 0 in e.streamwrapper.streams
+        assert 1 in e.streamwrapper.streams
         prolog_raises("instantiation_error", "close(X)")
         prolog_raises("domain_error(stream, Y)", "close(a)")
     finally:
