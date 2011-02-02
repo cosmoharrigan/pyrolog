@@ -4,6 +4,8 @@ from prolog.interpreter.term import Atom, Var, Number, Callable, Term
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter.helper import is_term
+from prolog.interpreter.stream import PrologStream, PrologInputStream, \
+PrologOutputStream
 
 def test_atom():
     a = Callable.build("hallo")
@@ -46,6 +48,17 @@ def test_term():
     t1.unify(t2, heap)
     assert X.getvalue(heap).name()== "HALLO"
     assert Y.getvalue(heap).name()== "hallo"
+
+def test_stream():
+    out1 = PrologOutputStream(17)
+    out2 = PrologOutputStream(17)
+    out1.unify(out2, None)
+    py.test.raises(UnificationFailed,
+            "PrologInputStream(1).unify(PrologInputStream(2), None)")
+    X = Var()
+    heap = Heap()
+    X.unify(out1, heap)
+    assert X.getvalue(heap).fd == out1.fd
 
 def test_enumerate_vars():
     from prolog.interpreter.memo import EnumerationMemo
