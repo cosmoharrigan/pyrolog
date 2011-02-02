@@ -51,13 +51,13 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
         subargs.append(varname)
-        if spec in ("obj", "callable", "int", "atom", "arithmetic"):
+        if spec in ("obj", "callable", "int", "atom", "arithmetic", "stream"):
             code.append("    %s = query.argument_at(%s).dereference(heap)" %
                         (varname, i))
         elif spec in ("concrete", "list"):
             code.append("    %s = query.argument_at(%s).getvalue(heap)" %
                         (varname, i))
-        if spec in ("int", "atom", "arithmetic", "list"):
+        if spec in ("int", "atom", "arithmetic", "list", "stream"):
             code.append(
                 "    if isinstance(%s, term.Var):" % (varname,))
             code.append(
@@ -86,6 +86,8 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
                         (varname, varname))
         elif spec == "list":
             code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
+        elif spec == "stream":
+            code.append("    %s = helper.unwrap_stream(%s)" % (varname, varname))
         else:
             assert 0, "not implemented " + spec
     if needs_module:

@@ -11,6 +11,7 @@ from prolog.interpreter.signature import Signature
 from prolog.interpreter.module import Module
 from prolog.interpreter.helper import unwrap_predicate_indicator
 from prolog.interpreter.stream import PrologInputStream, PrologOutputStream
+from pypy.rlib.streamio import fdopen_as_stream
 
 Signature.register_extr_attr("function", engine=True)
 
@@ -87,10 +88,10 @@ class Engine(object):
         self.clocks.startup()
         # XXX use 0 and 1 instead of sys.stdin.fileno() and sys.stdout.fileno()
         # because otherwise problems at testing occur
-        self.current_instream = PrologInputStream(0)
-        self.current_outstream = PrologOutputStream(1)
-        self.streams = {self.current_instream.fd: self.current_instream,
-                        self.current_outstream.fd: self.current_outstream}
+        self.current_instream = PrologInputStream(fdopen_as_stream(0, "r", False))
+        self.current_outstream = PrologOutputStream(fdopen_as_stream(1, "w", False))
+        self.streams = {self.current_instream.fd(): self.current_instream,
+                        self.current_outstream.fd(): self.current_outstream}
     # _____________________________________________________
     # database functionality
 
