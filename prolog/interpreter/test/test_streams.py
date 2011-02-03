@@ -50,7 +50,6 @@ def test_close():
 def test_get_char():
     src = "__src__"
     create_file(src, "aü½")
-
     try:
         assert_true("""
         open('%s', read, S),
@@ -78,3 +77,77 @@ def test_get_char_at_eof():
     finally:
         delete_file(src)
 
+def test_get_byte():
+    src = "__src__"
+    create_file(src, "\xa4\x17\xcf")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        get_byte(S, B), B = 164,
+        get_byte(S, C), C = 23,
+        get_byte(S, D), D = 207,
+        get_byte(S, E), E = -1,
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_get_code():
+    src = "__src__"
+    create_file(src, "a1¼")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        get_code(S, B), B = 97,
+        get_code(S, C), C = 49,
+        get_code(S, D), D = 194,
+        get_code(S, E), E = 188,
+        get_code(S, F), F = -1,
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_at_end_of_stream_1():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        get_byte(S, B1),
+        get_byte(S, B2),
+        get_byte(S, B3),
+        at_end_of_stream(S),
+        close(S).
+        """ % src)
+        assert_false("""
+        open('%s', read, S),
+        get_byte(S, B1),
+        get_byte(S, B2),
+        at_end_of_stream(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_at_end_of_stream_or():
+    src = "__src__"
+    create_file(src, "a")
+    try:
+        assert_false("""
+        open('%s', read, S),
+        (at_end_of_stream(S); at_end_of_stream(S)).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_at_end_of_stream_empty():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        at_end_of_stream(S),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)

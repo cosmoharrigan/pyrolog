@@ -69,7 +69,7 @@ class OrContinuation(continuation.FailureContinuation):
         return self.orig_fcont.cut(heap)
 
     def fail(self, heap):
-        assert self.undoheap is not None
+        #assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         self.undoheap = None
         return self.engine.continue_(self, self.orig_fcont, heap)

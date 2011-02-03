@@ -23,6 +23,9 @@ class PrologStream(NonVar):
     def fd(self):   
         return self.stream.fd
 
+    def seek(self, offset, how):
+        self.stream.seek(offset, how)
+
     def close(self):
         self.stream.close()
 

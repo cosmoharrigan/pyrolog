@@ -46,3 +46,31 @@ def impl_get_char(engine, heap, fd, obj):
     if isinstance(stream, PrologInputStream):
         char = read_unicode_char(stream)
         obj.unify(term.Callable.build(char), heap)
+
+@expose_builtin("get_byte", unwrap_spec=["stream", "obj"])
+def impl_get_byte(engine, heap, fd, obj):
+    stream = engine.streamwrapper.streams[fd]
+    if isinstance(stream, PrologInputStream):
+        byte = stream.read(1)
+        if byte != '':
+            code = ord(byte)
+        else:
+            code = -1
+        obj.unify(term.Number(code), heap)
+
+@expose_builtin("get_code", unwrap_spec=["stream", "obj"])
+def impl_get_code(engine, heap, fd, obj):
+    impl_get_byte(engine, heap, fd, obj)
+
+@expose_builtin("at_end_of_stream", unwrap_spec=["stream"])
+def impl_at_end_of_stream(engine, heap, fd):
+    stream = engine.streamwrapper.streams[fd]
+    byte = stream.read(1)
+    import os
+    try:
+        stream.seek(-1, os.SEEK_CUR)
+    except OSError: # if the current postion is the beginning
+        pass
+    if byte == "":
+        return
+    raise error.UnificationFailed()
