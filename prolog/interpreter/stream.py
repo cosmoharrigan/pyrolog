@@ -39,3 +39,6 @@ class PrologInputStream(PrologStream):
 class PrologOutputStream(PrologStream):
     def __init__(self, fd):
         PrologStream.__init__(self, fd)
+
+    def write(self, data):
+        self.stream.write(data)

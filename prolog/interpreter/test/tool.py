@@ -73,3 +73,10 @@ def delete_dir(name):
         else:
             delete_dir(abspath)
     os.rmdir(current_dir)
+
+def file_content(src):
+    f = open(src)
+    data = f.read()
+    f.close()
+    return data
+

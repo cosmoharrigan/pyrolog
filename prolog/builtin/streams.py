@@ -101,3 +101,15 @@ def impl_peek_byte(engine, heap, stream, obj):
 @expose_builtin("peek_code", unwrap_spec=["stream", "obj"])
 def impl_peek_code(engine, heap, stream, obj):
     impl_peek_byte(engine, heap, stream, obj)
+
+@expose_builtin("put_char", unwrap_spec=["stream", "atom"])
+def impl_put_char(engine, heap, stream, atom):
+    length = len(atom)
+    if length == 1:
+        stream.write(atom)
+        return
+    elif length == 2:
+        if ord(atom[0]) > 127: # not ASCII
+            stream.write(atom)
+            return
+    error.throw_type_error("character", term.Callable.build(atom))

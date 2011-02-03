@@ -5,7 +5,7 @@ from prolog.interpreter.continuation import Engine
 from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.stream import PrologInputStream , PrologOutputStream
 from prolog.interpreter.test.tool import create_file, delete_file, \
-prolog_raises, assert_true, assert_false
+prolog_raises, assert_true, assert_false, file_content
 
 def test_current_stream_after_startup():
     e = get_engine("")
@@ -233,3 +233,33 @@ def test_peek_code():
     finally:
         delete_file(src)
         delete_file(empty)
+
+def test_put_char():
+    src = "__src__"
+    target = "__target__"
+    content = "aö½"
+    create_file(src, content)
+    create_file(target, "")
+    try:
+        assert_true("""
+        open('%s', read, R), open('%s', write, W),
+        get_char(R, C1), put_char(W, C1),
+        get_char(R, C2), put_char(W, C2),
+        get_char(R, C3), put_char(W, C3),
+        close(R), close(W).
+        """ % (src, target))
+        assert content == file_content(src)
+    finally:
+        delete_file(src)
+        delete_file(target)
+
+def test_put_char_type_error():
+    src = "__src__"
+    create_file(src, "") 
+    try:
+        prolog_raises("type_error(X, Y)", """
+        open('%s', write, S),
+        put_char(S, aa)
+        """ % src)
+    finally:
+        delete_file(src)
