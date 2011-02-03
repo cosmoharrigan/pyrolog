@@ -80,7 +80,7 @@ def unwrap_predicate_indicator(predicate):
 
 def unwrap_stream(obj):
     if isinstance(obj, PrologStream):
-        return obj.fd
+        return obj
     error.throw_domain_error("stream", obj)
 
 def ensure_atomic(obj):
