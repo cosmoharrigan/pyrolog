@@ -29,6 +29,9 @@ class PrologStream(NonVar):
     def close(self):
         self.stream.close()
 
+    def tell(self):
+        return self.stream.tell()
+
 class PrologInputStream(PrologStream):
     def __init__(self, stream):
         PrologStream.__init__(self, stream)

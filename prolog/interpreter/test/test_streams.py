@@ -385,4 +385,36 @@ def test_set_input_with_output_and_otherway_round():
     finally:
         delete_file(src)
 
+def test_seek():
+    src = "__src__"
+    create_file(src, "\xab\xcd\xef")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        seek(S, 1, current, 1), peek_byte(S, 205),
+        seek(S, -1, current, 0), peek_byte(S, 171),
+        seek(S, -1, eof, 2), peek_byte(S, 239),
+        seek(S, 0, eof, 3), peek_byte(S, -1),
+        seek(S, 0, bof, 0), peek_byte(S, 171),
+        seek(S, -3, eof, 0), peek_byte(S, 171),
+        seek(S, 1000, bof, 1000), peek_byte(S, -1),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
 
+def test_seek_domain_error():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        prolog_raises("domain_error(seek_method, Y)", """
+        open('%s', read, S),
+        seek(S, 1, ajhdsasd, P)
+        """ % src)
+
+        prolog_raises("domain_error(position, X)", """
+        open('%s', read, S),
+        seek(S, -1, bof, A)
+        """ % src)
+    finally:
+        delete_file(src)

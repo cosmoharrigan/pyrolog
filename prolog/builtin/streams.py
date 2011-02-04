@@ -10,6 +10,7 @@ from prolog.interpreter import helper
 import os
 
 rwa = {"read": "r", "write": "w", "append": "a"}
+seek_mode = {"bof": os.SEEK_SET, "current": os.SEEK_CUR, "eof": os.SEEK_END}
 
 @expose_builtin("open", unwrap_spec=["atom", "atom", "obj"])
 def impl_open(engine, heap, srcpath, mode, stream):
@@ -152,3 +153,16 @@ def impl_set_input(engine, heap, stream):
 def impl_set_output(engine, heap, stream):
     validate_stream_mode(stream, "write")
     engine.streamwrapper.current_outstream = stream
+
+@expose_builtin("seek", unwrap_spec=["stream", "int", "atom", "obj"])
+def impl_seek(engine, heap, stream, offset, mode, obj):
+    try:
+        mode = seek_mode[mode]
+    except KeyError:
+        error.throw_domain_error("seek_method", term.Callable.build(mode))
+    try:
+        stream.seek(offset, mode)
+    except OSError:
+        error.throw_domain_error("position", term.Number(offset))
+    pos = int(stream.tell())
+    obj.unify(term.Number(pos), heap)
