@@ -263,3 +263,31 @@ def test_put_char_type_error():
         """ % src)
     finally:
         delete_file(src)
+
+def test_put_byte():
+    target = "__target__"
+    create_file(target, "")
+    try:
+        assert_true("""
+        open('%s', write, S),
+        put_byte(S, 97),
+        put_byte(S, 194),
+        put_byte(S, 165),
+        close(S).
+        """ % target)
+        assert file_content(target) == "a¥"
+    finally:
+        delete_file(target)
+
+def test_put_byte_below_zero():
+    target = "__xxx__"
+    create_file(target, "")
+    try:
+        prolog_raises("type_error(byte, X)", """
+        open('%s', write, S),
+        put_byte(S, -1)
+        """ % target)
+    finally:
+        delete_file(target)
+    
+

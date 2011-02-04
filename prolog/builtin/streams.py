@@ -113,3 +113,10 @@ def impl_put_char(engine, heap, stream, atom):
             stream.write(atom)
             return
     error.throw_type_error("character", term.Callable.build(atom))
+
+@expose_builtin("put_byte", unwrap_spec=["stream", "int"])
+def impl_put_byte(engine, heap, stream, byte):
+    if byte < 0:
+        # XXX have to care about bigints
+        error.throw_type_error("byte", term.Number(byte))
+    stream.write(chr(byte))
