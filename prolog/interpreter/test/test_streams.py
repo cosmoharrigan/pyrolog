@@ -330,3 +330,59 @@ def test_permission_error_when_using_input_as_output_and_otherway_round():
     current_output(S),
     get_char(S, a)
     """)
+
+def test_set_input():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        current_input(S).
+        """ % src, e)
+        assert len(e.streamwrapper.streams) == 3
+        for key in e.streamwrapper.streams.keys():
+            if key not in [0, 1]:
+                fd = key
+                break
+        assert e.streamwrapper.current_instream.fd() == fd
+    finally:
+        delete_file(src)
+
+def test_set_output():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        assert_true("""
+        open('%s', write, S),
+        set_output(S),
+        current_output(S).
+        """ % src, e)
+        assert len(e.streamwrapper.streams) == 3
+        for key in e.streamwrapper.streams.keys():
+            if key not in [0, 1]:
+                fd = key
+                break
+        assert e.streamwrapper.current_outstream.fd() == fd
+    finally:
+        delete_file(src)
+
+def test_set_input_with_output_and_otherway_round():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        prolog_raises("permission_error(X, Y, Z)", """
+        open('%s', write, S),
+        set_input(S)
+        """ % src)
+        
+        prolog_raises("permission_error(X, Y, Z)", """
+        open('%s', read, S),
+        set_output(S)
+        """ % src)
+    finally:
+        delete_file(src)
+
+

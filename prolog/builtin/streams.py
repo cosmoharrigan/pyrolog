@@ -133,12 +133,22 @@ def impl_put_byte(engine, heap, stream, byte):
 
 @expose_builtin("current_input", unwrap_spec=["obj"])
 def impl_current_input(engine, heap, obj):
-    if not isinstance(obj, term.Var):
+    if not isinstance(obj, term.Var) and not isinstance(obj, PrologStream):
         error.throw_domain_error("stream", obj)
     obj.unify(engine.streamwrapper.current_instream, heap)
 
 @expose_builtin("current_output", unwrap_spec=["obj"])
 def impl_current_output(engine, heap, obj):
-    if not isinstance(obj, term.Var):
+    if not isinstance(obj, term.Var) and not isinstance(obj, PrologStream):
         error.throw_domain_error("stream", obj)
     obj.unify(engine.streamwrapper.current_outstream, heap)
+
+@expose_builtin("set_input", unwrap_spec=["stream"])
+def impl_set_input(engine, heap, stream):
+    validate_stream_mode(stream, "read")
+    engine.streamwrapper.current_instream = stream
+    
+@expose_builtin("set_output", unwrap_spec=["stream"])
+def impl_set_output(engine, heap, stream):
+    validate_stream_mode(stream, "write")
+    engine.streamwrapper.current_outstream = stream
