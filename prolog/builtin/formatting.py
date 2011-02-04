@@ -5,6 +5,7 @@ from prolog.interpreter.term import Float, Number, Var, Atom, Callable
 from prolog.interpreter import error, helper, parsing
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.stream import PrologStream
 
 conssig = Signature.getsignature(".", 2)
 nilsig = Signature.getsignature("[]", 0)
@@ -63,6 +64,8 @@ class TermFormatter(object):
             return self.format_term(term)
         elif isinstance(term, Var):
             return self.format_var(term)
+        elif isinstance(term, PrologStream):
+            return self.format_stream(term)
         else:
             return '?'
 
@@ -101,6 +104,9 @@ class TermFormatter(object):
             return self.format_term_normally(term)
         else:
             return self.format_with_ops(term)[1]
+
+    def format_stream(self, stream):
+        return "'$stream'(%d)" % stream.fd()
 
     def format_with_ops(self, term):
         if not helper.is_term(term):

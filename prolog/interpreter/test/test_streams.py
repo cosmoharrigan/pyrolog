@@ -6,6 +6,9 @@ from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.stream import PrologInputStream , PrologOutputStream
 from prolog.interpreter.test.tool import create_file, delete_file, \
 prolog_raises, assert_true, assert_false, file_content
+from prolog.interpreter import term
+from prolog.interpreter.heap import Heap
+from prolog.builtin.streams import impl_current_input, impl_current_output
 
 def test_current_stream_after_startup():
     e = get_engine("")
@@ -289,5 +292,41 @@ def test_put_byte_below_zero():
         """ % target)
     finally:
         delete_file(target)
-    
 
+def test_current_input():
+    X = term.Var()
+    e = Engine()
+    h = Heap()
+    impl_current_input(e, h, X)
+    assert X.getvalue(h).fd() == e.streamwrapper.current_instream.fd()
+    
+def test_current_output():
+    X = term.Var()
+    e = Engine()
+    h = Heap()
+    impl_current_output(e, h, X)
+    assert X.getvalue(h).fd() == e.streamwrapper.current_outstream.fd()
+
+def test_current_input_output_domain_error():
+    prolog_raises("domain_error(stream, X)", "current_input(a)")
+    prolog_raises("domain_error(stream, X)", "current_output(a)")
+
+def test_permission_error_when_using_input_as_output_and_otherway_round():
+    prolog_raises("permission_error(X, Y, Z)", """
+    current_input(S),
+    put_char(S, a)
+    """)
+    src = "__src__"
+    create_file(src, "")
+    try:
+        prolog_raises("permission_error(X, Y, Z)", """
+        open('%s', read, S),
+        put_char(S, a)
+        """ % src)
+    finally:
+        delete_file(src)
+
+    prolog_raises("permission_error(X, Y, Z)", """
+    current_output(S),
+    get_char(S, a)
+    """)
