@@ -418,3 +418,57 @@ def test_seek_domain_error():
         """ % src)
     finally:
         delete_file(src)
+
+def test_nl():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', write, S),
+        nl(S),
+        close(S).
+        """ % src)
+        assert "\n" == file_content(src)
+    finally:
+        delete_file(src)
+
+def test_write():
+    src = "__src__"
+    term = "f(a, b, g(e))"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', write, S),
+        write(S, %s),
+        close(S).
+        """ % (src, term))
+        assert term == file_content(src)
+    finally:
+        delete_file(src)
+
+def test_write_unify():
+    src = "__src__"
+    term = "X = a"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', write, S),
+        write(S, %s),
+        close(S).
+        """ % (src, term))
+    finally:
+        delete_file(src)
+
+def test_read():
+    src = "__src__"
+    content = "f(a), g(c). y(t)."
+    create_file(src, content)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, T1), T1 = (f(a), g(c)),
+        read(S, T2), T2 = y(t),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)

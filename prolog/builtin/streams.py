@@ -1,3 +1,4 @@
+import os
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.heap import Heap
@@ -7,7 +8,7 @@ from pypy.rlib.streamio import fdopen_as_stream, open_file_as_stream
 from prolog.interpreter.stream import PrologStream, PrologInputStream, \
 PrologOutputStream
 from prolog.interpreter import helper
-import os
+from prolog.builtin.formatting import TermFormatter
 
 rwa = {"read": "r", "write": "w", "append": "a"}
 seek_mode = {"bof": os.SEEK_SET, "current": os.SEEK_CUR, "eof": os.SEEK_END}
@@ -62,6 +63,18 @@ def peek_byte(stream):
             pass
         return ord(byte)
     return -1
+
+def read_term(stream):
+    singles = 0
+    doubles = 0
+    chars = []
+    dot = False
+    while not dot:
+        char, _ = read_unicode_char(stream)
+        if char == "end_of_file":
+            break
+
+    return "".join(chars)
 
 def validate_stream_mode(stream, mode): 
     if isinstance(stream, PrologInputStream) and mode == "write":
@@ -166,3 +179,22 @@ def impl_seek(engine, heap, stream, offset, mode, obj):
         error.throw_domain_error("position", term.Number(offset))
     pos = int(stream.tell())
     obj.unify(term.Number(pos), heap)
+
+@expose_builtin("nl", unwrap_spec=["stream"])
+def impl_nl(engine, heap, stream):
+    validate_stream_mode(stream, "write")
+    stream.write("\n")
+
+@expose_builtin("nl", unwrap_spec=[])
+def impl_nl_0(engine, heap):
+    impl_nl(engine, heap, engine.streamwrapper.current_outstream)
+
+@expose_builtin("write", unwrap_spec=["stream", "concrete"])
+def impl_write(engine, heap, stream, term):
+    validate_stream_mode(stream, "write")
+    formatter = TermFormatter.from_option_list(engine, [])
+    stream.write(formatter.format(term))
+
+@expose_builtin("write", unwrap_spec=["concrete"])
+def impl_write_1(engine, heap, term):
+    impl_write(engine, heap, engine.streamwrapper.current_outstream, term)

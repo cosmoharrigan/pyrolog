@@ -158,6 +158,7 @@ class TermFormatter(object):
                     m[len(form) - 1, op] = (form, prec)
         self.op_mapping = m
 
+"""
 @expose_builtin("write_term", unwrap_spec=["concrete", "list"])
 def impl_write_term(engine, heap, term, options):
     f = TermFormatter.from_option_list(engine, options)
@@ -170,5 +171,5 @@ def impl_nl(engine, heap):
 @expose_builtin("write", unwrap_spec=["concrete"])
 def impl_write(engine, heap, term):
     impl_write_term(engine, heap, term, [])
-
+"""
 
