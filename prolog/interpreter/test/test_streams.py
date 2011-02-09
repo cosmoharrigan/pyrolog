@@ -458,17 +458,3 @@ def test_write_unify():
         """ % (src, term))
     finally:
         delete_file(src)
-
-def test_read():
-    src = "__src__"
-    content = "f(a), g(c). y(t)."
-    create_file(src, content)
-    try:
-        assert_true("""
-        open('%s', read, S),
-        read(S, T1), T1 = (f(a), g(c)),
-        read(S, T2), T2 = y(t),
-        close(S).
-        """ % src)
-    finally:
-        delete_file(src)

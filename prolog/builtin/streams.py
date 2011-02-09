@@ -88,6 +88,10 @@ def impl_get_char(engine, heap, stream, obj):
     char, _ = read_unicode_char(stream)
     obj.unify(term.Callable.build(char), heap)
 
+@expose_builtin("get_char", unwrap_spec=["obj"])
+def impl_get_char_1(engine, heap, obj):
+    impl_get_char(engine, heap, engine.streamwrapper.current_instream, obj)
+
 @expose_builtin("get_byte", unwrap_spec=["stream", "obj"])
 def impl_get_byte(engine, heap, stream, obj):
     validate_stream_mode(stream, "read")
@@ -97,6 +101,10 @@ def impl_get_byte(engine, heap, stream, obj):
     else:
         code = -1
     obj.unify(term.Number(code), heap)
+
+@expose_builtin("get_byte", unwrap_spec=["obj"])
+def impl_get_byte_1(engine, heap, obj):
+    impl_get_byte(engine, heap, engine.streamwrapper.current_instream, obj)
 
 @expose_builtin("get_code", unwrap_spec=["stream", "obj"])
 def impl_get_code(engine, heap, stream, obj):
@@ -137,6 +145,10 @@ def impl_put_char(engine, heap, stream, atom):
             return
     error.throw_type_error("character", term.Callable.build(atom))
 
+@expose_builtin("put_char", unwrap_spec=["atom"])
+def impl_put_char_1(engine, heap, obj):
+    impl_put_char(engine, heap, engine.streamwrapper.current_outstream, obj)
+
 @expose_builtin("put_byte", unwrap_spec=["stream", "int"])
 def impl_put_byte(engine, heap, stream, byte):
     validate_stream_mode(stream, "write")
@@ -144,6 +156,10 @@ def impl_put_byte(engine, heap, stream, byte):
         # XXX have to care about bigints
         error.throw_type_error("byte", term.Number(byte))
     stream.write(chr(byte))
+
+@expose_builtin("put_byte", unwrap_spec=["int"])
+def impl_put_byte_1(engine, heap, obj):
+    impl_put_byte(engine, heap, engine.streamwrapper.current_outstream, obj)
 
 @expose_builtin("current_input", unwrap_spec=["obj"])
 def impl_current_input(engine, heap, obj):
