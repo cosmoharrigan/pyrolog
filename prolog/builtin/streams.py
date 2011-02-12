@@ -30,7 +30,21 @@ def impl_open_options(engine, heap, srcpath, mode, stream, options):
             cls = PrologInputStream
         else:
             cls = PrologOutputStream
-        prolog_stream = cls(open_file_as_stream(srcpath, mode, False))
+
+        try:
+            buffering = opts["buffer"]
+            if buffering == "full":
+                buffering = -1
+            elif buffering == "line":
+                buffering == 1
+            elif buffering == "false":
+                buffering = 0
+            else:
+                buffering = -1
+        except KeyError:
+            buffering = -1
+
+        prolog_stream = cls(open_file_as_stream(srcpath, mode, buffering))
         engine.streamwrapper.streams[prolog_stream.fd()] = prolog_stream
 
         for key, val in opts.iteritems():

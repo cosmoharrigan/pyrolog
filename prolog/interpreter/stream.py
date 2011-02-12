@@ -23,7 +23,7 @@ class PrologStream(NonVar):
         raise UnificationFailed
 
     def fd(self):   
-        return self.stream.fd
+        return self.stream.try_to_find_file_descriptor()
 
     def seek(self, offset, how):
         self.stream.seek(offset, how)
