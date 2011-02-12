@@ -458,3 +458,26 @@ def test_write_unify():
         """ % (src, term))
     finally:
         delete_file(src)
+
+def test_write_term():
+    src = "__src__"
+    try:
+        assert_true("""
+        open('%s', write, S),
+        write_term(S, f(g(h(c))), [max_depth(1)]),
+        close(S).
+        """ % src)
+        assert "f(...)" == file_content(src)
+    finally:
+        delete_file(src)
+
+    try:
+        assert_true("""
+        open('%s', write, S),
+        write_term(S, f(g(h(c))), [max_depth(0)]),
+        close(S).
+        """ % src)
+        assert "f(g(h(c)))" == file_content(src)
+    finally:
+        delete_file(src)
+

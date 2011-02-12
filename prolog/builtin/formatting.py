@@ -157,19 +157,3 @@ class TermFormatter(object):
                 for op in ops:
                     m[len(form) - 1, op] = (form, prec)
         self.op_mapping = m
-
-"""
-@expose_builtin("write_term", unwrap_spec=["concrete", "list"])
-def impl_write_term(engine, heap, term, options):
-    f = TermFormatter.from_option_list(engine, options)
-    os.write(1, f.format(term)) # XXX use streams
-
-@expose_builtin("nl", unwrap_spec=[])
-def impl_nl(engine, heap):
-    os.write(1, "\n") # XXX use streams
-
-@expose_builtin("write", unwrap_spec=["concrete"])
-def impl_write(engine, heap, term):
-    impl_write_term(engine, heap, term, [])
-"""
-

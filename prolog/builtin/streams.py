@@ -33,7 +33,8 @@ def impl_open(engine, heap, srcpath, mode, stream):
 
 @expose_builtin("close", unwrap_spec=["stream"])
 def impl_close(engine, heap, stream):
-    engine.streamwrapper.streams.pop(stream.fd()).close()
+    if stream.fd() not in [0, 1]:
+        engine.streamwrapper.streams.pop(stream.fd()).close()
 
 def read_unicode_char(stream):
     c = stream.read(1)
@@ -214,3 +215,14 @@ def impl_write(engine, heap, stream, term):
 @expose_builtin("write", unwrap_spec=["concrete"])
 def impl_write_1(engine, heap, term):
     impl_write(engine, heap, engine.streamwrapper.current_outstream, term)
+
+@expose_builtin("write_term", unwrap_spec=["stream", "concrete", "list"])
+def impl_write_term(engine, heap, stream, term, options):
+    validate_stream_mode(stream, "write")
+    formatter = TermFormatter.from_option_list(engine, options)
+    stream.write(formatter.format(term))
+ 
+@expose_builtin("write_term", unwrap_spec=["concrete", "list"])
+def impl_write_term_2(engine, heap, term, options):
+    impl_write_term(engine, heap, engine.streamwrapper.current_outstream,
+            term, options)
