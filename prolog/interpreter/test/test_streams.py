@@ -20,7 +20,6 @@ def test_current_stream_after_startup():
 def test_open():
     src = "__src__"
     create_file(src, "")
-
     try:
         e = Engine()
         assert_true("open('%s', read, S)." % src, e)
@@ -31,6 +30,28 @@ def test_open():
         assert_true("open('%s', write, S)." % src)
         assert_true("open('%s', append, S)." % src)
         prolog_raises("domain_error(X, Y)", "open('%s', asdsadsad, X)")
+    finally:
+        delete_file(src)
+
+def test_open_alias_option():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        open('%s', read, S, [alias(input)]),
+        get_char(input, X), X = a,
+        close(input).
+        """ % src)
+    finally:
+        delete_file(src)
+
+    create_file(src, "")
+    e = Engine()
+    try:
+        assert_true("open('%s', read, S, [alias(blub)])." % src, e)
+        assert len(e.streamwrapper.aliases) == 1
+        assert_true("close(blub).", e)
+        assert len(e.streamwrapper.aliases) == 0
     finally:
         delete_file(src)
 

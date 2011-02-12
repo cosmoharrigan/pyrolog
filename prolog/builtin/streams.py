@@ -13,10 +13,17 @@ from prolog.builtin.formatting import TermFormatter
 rwa = {"read": "r", "write": "w", "append": "a"}
 seek_mode = {"bof": os.SEEK_SET, "current": os.SEEK_CUR, "eof": os.SEEK_END}
 
-@expose_builtin("open", unwrap_spec=["atom", "atom", "obj"])
-def impl_open(engine, heap, srcpath, mode, stream):
+def make_option_dict(options):
+    opts = {}
+    for option in options:
+        opts[option.name()] = option.argument_at(0).name()
+    return opts
+
+@expose_builtin("open", unwrap_spec=["atom", "atom", "obj", "list"])
+def impl_open_options(engine, heap, srcpath, mode, stream, options):
     if not isinstance(stream, term.Var):
         error.throw_type_error("variable", stream)
+    opts = make_option_dict(options)
     try:
         mode = rwa[mode]
         if mode == "r":
@@ -25,16 +32,31 @@ def impl_open(engine, heap, srcpath, mode, stream):
             cls = PrologOutputStream
         prolog_stream = cls(open_file_as_stream(srcpath, mode, False))
         engine.streamwrapper.streams[prolog_stream.fd()] = prolog_stream
+
+        for key, val in opts.iteritems():
+            if key == "alias":
+                engine.streamwrapper.aliases[val] = prolog_stream
+                prolog_stream.alias = val
+
         stream.unify(prolog_stream, heap)
     except KeyError:
         error.throw_domain_error("io_mode", term.Callable.build(mode))
     except OSError:
         error.throw_existence_error("source_sink", term.Callable.build(srcpath))
 
+@expose_builtin("open", unwrap_spec=["atom", "atom", "obj"])
+def impl_open(engine, heap, srcpath, mode, stream):
+    impl_open_options(engine, heap, srcpath, mode, stream, [])
+
 @expose_builtin("close", unwrap_spec=["stream"])
 def impl_close(engine, heap, stream):
     if stream.fd() not in [0, 1]:
         engine.streamwrapper.streams.pop(stream.fd()).close()
+        if stream.alias:
+            try:
+                engine.streamwrapper.aliases.pop(stream.alias)
+            except KeyError:
+                pass
 
 def read_unicode_char(stream):
     c = stream.read(1)

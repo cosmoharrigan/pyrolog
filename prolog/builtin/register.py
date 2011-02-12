@@ -87,7 +87,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         elif spec == "list":
             code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
         elif spec == "stream":
-            code.append("    %s = helper.unwrap_stream(%s)" % (varname, varname))
+            code.append("    %s = helper.unwrap_stream(engine, %s)" % (varname, varname))
         else:
             assert 0, "not implemented " + spec
     if needs_module:

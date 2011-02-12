@@ -10,10 +10,12 @@ class StreamWrapper(object):
         self.current_outstream = PrologOutputStream(fdopen_as_stream(1, "w", False))
         self.streams = {self.current_instream.fd(): self.current_instream,
                         self.current_outstream.fd(): self.current_outstream}
+        self.aliases = {}
 
 class PrologStream(NonVar):
     def __init__(self, stream):
         self.stream = stream
+        self.alias = None
 
     def basic_unify(self, other, heap, occurs_check=False):
         if isinstance(other, PrologStream) and other.fd() == self.fd():

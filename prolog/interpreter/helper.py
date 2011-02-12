@@ -78,8 +78,13 @@ def unwrap_predicate_indicator(predicate):
     arity = unwrap_int(predicate.argument_at(1))
     return name, arity
 
-def unwrap_stream(obj):
-    if isinstance(obj, PrologStream):
+def unwrap_stream(engine, obj):
+    if isinstance(obj, term.Atom):
+        try:
+            return engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+    elif isinstance(obj, PrologStream):
         return obj
     error.throw_domain_error("stream", obj)
 
