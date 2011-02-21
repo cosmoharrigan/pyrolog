@@ -47,6 +47,7 @@ def impl_open_options(engine, heap, srcpath, mode, stream, options):
         prolog_stream = cls(open_file_as_stream(srcpath, mode, buffering))
         engine.streamwrapper.streams[prolog_stream.fd()] = prolog_stream
 
+        # XXX use try
         for key, val in opts.iteritems():
             if key == "alias":
                 engine.streamwrapper.aliases[val] = prolog_stream
@@ -146,6 +147,10 @@ def impl_get_byte_1(engine, heap, obj):
 @expose_builtin("get_code", unwrap_spec=["stream", "obj"])
 def impl_get_code(engine, heap, stream, obj):
     impl_get_byte(engine, heap, stream, obj)
+
+@expose_builtin("get_code", unwrap_spec=["obj"])
+def impl_get_code_1(engine, heap, obj):
+    impl_get_code(engine, heap, engine.streamwrapper.current_instream, obj)
 
 @expose_builtin("at_end_of_stream", unwrap_spec=["stream"])
 def impl_at_end_of_stream(engine, heap, stream):
