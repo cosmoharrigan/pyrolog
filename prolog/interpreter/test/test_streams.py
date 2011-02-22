@@ -524,3 +524,19 @@ def test_write_term():
     finally:
         delete_file(src)
 
+def test_read():
+    src = "__src__"
+    create_file(src, "f(a). b. g(d(x)).")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, X), X = f(a),
+        read(S, Y), Y = b,
+        read(S, Z), Z = g(d(x)),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_read_eof():
+    src = "__src__"

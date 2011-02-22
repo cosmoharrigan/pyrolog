@@ -267,3 +267,24 @@ def impl_write_term(engine, heap, stream, term, options):
 def impl_write_term_2(engine, heap, term, options):
     impl_write_term(engine, heap, engine.streamwrapper.current_outstream,
             term, options)
+
+def read_till_next_dot(stream):
+    charlist = []
+    tlist = ["%", " ", "end_of_file"]
+    while True:
+        char, _ = read_unicode_char(stream)
+        if char == "end_of_file":
+            return ""
+        charlist.append(char)
+        if char == ".":
+            nextchar, _ = read_unicode_char(stream)
+            if nextchar in tlist:
+                return "".join(charlist)
+
+@expose_builtin("read", unwrap_spec=["stream", "obj"])
+def impl_read(engine, heap, stream, obj):
+    from prolog.interpreter.parsing import parse_query_term
+    validate_stream_mode(stream, "read")
+    src = read_till_next_dot(stream)
+    parsed = parse_query_term(src)
+    obj.unify(parsed, heap)

@@ -12,5 +12,3 @@ def impl_consult(engine, heap, var):
     if isinstance(var, term.Atom):
         file_content = get_source(var.name())
         engine.runstring(file_content)
-
-
