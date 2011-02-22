@@ -49,21 +49,6 @@ def test_term():
     assert X.getvalue(heap).name()== "HALLO"
     assert Y.getvalue(heap).name()== "hallo"
 
-def test_stream():
-    class Dummy(object):
-        def __init__(self, fd):
-            self.fd = fd
-
-    s1 = PrologOutputStream(Dummy(5))
-    s2 = PrologOutputStream(Dummy(5))
-    s1.unify(s2, None)
-
-    heap = Heap()
-    X = Var()
-    X.unify(s2, heap)
-    assert X.getvalue(heap).fd() == 5
-    py.test.raises(UnificationFailed, "PrologStream(Dummy(6)).unify(s1, None)")
-
 def test_enumerate_vars():
     from prolog.interpreter.memo import EnumerationMemo
     X = Var()

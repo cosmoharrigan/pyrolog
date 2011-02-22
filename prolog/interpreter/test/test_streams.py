@@ -33,6 +33,28 @@ def test_open():
     finally:
         delete_file(src)
 
+def test_unify_default_alias():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        assert_true("open('%s', read, S)." % src, e)
+        assert len(e.streamwrapper.aliases) == 3
+        for key in e.streamwrapper.aliases.keys():
+            if not key.endswith("_0") and not key.endswith("_1"):
+                alias = key
+        assert_true("S = '%s'." % alias, e)
+    finally:
+        delete_file(src)
+
+def test_unify_explicit_alias():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        assert_true("open('%s', read, S, [alias(s)]), S = s." % src)
+    finally:
+        delete_file(src)
+
 def test_open_alias_option():
     src = "__src__"
     create_file(src, "abc")
@@ -49,9 +71,9 @@ def test_open_alias_option():
     e = Engine()
     try:
         assert_true("open('%s', read, S, [alias(blub)])." % src, e)
-        assert len(e.streamwrapper.aliases) == 1
+        assert len(e.streamwrapper.aliases) == 3
         assert_true("close(blub).", e)
-        assert len(e.streamwrapper.aliases) == 0
+        assert len(e.streamwrapper.aliases) == 2
     finally:
         delete_file(src)
 
@@ -319,20 +341,20 @@ def test_current_input():
     e = Engine()
     h = Heap()
     impl_current_input(e, h, X)
-    assert X.getvalue(h).fd() == e.streamwrapper.current_instream.fd()
+    assert X.getvalue(h).name() == e.streamwrapper.current_instream.alias
     
 def test_current_output():
     X = term.Var()
     e = Engine()
     h = Heap()
     impl_current_output(e, h, X)
-    assert X.getvalue(h).fd() == e.streamwrapper.current_outstream.fd()
+    assert X.getvalue(h).name() == e.streamwrapper.current_outstream.alias
 
 def test_current_input_output_domain_error():
-    prolog_raises("domain_error(stream, X)", "current_input(a)")
-    prolog_raises("domain_error(stream, X)", "current_output(a)")
+    prolog_raises("domain_error(stream, X)", "current_input(f(a))")
+    prolog_raises("domain_error(stream, X)", "current_output(f(a))")
 
-def test_permission_error_when_using_input_as_output_and_otherway_round():
+def test_permission_error():
     prolog_raises("permission_error(X, Y, Z)", """
     current_input(S),
     put_char(S, a)

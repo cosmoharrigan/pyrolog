@@ -47,13 +47,13 @@ def impl_open_options(engine, heap, srcpath, mode, stream, options):
         prolog_stream = cls(open_file_as_stream(srcpath, mode, buffering))
         engine.streamwrapper.streams[prolog_stream.fd()] = prolog_stream
 
-        # XXX use try
-        for key, val in opts.iteritems():
-            if key == "alias":
-                engine.streamwrapper.aliases[val] = prolog_stream
-                prolog_stream.alias = val
-
-        stream.unify(prolog_stream, heap)
+        try:
+            alias = opts["alias"]
+            prolog_stream.alias = alias
+        except KeyError:
+            alias = "$stream_%d" % prolog_stream.fd()
+        engine.streamwrapper.aliases[alias] = prolog_stream
+        stream.unify(term.Callable.build(alias), heap)
     except KeyError:
         error.throw_domain_error("io_mode", term.Callable.build(mode))
     except OSError:
@@ -116,9 +116,9 @@ def read_term(stream):
 
 def validate_stream_mode(stream, mode): 
     if isinstance(stream, PrologInputStream) and mode == "write":
-        error.throw_permission_error("output", "stream", stream)
+        error.throw_permission_error("output", "stream", term.Atom(stream.alias))
     if isinstance(stream, PrologOutputStream) and mode == "read":
-        error.throw_permission_error("input", "stream", stream)
+        error.throw_permission_error("input", "stream", term.Atom(stream.alias))
 
 @expose_builtin("get_char", unwrap_spec=["stream", "obj"])
 def impl_get_char(engine, heap, stream, obj):
@@ -205,15 +205,15 @@ def impl_put_byte_1(engine, heap, obj):
 
 @expose_builtin("current_input", unwrap_spec=["obj"])
 def impl_current_input(engine, heap, obj):
-    if not isinstance(obj, term.Var) and not isinstance(obj, PrologStream):
+    if not isinstance(obj, term.Var) and not isinstance(obj, term.Atom):
         error.throw_domain_error("stream", obj)
-    obj.unify(engine.streamwrapper.current_instream, heap)
+    obj.unify(term.Atom(engine.streamwrapper.current_instream.alias), heap)
 
 @expose_builtin("current_output", unwrap_spec=["obj"])
 def impl_current_output(engine, heap, obj):
-    if not isinstance(obj, term.Var) and not isinstance(obj, PrologStream):
+    if not isinstance(obj, term.Var) and not isinstance(obj, term.Atom):
         error.throw_domain_error("stream", obj)
-    obj.unify(engine.streamwrapper.current_outstream, heap)
+    obj.unify(term.Atom(engine.streamwrapper.current_outstream.alias), heap)
 
 @expose_builtin("set_input", unwrap_spec=["stream"])
 def impl_set_input(engine, heap, stream):

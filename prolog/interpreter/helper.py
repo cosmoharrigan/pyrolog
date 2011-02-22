@@ -79,13 +79,17 @@ def unwrap_predicate_indicator(predicate):
     return name, arity
 
 def unwrap_stream(engine, obj):
+    #import pdb; pdb.set_trace()
     if isinstance(obj, term.Atom):
         try:
             return engine.streamwrapper.aliases[obj.name()]
         except KeyError:
             pass
-    elif isinstance(obj, PrologStream):
-        return obj
+    else:
+        try:
+            return engine.streamwrapper.aliases[obj.argument_at(0).num]
+        except AttributeError:
+            pass
     error.throw_domain_error("stream", obj)
 
 def ensure_atomic(obj):
