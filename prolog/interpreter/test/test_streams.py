@@ -538,5 +538,60 @@ def test_read():
     finally:
         delete_file(src)
 
-def test_read_eof():
+def test_read_whitespace():
     src = "__src__"
+    create_file(src, """
+
+
+    f(a).
+
+
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, X), X = f(a),
+        read(S, Y), Y = end_of_file,
+        close(S).
+        """ % src)    
+    finally:
+        delete_file(src)
+
+def test_read_eof_error():
+    src = "__src__"
+    create_file(src, "f(a)")
+    try:
+        prolog_raises("syntax_error(E)", """
+        open('%s', read, S),
+        read(S, X)
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_read_comment_1():
+    src = "__src__"
+    create_file(src, "  % asd  ")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, end_of_file),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_read_comment_2():
+    src = "__src__"
+    create_file(src, """
+    f(a).%f(b).
+    g(x).
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, X), X = f(a),
+        read(S, Y), Y = g(x),
+        close(S).
+        """ % src)
+    finally: 
+        delete_file(src)

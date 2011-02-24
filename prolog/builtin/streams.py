@@ -270,16 +270,34 @@ def impl_write_term_2(engine, heap, term, options):
 
 def read_till_next_dot(stream):
     charlist = []
-    tlist = ["%", " ", "end_of_file"]
+    tlist = ["%", "", "end_of_file"]
+    whitespace = True
+    ignore = False
     while True:
         char, _ = read_unicode_char(stream)
+        if char == "%":
+            ignore = True
+        if char == "\n":
+            ignore = False
+            continue
         if char == "end_of_file":
-            return ""
-        charlist.append(char)
-        if char == ".":
-            nextchar, _ = read_unicode_char(stream)
-            if nextchar in tlist:
-                return "".join(charlist)
+            ignore = False
+        if char.strip() == "":
+            continue
+        if not ignore:
+            if char == "end_of_file":
+                if whitespace:
+                    return "end_of_file."
+                else:
+                    error.throw_syntax_error("Unexpected end of file")
+            else:
+                whitespace = False
+            charlist.append(char)
+            if char == ".":
+                nextchar, n = read_unicode_char(stream)
+                stream.seek(-n, 1)
+                if nextchar.strip() in tlist:
+                    return "".join(charlist)
 
 @expose_builtin("read", unwrap_spec=["stream", "obj"])
 def impl_read(engine, heap, stream, obj):
