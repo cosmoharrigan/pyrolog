@@ -342,6 +342,18 @@ def test_current_input():
     h = Heap()
     impl_current_input(e, h, X)
     assert X.getvalue(h).name() == e.streamwrapper.current_instream.alias
+
+def test_current_input_2():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
     
 def test_current_output():
     X = term.Var()
@@ -594,4 +606,19 @@ def test_read_comment_2():
         close(S).
         """ % src)
     finally: 
+        delete_file(src)
+
+def test_read_current_stream():
+    src = "__src__"
+    create_file(src, """
+    f(a).
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        read(X), X = f(a),
+        close(S).
+        """ % src)
+    finally:
         delete_file(src)

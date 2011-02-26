@@ -306,3 +306,7 @@ def impl_read(engine, heap, stream, obj):
     src = read_till_next_dot(stream)
     parsed = parse_query_term(src)
     obj.unify(parsed, heap)
+
+@expose_builtin("read", unwrap_spec=["obj"])
+def impl_read_1(engine, heap, obj):
+    impl_read(engine, heap, engine.streamwrapper.current_instream, obj)
