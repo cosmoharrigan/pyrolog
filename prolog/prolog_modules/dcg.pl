@@ -1,3 +1,5 @@
+s --> {nl}, a.
+
 trans((H --> B), (TransH :- TransB)) :-
 	trans_head(H, X0, X1, TransH),
 	trans_body(B, X0, X1, TransB).
@@ -22,6 +24,11 @@ trans_body(B, X0, XE, true) :-
 	is_list(B),
 	prepend(B, XE, R),
 	X0 = R.
+
+trans_body({C1, C2}, X0, XE, (C1, R)) :-
+	!, trans_body({C2}, X0, XE, R).
+
+trans_body({C}, X0, XE, (C, X0=XE)) :- !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
