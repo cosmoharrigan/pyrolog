@@ -405,6 +405,22 @@ def test_set_input():
     finally:
         delete_file(src)
 
+def test_close_current_input():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert w.current_instream.alias == "$stream_0"
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        close(S).
+        """ % src, e)
+        assert w.current_instream.alias == "$stream_0"
+    finally:
+        delete_file(src)
+
 def test_set_output():
     src = "__src__"
     create_file(src, "")
@@ -421,6 +437,22 @@ def test_set_output():
                 fd = key
                 break
         assert e.streamwrapper.current_outstream.fd() == fd
+    finally:
+        delete_file(src)
+
+def test_close_current_output():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert w.current_outstream.alias == "$stream_1"
+        assert_true("""
+        open('%s', write, S),
+        set_output(S),
+        close(S).
+        """ % src, e)
+        assert w.current_outstream.alias == "$stream_1"
     finally:
         delete_file(src)
 

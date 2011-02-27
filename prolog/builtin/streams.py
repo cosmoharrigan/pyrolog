@@ -66,12 +66,16 @@ def impl_open(engine, heap, srcpath, mode, stream):
 @expose_builtin("close", unwrap_spec=["stream"])
 def impl_close(engine, heap, stream):
     if stream.fd() not in [0, 1]:
-        engine.streamwrapper.streams.pop(stream.fd()).close()
-        if stream.alias:
-            try:
-                engine.streamwrapper.aliases.pop(stream.alias)
-            except KeyError:
-                pass
+        w = engine.streamwrapper
+        w.streams.pop(stream.fd()).close()
+        try:
+            if w.aliases[stream.alias].fd() == w.current_instream.fd():
+                w.current_instream = w.streams[0]
+            if w.aliases[stream.alias].fd() == w.current_outstream.fd():
+                w.current_outstream = w.streams[1]
+            w.aliases.pop(stream.alias)
+        except KeyError:
+            pass
 
 def read_unicode_char(stream):
     c = stream.read(1)
