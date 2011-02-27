@@ -331,3 +331,7 @@ def impl_see(engine, heap, obj):
         except OSError:
             error.throw_existence_error("source_sink",
                     term.Callable.build(obj))
+
+@expose_builtin("seen")
+def impl_seen(engine, heap):
+    impl_close(engine, heap, engine.streamwrapper.current_instream)

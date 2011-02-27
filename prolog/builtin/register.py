@@ -39,7 +39,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     if not name.isalnum():
         name = func.func_name
     orig_funcargs = inspect.getargs(func.func_code)[0]
-    funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
+    if unwrap_spec is None:
+        funcname = "wrap_%s_0" % name
+    else:
+        funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
     code = ["def %s(engine, query, module, scont, fcont, heap):" % (funcname, )]
     if not translatable:
         code.append("    if we_are_translated():")
@@ -48,48 +51,49 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     assert orig_funcargs[0] == "engine"
     assert orig_funcargs[1] == "heap"
     code.append("    assert isinstance(query, term.Callable)")
-    for i, spec in enumerate(unwrap_spec):
-        varname = "var%s" % (i, )
-        subargs.append(varname)
-        if spec in ("obj", "callable", "int", "atom", "arithmetic", "stream"):
-            code.append("    %s = query.argument_at(%s).dereference(heap)" %
-                        (varname, i))
-        elif spec in ("concrete", "list"):
-            code.append("    %s = query.argument_at(%s).getvalue(heap)" %
-                        (varname, i))
-        if spec in ("int", "atom", "arithmetic", "list", "stream"):
-            code.append(
-                "    if isinstance(%s, term.Var):" % (varname,))
-            code.append(
-                "        error.throw_instantiation_error()")
-        if spec == "obj":
-            pass
-        elif spec == "concrete":
-            pass
-        elif spec == "callable":
-            code.append(
-                "    if not isinstance(%s, term.Callable):" % (varname,))
-            code.append(
-                "        if isinstance(%s, term.Var):" % (varname,))
-            code.append(
-                "           error.throw_instantiation_error()")
-            code.append(
-                "        error.throw_type_error('callable', %s)" % (varname,))
-        elif spec == "raw":
-            code.append("    %s = query.argument_at(%s)" % (varname, i))
-        elif spec == "int":
-            code.append("    %s = helper.unwrap_int(%s)" % (varname, varname))
-        elif spec == "atom":
-            code.append("    %s = helper.unwrap_atom(%s)" % (varname, varname))
-        elif spec == "arithmetic":
-            code.append("    %s = eval_arithmetic(engine, %s)" %
-                        (varname, varname))
-        elif spec == "list":
-            code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
-        elif spec == "stream":
-            code.append("    %s = helper.unwrap_stream(engine, %s)" % (varname, varname))
-        else:
-            assert 0, "not implemented " + spec
+    if unwrap_spec is not None:
+        for i, spec in enumerate(unwrap_spec):
+            varname = "var%s" % (i, )
+            subargs.append(varname)
+            if spec in ("obj", "callable", "int", "atom", "arithmetic", "stream"):
+                code.append("    %s = query.argument_at(%s).dereference(heap)" %
+                            (varname, i))
+            elif spec in ("concrete", "list"):
+                code.append("    %s = query.argument_at(%s).getvalue(heap)" %
+                            (varname, i))
+            if spec in ("int", "atom", "arithmetic", "list", "stream"):
+                code.append(
+                    "    if isinstance(%s, term.Var):" % (varname,))
+                code.append(
+                    "        error.throw_instantiation_error()")
+            if spec == "obj":
+                pass
+            elif spec == "concrete":
+                pass
+            elif spec == "callable":
+                code.append(
+                    "    if not isinstance(%s, term.Callable):" % (varname,))
+                code.append(
+                    "        if isinstance(%s, term.Var):" % (varname,))
+                code.append(
+                    "           error.throw_instantiation_error()")
+                code.append(
+                    "        error.throw_type_error('callable', %s)" % (varname,))
+            elif spec == "raw":
+                code.append("    %s = query.argument_at(%s)" % (varname, i))
+            elif spec == "int":
+                code.append("    %s = helper.unwrap_int(%s)" % (varname, varname))
+            elif spec == "atom":
+                code.append("    %s = helper.unwrap_atom(%s)" % (varname, varname))
+            elif spec == "arithmetic":
+                code.append("    %s = eval_arithmetic(engine, %s)" %
+                            (varname, varname))
+            elif spec == "list":
+                code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))
+            elif spec == "stream":
+                code.append("    %s = helper.unwrap_stream(engine, %s)" % (varname, varname))
+            else:
+                assert 0, "not implemented " + spec
     if needs_module:
         subargs.insert(2, "module")
         assert orig_funcargs[2] == "module"
@@ -108,8 +112,12 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     miniglobals[func.func_name] = func
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
-        signature = Signature.getsignature(name, len(unwrap_spec))
-        b = Builtin(miniglobals[funcname], funcname, len(unwrap_spec),
-                    signature)
+        if unwrap_spec is None:
+            signature = Signature.getsignature(name, 0)
+            b = Builtin(miniglobals[funcname], funcname, 0, signature)
+        else:
+            l = len(unwrap_spec)
+            signature = Signature.getsignature(name, l)
+            b = Builtin(miniglobals[funcname], funcname, l, signature)
         signature.set_extra("builtin", b)
     return func

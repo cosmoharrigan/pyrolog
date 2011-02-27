@@ -681,3 +681,20 @@ def test_see_with_alias():
 def test_see_errors():
     prolog_raises("type_error(X, Y)", "see(f(a))")
     prolog_raises("instantiation_error", "see(X)")
+
+def test_seen():
+    src = "__src__"
+    create_file(src, "asdasd")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert_true("open('%s', read, S), set_input(S)." % src, e)
+        assert len(w.streams) == 3
+        assert len(w.aliases) == 3
+        assert w.current_instream.fd() not in [0, 1]
+        assert_true("seen.", e)
+        assert len(w.streams) == 2
+        assert len(w.aliases) == 2
+        assert w.current_instream.fd() == 0
+    finally:
+        delete_file(src)
