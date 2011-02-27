@@ -654,3 +654,30 @@ def test_read_current_stream():
         """ % src)
     finally:
         delete_file(src)
+
+def test_see_with_file():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        see('%s'),
+        get_char(a), get_char(b), get_char(c).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_see_with_alias():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        open('%s', read, S, [alias(xxx)]),
+        see(xxx),
+        get_char(a), get_char(b), get_char(c).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_see_errors():
+    prolog_raises("type_error(X, Y)", "see(f(a))")
+    prolog_raises("instantiation_error", "see(X)")

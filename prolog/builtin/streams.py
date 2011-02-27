@@ -314,3 +314,20 @@ def impl_read(engine, heap, stream, obj):
 @expose_builtin("read", unwrap_spec=["obj"])
 def impl_read_1(engine, heap, obj):
     impl_read(engine, heap, engine.streamwrapper.current_instream, obj)
+
+@expose_builtin("see", unwrap_spec=["atom"])
+def impl_see(engine, heap, obj):
+    w = engine.streamwrapper
+    try:
+        stream = w.aliases[obj]
+        impl_set_input(engine, heap, stream)
+    except KeyError:
+        try:
+            stream = PrologInputStream(open_file_as_stream(obj,
+                    rwa["read"], -1))
+            w.streams[stream.fd()] = stream
+            w.aliases["$stream_%d" % stream.fd()] = stream
+            impl_set_input(engine, heap, stream)
+        except OSError:
+            error.throw_existence_error("source_sink",
+                    term.Callable.build(obj))
