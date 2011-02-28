@@ -29,7 +29,7 @@ def expose_builtin(*args, **kwargs):
         return make_wrapper(func, *args, **kwargs)
     return really_expose
 
-def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
+def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
                    translatable=True, needs_module=False):
     if isinstance(name, list):
         expose_as = name
@@ -51,10 +51,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
         subargs.append(varname)
-        if spec in ("obj", "callable", "int", "atom", "arithmetic", "stream"):
+        if spec in ("obj", "callable", "int", "atom", "arithmetic", "stream", "list"):
             code.append("    %s = query.argument_at(%s).dereference(heap)" %
                         (varname, i))
-        elif spec in ("concrete", "list"):
+        elif spec in ("concrete", ):
             code.append("    %s = query.argument_at(%s).getvalue(heap)" %
                         (varname, i))
         if spec in ("int", "atom", "arithmetic", "list", "stream"):
@@ -108,8 +108,8 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     miniglobals[func.func_name] = func
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
-        signature = Signature.getsignature(name, len(unwrap_spec))
-        b = Builtin(miniglobals[funcname], funcname, len(unwrap_spec),
-                    signature)
+        l = len(unwrap_spec)
+        signature = Signature.getsignature(name, l)
+        b = Builtin(miniglobals[funcname], funcname, l, signature)
         signature.set_extra("builtin", b)
     return func

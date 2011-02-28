@@ -342,6 +342,18 @@ def test_current_input():
     h = Heap()
     impl_current_input(e, h, X)
     assert X.getvalue(h).name() == e.streamwrapper.current_instream.alias
+
+def test_current_input_2():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
     
 def test_current_output():
     X = term.Var()
@@ -393,6 +405,22 @@ def test_set_input():
     finally:
         delete_file(src)
 
+def test_close_current_input():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert w.current_instream.alias == "$stream_0"
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        close(S).
+        """ % src, e)
+        assert w.current_instream.alias == "$stream_0"
+    finally:
+        delete_file(src)
+
 def test_set_output():
     src = "__src__"
     create_file(src, "")
@@ -409,6 +437,22 @@ def test_set_output():
                 fd = key
                 break
         assert e.streamwrapper.current_outstream.fd() == fd
+    finally:
+        delete_file(src)
+
+def test_close_current_output():
+    src = "__src__"
+    create_file(src, "")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert w.current_outstream.alias == "$stream_1"
+        assert_true("""
+        open('%s', write, S),
+        set_output(S),
+        close(S).
+        """ % src, e)
+        assert w.current_outstream.alias == "$stream_1"
     finally:
         delete_file(src)
 
@@ -538,5 +582,119 @@ def test_read():
     finally:
         delete_file(src)
 
-def test_read_eof():
+def test_read_whitespace():
     src = "__src__"
+    create_file(src, """
+
+
+    f(a).
+
+
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, X), X = f(a),
+        read(S, Y), Y = end_of_file,
+        close(S).
+        """ % src)    
+    finally:
+        delete_file(src)
+
+def test_read_eof_error():
+    src = "__src__"
+    create_file(src, "f(a)")
+    try:
+        prolog_raises("syntax_error(E)", """
+        open('%s', read, S),
+        read(S, X)
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_read_comment_1():
+    src = "__src__"
+    create_file(src, "  % asd  ")
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, end_of_file),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_read_comment_2():
+    src = "__src__"
+    create_file(src, """
+    f(a).%f(b).
+    g(x).
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        read(S, X), X = f(a),
+        read(S, Y), Y = g(x),
+        close(S).
+        """ % src)
+    finally: 
+        delete_file(src)
+
+def test_read_current_stream():
+    src = "__src__"
+    create_file(src, """
+    f(a).
+    """)
+    try:
+        assert_true("""
+        open('%s', read, S),
+        set_input(S),
+        read(X), X = f(a),
+        close(S).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_see_with_file():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        see('%s'),
+        get_char(a), get_char(b), get_char(c).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_see_with_alias():
+    src = "__src__"
+    create_file(src, "abc")
+    try:
+        assert_true("""
+        open('%s', read, S, [alias(xxx)]),
+        see(xxx),
+        get_char(a), get_char(b), get_char(c).
+        """ % src)
+    finally:
+        delete_file(src)
+
+def test_see_errors():
+    prolog_raises("type_error(X, Y)", "see(f(a))")
+    prolog_raises("instantiation_error", "see(X)")
+
+def test_seen():
+    src = "__src__"
+    create_file(src, "asdasd")
+    try:
+        e = Engine()
+        w = e.streamwrapper
+        assert_true("open('%s', read, S), set_input(S)." % src, e)
+        assert len(w.streams) == 3
+        assert len(w.aliases) == 3
+        assert w.current_instream.fd() not in [0, 1]
+        assert_true("seen.", e)
+        assert len(w.streams) == 2
+        assert len(w.aliases) == 2
+        assert w.current_instream.fd() == 0
+    finally:
+        delete_file(src)
