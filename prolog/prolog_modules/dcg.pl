@@ -11,9 +11,8 @@ trans_head(H, X0, X1, F) :-
 
 trans_head(H, X0, X1, F) :-
 	H =.. List, !,
-	append(List, [X0], Args1),
-	append(Args1, [X1], Args2),
-	F =.. Args2. 
+	append(List, [X0, X1], Args),
+	F =.. Args. 
 
 trans_body((B1, B2), X0, XE, XTemp = R) :-
 	is_list(B1),
