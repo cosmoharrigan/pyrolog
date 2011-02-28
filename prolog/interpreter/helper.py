@@ -31,6 +31,7 @@ def unwrap_list(prolog_list):
         result[used] = curr.argument_at(0)
         used += 1
         curr = curr.argument_at(1)
+        curr = curr.dereference(None)
     if isinstance(curr, term.Callable) and curr.signature().eq(nilsig):
         if used != len(result):
             nresult = [None] * used

@@ -323,6 +323,7 @@ def test_univ():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
+    assert_true("L = [a|X], X = [], Z =.. L, Z == a.")
 
 def test_arg():
     assert_true("arg(1, g(a, b, c), a).")
