@@ -19,13 +19,15 @@ trans_body(X, X0, XE, EmitIn, EmitOut, R) :-
 	X \= (_, _),
 	trans_body_call(X, X0, XE, EmitIn, EmitOut, R).
 
-trans_body_call(X, X0, XE, true, false, X0 = L) :-
+trans_body_call(X, X0, XE, Emit, false, R) :-
 	is_list(X),
-	append(X, XE, L).
-
-trans_body_call(X, X0, XE, false, false, true) :-
-	is_list(X),
-	append(X, XE, X0).
+	append(X, XE, L),
+	(Emit = true ->
+		R = (X0 = L)
+	;
+		R = true,
+		X0 = L
+	).
 
 trans_body_call(A, X0, XE, _, true, R) :-
 	callable(A),
