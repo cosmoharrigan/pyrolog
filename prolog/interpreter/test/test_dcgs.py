@@ -37,10 +37,16 @@ def test_nonterminal_terminal():
     X = (a(X1, X3) :- b(X1, X2), X2 = [c|X3]).
     """, e)
 
+def test_nonterminal_terminal_terminal():
+    assert_true("""
+    trans((a --> b, [c], [d]), X),
+    X = (a(X1, X3) :- b(X1, X2), X2 = [c, d|X3]).
+    """, e)
+
 def test_terminal_terminal():
     assert_true("""
     trans((a --> [b], [c]), X),
-    X = (a([b|X1], X2) :- X1 = [c|X2]).
+    X = (a([b, c|X], X) :- true).
     """, e)
 
 def test_nonterminal_param_1():

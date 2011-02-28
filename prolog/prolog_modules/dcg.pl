@@ -2,54 +2,43 @@
 :- use_module('../../prolog_modules/list').
 
 trans((H --> B), (TransH :- TransB)) :-
-	trans_head(H, X0, X1, TransH),
-	trans_body(B, X0, X1, TransB).
+	add_arguments(H, X0, X1, TransH),
+	trans_body(B, X0, X1, false, _, TransB).
 
-trans_head(H, X0, X1, F) :-
-	atom(H), !,
-	F =.. [H, X0, X1].
-
-trans_head(H, X0, X1, F) :-
+add_arguments(H, X0, X1, F) :-
 	H =.. List, !,
 	append(List, [X0, X1], Args),
 	F =.. Args. 
 
-trans_body((B1, B2), X0, XE, XTemp = R) :-
-	is_list(B1),
-	is_list(B2), !,
-	append(B1, XTemp, X0),
-	append(B2, XE, R).
+trans_body((B1, B2), X0, XE, EmitIn, EmitOut, R) :-
+	trans_body_call(B1, X0, X1, EmitIn, Emit, R1),
+	trans_body(B2, X1, XE, Emit, EmitOut, R2),
+	append_bodies(R1, R2, R).
 
-trans_body((B1, B2), X0, XE, F2) :-
-	is_list(B1), !,
-	append(B1, XTemp, X0),
-	trans_body(B2, XTemp, XE, F2).
+trans_body(X, X0, XE, EmitIn, EmitOut, R) :-
+	X \= (_, _),
+	trans_body_call(X, X0, XE, EmitIn, EmitOut, R).
 
-trans_body((B1, B2), X0, XE, (F1, XTemp = R)) :-
-	is_list(B2), !,
-	trans_body(B1, X0, XTemp, F1),
-	append(B2, XE, R).
+trans_body_call(X, X0, XE, true, false, X0 = L) :-
+	is_list(X),
+	append(X, XE, L).
 
-trans_body((B1, B2), X0, XE, (F1, F2)) :-
-	trans_body(B1, X0, XTemp, F1),
-	trans_body(B2, XTemp, XE, F2), !.
+trans_body_call(X, X0, XE, false, false, true) :-
+	is_list(X),
+	append(X, XE, X0).
 
-trans_body(B, X0, XE, F) :-
-	atom(B), !,
-	F =.. [B, X0, XE].
+trans_body_call(A, X0, XE, _, true, R) :-
+	callable(A),
+	\+ is_list(A),
+	add_arguments(A, X0, XE, R).
 
-trans_body(B, X0, XE, true) :-
-	is_list(B),
-	append(B, XE, R),
-	X0 = R, !.
+append_bodies(true, B, B).
+append_bodies(B, true, B) :-
+	B \= true.
+append_bodies(B1, B2, (B1, B2)) :-
+	B1 \= true.
+
 /*
-trans_body(B, X0, XE, F) :-
-	B =.. [Functor|Args],
-	Functor \= {}, !,
-	append(Args, [X0], Args1),
-	append(Args1, [XE], Args2),
-	F =.. [Functor|Args2].
-
 trans_body({C1, C2}, X0, XE, (C1, R)) :-
 	trans_body({C2}, X0, XE, R), !.
 
