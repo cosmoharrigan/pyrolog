@@ -31,18 +31,31 @@ trans_body_call(X, X0, XE, Emit, false, R) :-
 
 trans_body_call(A, X0, XE, _, true, R) :-
 	callable(A),
+	\+ functor(A, {}, _),
 	\+ is_list(A),
 	add_arguments(A, X0, XE, R).
 
+trans_body_call({X}, X0, XE, EmitIn, EmitOut, R) :-
+	trans_braces(X, X0, XE, R).
+
 append_bodies(true, B, B).
+
 append_bodies(B, true, B) :-
 	B \= true.
+
 append_bodies(B1, B2, (B1, B2)) :-
 	B1 \= true.
 
-/*
-trans_body({C1, C2}, X0, XE, (C1, R)) :-
-	trans_body({C2}, X0, XE, R), !.
+trans_braces_build(X, X0, XE, true, (X, X0 = XE)) :-
+	X \= (_, _).
 
-trans_body({C}, X0, XE, (C, X0=XE)) :- !.
-*/
+trans_braces_build(X, X0, XE, false, X) :-
+	X \= (_, _).
+
+trans_braces((B1, B2), X0, XE, (R1, R2)) :-
+	trans_braces_build(B1, X0, XE, false, R1),
+	trans_braces(B2, X0, XE, R2).
+	
+trans_braces(B, X0, XE, R) :-
+	B \= (_, _),
+	trans_braces_build(B, X0, XE, true, R).
