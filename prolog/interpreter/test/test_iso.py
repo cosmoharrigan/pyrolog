@@ -57,7 +57,8 @@ def deconstruct_line(line):
 def get_lines(file_):
     testfile = open(TESTDIR + '/' + file_)
     for test in testfile.readlines():
-        if test.endswith('%%SKIP%%\n') or test.find('0\'') != -1:
+        if (test.endswith('%%SKIP%%\n') or test.find('0\'') != -1
+                or test.find('current_prolog_flag') != -1):
             continue
         if test.startswith('['):
             last_bracket = test.rfind(']')

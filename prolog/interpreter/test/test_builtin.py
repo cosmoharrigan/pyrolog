@@ -585,7 +585,8 @@ def test_number_chars():
     prolog_raises("instantiation_error", "number_chars(X, Y)")
     prolog_raises("type_error(list, E)", "number_chars(1, ['a'|2])")
     prolog_raises("type_error(number, a)", "number_chars(a, X)")
-
+    prolog_raises("type_error(number, a)", "number_chars(a, X)")
+    prolog_raises("syntax_error(E)", "number_chars(A, ['-', '.', '1'])")
 
 def test_atom_chars():
     assert_true("atom_chars(abc, X), X = [a, b, c].")
@@ -598,3 +599,6 @@ def test_atom_chars():
     prolog_raises("type_error(text, E)", "atom_chars(X, [f(a)])")
     prolog_raises("type_error(list, E)", "atom_chars(X, f(a))")
     prolog_raises("type_error(text, E)", "atom_chars(X, [[]])")
+
+def test_atom_chars_2():
+    assert_true("atom_chars(ab, [a|B]), B = [b].")

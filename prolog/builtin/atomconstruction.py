@@ -201,13 +201,12 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
     cont =  cls(engine, scont, fcont, heap, s, before, length, after, sub)
     return cont, fcont, heap
 
-
 def atom_to_cons(atom):
     charlist = [term.Callable.build(c) for c in atom.name()]
     return helper.wrap_list(charlist)
         
-        
 def cons_to_atom(cons):
+    import pdb; pdb.set_trace()
     atomlist = helper.unwrap_list(cons)
     result = []
     for atom in atomlist:
@@ -219,13 +218,15 @@ def cons_to_atom(cons):
         result.append(atom.name())
     return Callable.build("".join(result))
 
-
 @expose_builtin("atom_chars", unwrap_spec=["obj", "obj"])
 def impl_atom_chars(engine, heap, atom, charlist):
+    #import pdb; pdb.set_trace()
     if not isinstance(charlist, term.Var):  
         cons_to_atom(charlist).unify(atom, heap)
     else:
         if isinstance(atom, term.Var):
             error.throw_instantiation_error()
+        elif not isinstance(atom, term.Atom):
+            error.throw_type_error("atom", atom)
         else:
             atom_to_cons(atom).unify(charlist, heap)
