@@ -206,7 +206,6 @@ def atom_to_cons(atom):
     return helper.wrap_list(charlist)
         
 def cons_to_atom(cons):
-    import pdb; pdb.set_trace()
     atomlist = helper.unwrap_list(cons)
     result = []
     for atom in atomlist:
@@ -220,9 +219,11 @@ def cons_to_atom(cons):
 
 @expose_builtin("atom_chars", unwrap_spec=["obj", "obj"])
 def impl_atom_chars(engine, heap, atom, charlist):
-    #import pdb; pdb.set_trace()
     if not isinstance(charlist, term.Var):  
-        cons_to_atom(charlist).unify(atom, heap)
+        if isinstance(atom, term.Atom):
+            atom_to_cons(atom).unify(charlist, heap)
+        else:
+            cons_to_atom(charlist).unify(atom, heap)
     else:
         if isinstance(atom, term.Var):
             error.throw_instantiation_error()
