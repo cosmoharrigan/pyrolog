@@ -55,17 +55,3 @@ trans_braces(X, _, _, false, X) :-
 trans_braces((B1, B2), X0, XE, Emit, (R1, R2)) :-
 	trans_braces(B1, X0, XE, false, R1),
 	trans_braces(B2, X0, XE, Emit, R2).
-/*
-trans_braces_build(X, X0, XE, true, (X, X0 = XE)) :-
-	X \= (_, _).
-
-trans_braces_build(X, _, _, false, X) :-
-	X \= (_, _).
-
-trans_braces((B1, B2), X0, XE, _, (R1, R2)) :-
-	trans_braces_build(B1, X0, XE, false, R1),
-	trans_braces(B2, X0, XE, _, R2), !.
-	
-trans_braces(B, X0, XE, Change, R) :-
-	B \= (_, _),
-	trans_braces_build(B, X0, XE, Change, R). */
