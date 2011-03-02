@@ -143,27 +143,25 @@ def test_integration_2():
 
 def test_integration_3():
     assert_true("""
-    trans((x --> blub, zip), R1), assert(R1),
-    trans((blub --> pre, tgz), R2), assert(R2),
-    trans((zip --> bla, blub), R3), assert(R3),
-    trans((zip --> v), R4), assert(R4),
-    trans((pre --> [the]), R5), assert(R5),
-    trans((pre --> [a]), R6), assert(R6),
-    trans((pre --> [that]), R7), assert(R7),
-    trans((tgz --> [bug]), R8), assert(R8),
-    trans((tgz --> [witch]), R9), assert(R9),
-    trans((tgz --> [besom]), R10), assert(R10),
-    trans((tgz --> [pipe]), R14), assert(R14),
-    trans((bla --> [hates]), R11), assert(R11),
-    trans((bla --> [fools]), R12), assert(R12),
-    trans((n --> [besom]), R13), assert(R13),
-    x([a, bug, hates, the, witch], []),
-    x([that, witch, fools, a, besom], []).
+    trans((s3 --> a3, b3, c3), R1), assert(R1),
+    trans((a3 --> [a]), R2), assert(R2),
+    trans((a3 --> [b]), R3), assert(R3),
+    trans((b3 --> [c]), R4), assert(R4),
+    trans((b3 --> [d]), R5), assert(R5),
+    trans((c3 --> [e]), R6), assert(R6),
+    trans((c3 --> [f]), R7), assert(R7).
     """, e)
-    assert_false("""
-    x([that, that, witch, fools, a, bug], []).
-    """, e)
-    assert_true("x([the, witch, hates, the, bug], []).", e)
+    assert_true("s3([a, c, e], []).", e)
+    assert_true("s3([b, c, e], []).", e)
+    assert_true("s3([a, d, e], []).", e)
+    assert_true("s3([b, d, e], []).", e)
+    assert_true("s3([a, c, f], []).", e)
+    assert_true("s3([b, c, f], []).", e)
+    assert_true("s3([a, d, f], []).", e)
+    assert_true("s3([b, d, f], []).", e)
+    assert_false("s3([], []).", e)
+    assert_false("s3([a, b, c], []).", e)
+    assert_false("s3([f, f, f], []).", e)
 
 def test_integration_4():
     assert_true("""
@@ -189,21 +187,14 @@ def test_integration_4():
 
 def test_integration_5():
     assert_true("""
-    trans((ex --> tm, at), R1), assert(R1),
-    trans((at --> []), R2), assert(R2),
-    trans((at --> [+], ex), R3), assert(R3),
-    trans((tm --> fcr, mf), R4), assert(R4),
-    trans((mf --> []), R5), assert(R5),
-    trans((mf --> [*], tm), R6), assert(R6),
-    trans((fcr --> [I], {integer(I)}), R7), assert(R7),
-    trans((fcr --> ['('], ex, [')']), R8), assert(R8).
+    trans((s5 --> [X], {integer(X), 1 =:= X mod 2}), R), assert(R).
     """, e)
+    assert_true("s5([1], []).", e)
+    assert_true("s5([3], []).", e)
+    assert_true("s5([133], []).", e)
+    assert_false("s5([2], []).", e)
+    assert_false("s5([1, 3], []).", e)
+    assert_false("s5([], []).", e)
+    assert_false("s5([a], []).", e)
 
-    assert_true("ex([1, '+', 2], []).", e)
-    assert_true("ex([1, '*', '(', 2, '+', 3, ')'], []).", e)
-    assert_true("ex([1, '*', '(', 2, '+', '(', 3, ')', ')'], []).", e)
-    assert_true("ex([1000], []).", e)
-
-    assert_false("ex([100, 1000], []).", e)
-    assert_false("ex([a], []).", e)
-    assert_false("ex([1, '+', '*', '2'], []).", e)
+   
