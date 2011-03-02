@@ -31,6 +31,7 @@ def unwrap_list(prolog_list):
         result[used] = curr.argument_at(0)
         used += 1
         curr = curr.argument_at(1)
+        curr = curr.dereference(None)
     if isinstance(curr, term.Callable) and curr.signature().eq(nilsig):
         if used != len(result):
             nresult = [None] * used
@@ -58,6 +59,8 @@ def unwrap_int(obj):
         f = obj.floatval; i = int(f)
         if f == i:
             return i
+    elif isinstance(obj, term.Var):
+        error.throw_instantiation_error()
     error.throw_type_error('integer', obj)
 
 def unwrap_atom(obj):
@@ -96,5 +99,7 @@ def convert_to_str(obj):
         return str(obj.num)
     elif isinstance(obj, term.Float):
         return str(obj.floatval)
-    error.throw_type_error("atomic", obj)
+    elif isinstance(obj, term.BigInt):
+        return obj.value.str()
+    error.throw_type_error("atom", obj)
 

@@ -37,6 +37,7 @@ for ext, prolog, python in [("eq", "==", "== 0"),
 @expose_builtin(prolog, unwrap_spec=["obj", "obj"])
 def impl_standard_comparison_%s(engine, heap, obj1, obj2):
     c = term.cmp_standard_order(obj1, obj2, heap)
+    print "c = " + str(c)
     if not c %s:
         raise error.UnificationFailed()""" % (ext, python)).compile()
  

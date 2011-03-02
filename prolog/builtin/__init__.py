@@ -12,3 +12,4 @@ import prolog.builtin.statistics
 import prolog.builtin.source
 import prolog.builtin.termconstruction
 import prolog.builtin.unify
+import prolog.builtin.numberchars

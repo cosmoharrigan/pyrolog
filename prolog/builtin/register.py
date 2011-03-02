@@ -2,6 +2,7 @@ import py
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.arithmetic import eval_arithmetic
 
 from pypy.rlib.objectmodel import we_are_translated
 
@@ -45,10 +46,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
     for i, spec in enumerate(unwrap_spec):
         varname = "var%s" % (i, )
         subargs.append(varname)
-        if spec in ("obj", "callable", "int", "atom", "arithmetic"):
+        if spec in ("obj", "callable", "int", "atom", "arithmetic", "list"):
             code.append("    %s = query.argument_at(%s).dereference(heap)" %
                         (varname, i))
-        elif spec in ("concrete", "list"):
+        elif spec in ("concrete", ):
             code.append("    %s = query.argument_at(%s).getvalue(heap)" %
                         (varname, i))
         if spec in ("int", "atom", "arithmetic", "list"):
@@ -64,6 +65,10 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
             code.append(
                 "    if not isinstance(%s, term.Callable):" % (varname,))
             code.append(
+                "        if isinstance(%s, term.Var):" % (varname,))
+            code.append(
+                "           error.throw_instantiation_error()")
+            code.append(
                 "        error.throw_type_error('callable', %s)" % (varname,))
         elif spec == "raw":
             code.append("    %s = query.argument_at(%s)" % (varname, i))
@@ -72,7 +77,7 @@ def make_wrapper(func, name, unwrap_spec=None, handles_continuation=False,
         elif spec == "atom":
             code.append("    %s = helper.unwrap_atom(%s)" % (varname, varname))
         elif spec == "arithmetic":
-            code.append("    %s = %s.eval_arithmetic(engine)" %
+            code.append("    %s = eval_arithmetic(engine, %s)" %
                         (varname, varname))
         elif spec == "list":
             code.append("    %s = helper.unwrap_list(%s)" % (varname, varname))

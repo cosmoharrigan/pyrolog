@@ -21,13 +21,17 @@ def wrap_error(t):
 class UnificationFailed(PrologError):
     pass
 
+def throw_syntax_error(msg):
+    from prolog.interpreter import term
+    t = term.Callable.build("syntax_error", [term.Callable.build(msg)])
+    raise wrap_error(t)
 
 def throw_existence_error(object_type, obj):
     from prolog.interpreter import term
     t = term.Callable.build("existence_error", [term.Callable.build(object_type), obj])
     raise wrap_error(t)
 
-def throw_instantiation_error():
+def throw_instantiation_error(obj = None):
     from prolog.interpreter import term
     raise wrap_error(term.Callable.build("instantiation_error"))
 
@@ -36,7 +40,7 @@ def throw_type_error(valid_type, obj):
     # valid types are:
     # atom, atomic, byte, callable, character
     # evaluable, in_byte, in_character, integer, list
-    # number, predicate_indicator, variable
+    # number, predicate_indicator, variable, text
     from prolog.interpreter import term
     raise wrap_error(
         term.Callable.build("type_error", [term.Callable.build(valid_type), obj]))

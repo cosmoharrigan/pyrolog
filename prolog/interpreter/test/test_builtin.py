@@ -197,6 +197,12 @@ def test_call_cut():
     heaps = collect_all(e, "f(!).")
     assert len(heaps) == 1
 
+def test_bug_or_exposing_problem_of_cyclic_term_support():
+    e = get_engine("""
+        f(X) :- (X = 1; X = 2), X = 2.
+    """)
+    assert_true("f(X).", e)
+
 def test_or_and_call_with_cut():
     e = get_engine("""
         f :- (!, fail); true.
@@ -317,6 +323,7 @@ def test_univ():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
+    assert_true("L = [a|X], X = [], Z =.. L, Z == a.")
 
 def test_arg():
     assert_true("arg(1, g(a, b, c), a).")
@@ -346,12 +353,16 @@ def test_copy_term():
 
 def test_type_checks():
     assert_true("integer(123).")
+    assert_true("integer(1000000000000000000000000000000000000).")
+    assert_true("integer(-1000000000000000000000000000000000000).")
     assert_false("integer(a).")
     assert_false("integer(X).")
     assert_true("float(123.12).")
     assert_false("float(a).")
     assert_false("float(12).")
     assert_true("number(123).")
+    assert_true("number(1000000000000000000000000000000000000).")
+    assert_true("number(-1000000000000000000000000000000000000).")
     assert_true("number(42.42).")
     assert_false("number(abc).")
     assert_false("integer(a).")
@@ -450,6 +461,35 @@ def test_standard_comparison():
     assert_true("'\\\\=='(f(X, Y), 12).")
     assert_true("X = f(a), Y = f(b), Y @> X.")
 
+def test_structural_comparison():
+    assert_true("1.0 @< 1.")
+    assert_true("2.0 @< 1.")
+    assert_true("10000000000000000000000000000000000.0 @< 1.")
+    assert_true("1.0 @< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @< 1000000000000000000000000000001.")
+    assert_true("@<(1.0, 1).")
+
+    assert_false("1.0 @> 1.")
+    assert_false("2.0 @> 1.")
+    assert_false("10000000000000000000000000000000000.0 @> 1.")
+    assert_false("1.0 @> 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @> 1000000000000000000000000000001.")
+    assert_false("@>(1.0, 1).")
+
+    assert_false("1.0 @>= 1.")
+    assert_false("2.0 @>= 1.")
+    assert_false("10000000000000000000000000000000000.0 @>= 1.")
+    assert_false("1.0 @>= 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @>= 1000000000000000000000000000001.")
+    assert_false("@>=(1.0, 1).")
+
+    assert_true("1.0 @=< 1.")
+    assert_true("2.0 @=< 1.")
+    assert_true("10000000000000000000000000000000000.0 @=< 1.")
+    assert_true("1.0 @=< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
+    assert_true("@=<(1.0, 1).")
+
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
     assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")
@@ -525,3 +565,35 @@ def test_write_term():
                   "write_term(a, [quoted(af)])")
     prolog_raises("type_error(list, E)",
                   "write_term(a, asdf)")
+
+def test_number_chars():
+    assert_true("number_chars(123, ['1', '2', '3']).")
+    assert_true("number_chars(123, X), X = ['1', '2', '3'].")
+    prolog_raises("type_error(text, E)", "number_chars(X, [f(a)])")
+    prolog_raises("type_error(list, E)", "number_chars(X, a)")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['-', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['1', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['.', '1', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['1', '.', '2', '.'])")
+    assert_true("number_chars(X, ['1', '2', '3']), X = 123.")
+    prolog_raises("type_error(list, E)", "number_chars(123, 123)")
+    prolog_raises("type_error(list, E)", "number_chars(b, a)")
+    assert_true("number_chars(-123, ['-', '1', '2', '3']).")
+    assert_true("number_chars(123.1, ['1', '2', '3', '.', '1']).")
+    assert_true("number_chars(1000000000000000, ['1','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0']).")
+    prolog_raises("instantiation_error", "number_chars(X, Y)")
+    prolog_raises("type_error(list, E)", "number_chars(1, ['a'|2])")
+    prolog_raises("type_error(number, a)", "number_chars(a, X)")
+
+
+def test_atom_chars():
+    assert_true("atom_chars(abc, X), X = [a, b, c].")
+    assert_true("atom_chars(a12, [a, '1', '2']).")
+    assert_true("atom_chars('', []).")
+    prolog_raises("instantiation_error", "atom_chars(X, Y)")
+    assert_true("atom_chars(X, [a, b, '1']), X = ab1.")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [a, b, '10'])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, a)")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [f(a)])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, f(a))")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [[]])")

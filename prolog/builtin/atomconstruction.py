@@ -2,6 +2,9 @@ import py
 from prolog.interpreter import helper, term, error
 from prolog.interpreter import continuation
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.term import specialized_term_classes
+from prolog.interpreter.term import Callable
+import re
 
 # ___________________________________________________________________
 # analysing and construction atoms
@@ -198,3 +201,31 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
     cont =  cls(engine, scont, fcont, heap, s, before, length, after, sub)
     return cont, fcont, heap
 
+
+def atom_to_cons(atom):
+    charlist = [term.Callable.build(c) for c in atom.name()]
+    return helper.wrap_list(charlist)
+        
+        
+def cons_to_atom(cons):
+    atomlist = helper.unwrap_list(cons)
+    result = []
+    for atom in atomlist:
+        if not isinstance(atom, term.Atom):
+            error.throw_type_error("text", atom)
+        name = atom.name()
+        if not len(name) == 1:
+            error.throw_type_error("text", atom)
+        result.append(atom.name())
+    return Callable.build("".join(result))
+
+
+@expose_builtin("atom_chars", unwrap_spec=["obj", "obj"])
+def impl_atom_chars(engine, heap, atom, charlist):
+    if not isinstance(charlist, term.Var):  
+        cons_to_atom(charlist).unify(atom, heap)
+    else:
+        if isinstance(atom, term.Var):
+            error.throw_instantiation_error()
+        else:
+            atom_to_cons(atom).unify(charlist, heap)
