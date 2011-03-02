@@ -125,12 +125,6 @@ def test_curly_multiple_2():
 # DCG integration tests, i. e. check translated rules
 # ___________________________________________________
 
-def make_engine():
-    e = get_engine("""
-    :- use_module('%s%s').
-    """ % (loc, "dcg"))
-    return e
-
 def test_integration_1():
     assert_true("""
     trans((a1 --> [b], [c]), R1),
@@ -149,26 +143,27 @@ def test_integration_2():
 
 def test_integration_3():
     assert_true("""
-    trans((s --> np, vp), R1), assert(R1),
-    trans((np --> det, n), R2), assert(R2),
-    trans((vp --> tv, np), R3), assert(R3),
-    trans((vp --> v), R4), assert(R4),
-    trans((det --> [the]), R5), assert(R5),
-    trans((det --> [a]), R6), assert(R6),
-    trans((det --> [every]), R7), assert(R7),
-    trans((n --> [man]), R8), assert(R8),
-    trans((n --> [woman]), R9), assert(R9),
-    trans((n --> [park]), R10), assert(R10),
-    trans((tv --> [loves]), R11), assert(R11),
-    trans((tv --> [likes]), R12), assert(R12),
-    trans((n --> [park]), R13), assert(R13),
-    s([a, man, loves, the, woman], []),
-    s([every, woman, likes, a, park], []).
+    trans((x --> blub, zip), R1), assert(R1),
+    trans((blub --> pre, tgz), R2), assert(R2),
+    trans((zip --> bla, blub), R3), assert(R3),
+    trans((zip --> v), R4), assert(R4),
+    trans((pre --> [the]), R5), assert(R5),
+    trans((pre --> [a]), R6), assert(R6),
+    trans((pre --> [that]), R7), assert(R7),
+    trans((tgz --> [bug]), R8), assert(R8),
+    trans((tgz --> [witch]), R9), assert(R9),
+    trans((tgz --> [besom]), R10), assert(R10),
+    trans((tgz --> [pipe]), R14), assert(R14),
+    trans((bla --> [hates]), R11), assert(R11),
+    trans((bla --> [fools]), R12), assert(R12),
+    trans((n --> [besom]), R13), assert(R13),
+    x([a, bug, hates, the, witch], []),
+    x([that, witch, fools, a, besom], []).
     """, e)
     assert_false("""
-    s([every, every, woman, likes, a, man], []).
+    x([that, that, witch, fools, a, bug], []).
     """, e)
-    assert_true("s([the, woman, loves, the, man], []).", e)
+    assert_true("x([the, witch, hates, the, bug], []).", e)
 
 def test_integration_4():
     assert_true("""
@@ -194,21 +189,21 @@ def test_integration_4():
 
 def test_integration_5():
     assert_true("""
-    trans((expr --> term, addterm), R1), assert(R1),
-    trans((addterm --> []), R2), assert(R2),
-    trans((addterm --> [+], expr), R3), assert(R3),
-    trans((term --> factor, multfactor), R4), assert(R4),
-    trans((multfactor --> []), R5), assert(R5),
-    trans((multfactor --> [*], term), R6), assert(R6),
-    trans((factor --> [I], {integer(I)}), R7), assert(R7),
-    trans((factor --> ['('], expr, [')']), R8), assert(R8).
+    trans((ex --> tm, at), R1), assert(R1),
+    trans((at --> []), R2), assert(R2),
+    trans((at --> [+], ex), R3), assert(R3),
+    trans((tm --> fcr, mf), R4), assert(R4),
+    trans((mf --> []), R5), assert(R5),
+    trans((mf --> [*], tm), R6), assert(R6),
+    trans((fcr --> [I], {integer(I)}), R7), assert(R7),
+    trans((fcr --> ['('], ex, [')']), R8), assert(R8).
     """, e)
 
-    assert_true("expr([1, '+', 2], []).", e)
-    assert_true("expr([1, '*', '(', 2, '+', 3, ')'], []).", e)
-    assert_true("expr([1, '*', '(', 2, '+', '(', 3, ')', ')'], []).", e)
-    assert_true("expr([1000], []).", e)
+    assert_true("ex([1, '+', 2], []).", e)
+    assert_true("ex([1, '*', '(', 2, '+', 3, ')'], []).", e)
+    assert_true("ex([1, '*', '(', 2, '+', '(', 3, ')', ')'], []).", e)
+    assert_true("ex([1000], []).", e)
 
-    assert_false("expr([100, 1000], []).", e)
-    assert_false("expr([a], []).", e)
-    assert_false("expr([1, '+', '*', '2'], []).", e)
+    assert_false("ex([100, 1000], []).", e)
+    assert_false("ex([a], []).", e)
+    assert_false("ex([1, '+', '*', '2'], []).", e)
