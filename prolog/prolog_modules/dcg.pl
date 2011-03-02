@@ -19,7 +19,7 @@ trans_body(X, X0, XE, EmitIn, EmitOut, R) :-
 	X \= (_, _),
 	trans_body_call(X, X0, XE, EmitIn, EmitOut, true, R).
 
-trans_body_call(X, X0, XE, Emit, false, _, R) :-
+trans_body_call(X, X0, XE, Emit, false, _LastRule, R) :-
 	is_list(X),
 	append(X, XE, L),
 	(Emit = true ->
@@ -29,14 +29,14 @@ trans_body_call(X, X0, XE, Emit, false, _, R) :-
 		X0 = L
 	).
 
-trans_body_call(A, X0, XE, _, true, _, R) :-
+trans_body_call(A, X0, XE, _, true, _LastRule, R) :-
 	callable(A),
 	\+ functor(A, {}, _),
 	\+ is_list(A),
 	add_arguments(A, X0, XE, R).
 
-trans_body_call({X}, X0, XE, _, _, Emit, R) :-
-	trans_braces(X, X0, XE, Emit, R).
+trans_body_call({X}, X0, XE, _, _, LastRule, R) :-
+	trans_braces(X, X0, XE, LastRule, R).
 
 append_bodies(true, B, B).
 
@@ -46,12 +46,13 @@ append_bodies(B, true, B) :-
 append_bodies(B1, B2, (B1, B2)) :-
 	B1 \= true.
 
-trans_braces(X, X0, XE, true, (X, X0=XE)) :-
-	X \= (_, _).
+trans_braces_body_last(X, X0, XE, true, (X, X0 = XE)).
+trans_braces_body_last(X, _, _, false, X).
 
-trans_braces(X, _, _, false, X) :-
-	X \= (_, _).
-
-trans_braces((B1, B2), X0, XE, Emit, (R1, R2)) :-
-	trans_braces(B1, X0, XE, false, R1),
+trans_braces((B1, B2), X0, XE, Emit, (B1, R2)) :-
+	B1 \= (_, _),
 	trans_braces(B2, X0, XE, Emit, R2).
+
+trans_braces(B, X0, XE, Emit, R) :-
+	B \= (_, _),
+	trans_braces_body_last(B, X0, XE, Emit, R).
