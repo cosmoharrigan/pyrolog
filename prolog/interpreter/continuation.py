@@ -74,7 +74,7 @@ def driver(scont, fcont, heap):
         raise error.UnificationFailed
 
 class Engine(object):
-    def __init__(self):
+    def __init__(self, load_system=False):
         self.heap = Heap()
         self.parser = None
         self.operations = None
@@ -82,6 +82,8 @@ class Engine(object):
         self.modules = {"user": self.user_module} # all known modules
         self.current_module = self.user_module
         self.libs = {}
+        if load_system:
+            self.init_system_module()
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -179,8 +181,14 @@ class Engine(object):
         # do a real call
         function = module.fetch_function(self, signature)
         if function is None:
-            return error.throw_existence_error(
-                    "procedure", query.get_prolog_signature())
+            try:
+                system = self.modules("system")
+                function = system.fetch_function(self, signature)
+            except IndexError:
+                pass
+            if function is None:
+                return error.throw_existence_error(
+                        "procedure", query.get_prolog_signature())
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -210,6 +218,11 @@ class Engine(object):
             module = Module(modulename)
             self.modules[modulename] = module
             self.current_module = module
+
+    def init_system_module(self):
+        from prolog.builtin.sourcehelper import get_source
+        source = get_source("system.pl")
+        self.runstring(source)
 
     # _____________________________________________________
     # error handling

@@ -525,3 +525,12 @@ def test_nonexisting_predicates_in_import_list():
     """)
     prolog_raises("existence_error(X, Y)", "z", e)
     prolog_raises("existence_error(X, Y)", "g(A)", e)
+
+def test_existing_system_module():
+    e = Engine(load_system=True)
+    assert e.modules.has_key("system")
+
+# needs list module
+def test_access_system_predicate():
+    e = Engine(load_system=True)
+    assert_true("append([1], [2], [1, 2]).", e)
