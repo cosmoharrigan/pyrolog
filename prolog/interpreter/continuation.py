@@ -140,12 +140,12 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0), self.current_module)
         else:
-            sig = Signature.getsignature("term_expand", 2)
+            sig = Signature.getsignature("expand_and_assert", 1)
             if self.system_loaded and self.modules["system"].fetch_function(
                     self, sig) is not None:
                 from prolog.interpreter.term import generate_generic_class
                 cls = generate_generic_class(2)
-                call = cls("term_expand", [term, Var()], sig)
+                call = cls("expand_and_assert", [term, Var()], sig)
                 self.run(call, self.current_module)
             else:
                 self.add_rule(term)

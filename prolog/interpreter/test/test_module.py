@@ -554,6 +554,8 @@ def test_term_expansion():
     prolog_raises("existence_error(A, B)", "g([h], [])", e)
     assert_true("g --> [h].", e)
     assert_false("g --> [].", e)
+    assert_true("term_expand((z --> [q]), R).", e)
+    prolog_raises("existence_error(A, B)", "z([q], [])", e)
 
 def test_overwrite_term_expand():
     e = get_engine("""
@@ -561,7 +563,8 @@ def test_overwrite_term_expand():
     a --> [b].
     """,
     load_system=True)
-    prolog_raises("existence_error(A, B)", "a([b], [])", e)
-    assert_true("a --> [b].", e)
-    assert_true("system:term_expand((a --> [b]), R).", e)
     assert_true("a([b], []).", e)
+    assert_true("system:term_expand((a --> [b]), R), assert(R).", e)
+    assert_true("a([b], []).", e)
+    assert_true("term_expand((a --> b), R), assert(R).", e)
+    assert_true("a --> b.", e)
