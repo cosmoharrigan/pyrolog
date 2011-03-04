@@ -534,3 +534,12 @@ def test_existing_system_module():
 def test_access_system_predicate():
     e = Engine(load_system=True)
     assert_true("append([1], [2], [1, 2]).", e)
+
+# needs list and dcg module
+def test_term_expansion():
+    e = get_engine("""
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)
+    assert_false("a([], []).", e)

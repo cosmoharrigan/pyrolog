@@ -82,8 +82,10 @@ class Engine(object):
         self.modules = {"user": self.user_module} # all known modules
         self.current_module = self.user_module
         self.libs = {}
+        self.system_loaded = False
         if load_system:
             self.init_system_module()
+            self.system_loaded = True
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -138,7 +140,15 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0), self.current_module)
         else:
-            self.add_rule(term)
+            sig = Signature.getsignature("term_expand", 2)
+            if self.system_loaded and self.modules["system"].fetch_function(
+                    self, sig) is not None:
+                from prolog.interpreter.term import generate_generic_class
+                cls = generate_generic_class(2)
+                call = cls("term_expand", [term, Var()], sig)
+                self.run(call, self.current_module)
+            else:
+                self.add_rule(term)
         return self.parser
 
     def runstring(self, s):
@@ -182,9 +192,9 @@ class Engine(object):
         function = module.fetch_function(self, signature)
         if function is None:
             try:
-                system = self.modules("system")
+                system = self.modules["system"]
                 function = system.fetch_function(self, signature)
-            except IndexError:
+            except KeyError:
                 pass
             if function is None:
                 return error.throw_existence_error(
@@ -223,6 +233,7 @@ class Engine(object):
         from prolog.builtin.sourcehelper import get_source
         source = get_source("system.pl")
         self.runstring(source)
+        self.current_module = self.user_module
 
     # _____________________________________________________
     # error handling
