@@ -1,4 +1,4 @@
-:- module(system, []).
+:- module(system, [term_expand/2]).
 
 :- use_module(list).
 :- use_module(dcg).

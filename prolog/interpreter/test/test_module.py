@@ -539,7 +539,29 @@ def test_access_system_predicate():
 def test_term_expansion():
     e = get_engine("""
     a --> [b].
+    f(X) :-
+        X = x;
+        X = y.
     """,
     load_system=True)
     assert_true("a([b], []).", e)
     assert_false("a([], []).", e)
+    assert_false("f(a).", e)
+    assert_false("f(b).", e)
+    assert_true("f(x).", e)
+    assert_true("f(y).", e)
+    assert_true("assert((g --> [h])).", e)
+    prolog_raises("existence_error(A, B)", "g([h], [])", e)
+    assert_true("g --> [h].", e)
+    assert_false("g --> [].", e)
+
+def test_overwrite_term_expand():
+    e = get_engine("""
+    term_expand(A, A) :- assert(A).
+    a --> [b].
+    """,
+    load_system=True)
+    prolog_raises("existence_error(A, B)", "a([b], [])", e)
+    assert_true("a --> [b].", e)
+    assert_true("system:term_expand((a --> [b]), R).", e)
+    assert_true("a([b], []).", e)
