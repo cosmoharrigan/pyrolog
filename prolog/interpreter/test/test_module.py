@@ -585,3 +585,8 @@ def test_module_with_dcg():
     assert_true("f([b, x, y, z, d]).", e)
     assert_false("f([b, y, z, d]).", e)
     assert_false("f([]).", e)
+
+def test_assert_dcg():
+    e = Engine(load_system=True)
+    assert_true("assert((a --> b)).", e)
+    assert_true("a --> b.", e)
