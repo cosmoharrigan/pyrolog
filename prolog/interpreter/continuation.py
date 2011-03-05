@@ -140,14 +140,17 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0), self.current_module)
         else:
-            sig = Signature.getsignature("expand_and_assert", 1)
-            if self.system_loaded and self.modules["system"].fetch_function(
-                    self, sig) is not None:
-                call = Callable.build("expand_and_assert", [term, Var()], sig)
-                self.run(call, self.current_module)
-            else:
-                self.add_rule(term)
+            self._expand_and_add_rule(term)
         return self.parser
+
+    def _expand_and_add_rule(self, term):
+        sig = Signature.getsignature("expand_and_assert", 1)
+        if self.system_loaded and self.modules["system"].fetch_function(
+                self, sig) is not None:
+            call = Callable.build("expand_and_assert", [term, Var()], sig)
+            self.run(call, self.current_module)
+        else:
+            self.add_rule(term)
 
     def runstring(self, s):
         from prolog.interpreter.parsing import parse_file
