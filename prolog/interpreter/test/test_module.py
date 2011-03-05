@@ -568,3 +568,20 @@ def test_overwrite_term_expand():
     assert_true("a([b], []).", e)
     assert_true("term_expand((a --> b), R), assert(R).", e)
     assert_true("a --> b.", e)
+
+def test_module_with_dcg():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/1]).
+    f(X) :- a(X, []).
+    a --> [b], c, [d].
+    c --> [1].
+    c --> [x, y, z].
+    """,
+    load_system=True)
+    assert_true("f([b, 1, d]).", e)
+    assert_true("f([b, x, y, z, d]).", e)
+    assert_false("f([b, y, z, d]).", e)
+    assert_false("f([]).", e)
