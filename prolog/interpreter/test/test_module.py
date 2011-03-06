@@ -41,6 +41,22 @@ def test_use_module_with_file():
     assert len(e.modules) == 2
     assert_true("f.", e)
 
+def test_use_module_locate_file():
+    src1 = "src.pl"
+    src2 = "src2"
+    create_file(src1, ":- module(src, []).")
+    create_file(src2, ":- module(src2, []).")
+    try:
+        assert_true("use_module('%s')." % src1)
+        assert_true("use_module('%s')." % "src")
+        # XXX some problems with unification, should be existence_error(_, _) 
+        # instead of X
+        prolog_raises("X", "use_module('%s')" % "src2.pl")
+        assert_true("use_module('%s')." % "src2")
+    finally:
+        delete_file(src1)
+        delete_file(src2)
+
 def test_module_uses():
     e = get_engine("""
     :- use_module(b).

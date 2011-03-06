@@ -32,12 +32,6 @@ def handle_use_module(engine, heap, module, path, imports=None):
             modulename = modulename[:len(modulename) - 3]
         if modulename not in engine.modules: # prevent recursive imports
             current_module = engine.current_module
-            #try:
-            #    file_content = get_source(path)
-            #except: # try to load content from prolog_module directory
-            #    path = str(py.path.local(__file__).dirpath().join(
-            #            "../prolog_modules/%s" % path))
-            #    file_content = get_source(path)
             file_content = get_source(path)
             engine.runstring(file_content)
             module = engine.current_module = current_module
