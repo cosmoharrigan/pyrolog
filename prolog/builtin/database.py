@@ -28,7 +28,6 @@ def impl_assert(engine, heap, rule):
 
 @expose_builtin("asserta", unwrap_spec=["callable"])
 def impl_asserta(engine, heap, rule):
-    #engine.add_rule(rule.getvalue(heap), end=False)
     handle_assert(engine, heap, rule, False)
 
 def handle_assert(engine, heap, rule, end):
@@ -41,6 +40,9 @@ def handle_assert(engine, heap, rule, end):
 
 @expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
 def impl_retract(engine, heap, module, pattern):
+    modname = None
+    if pattern.name() == ":":
+        modname, pattern = unpack_modname_and_predicate(pattern)
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
@@ -51,7 +53,11 @@ def impl_retract(engine, heap, module, pattern):
         assert isinstance(head, term.Callable)
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
-    function = module.fetch_function(engine, head.signature())
+    if modname is None:
+        function = module.fetch_function(engine, head.signature())
+    else:
+        function = engine.modules[modname].fetch_function(engine,
+                head.signature())
     if function is None:
         raise error.UnificationFailed
     rulechain = function.rulechain

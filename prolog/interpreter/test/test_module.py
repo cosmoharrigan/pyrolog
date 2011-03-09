@@ -638,3 +638,18 @@ def test_asserta_other_module():
     assert_true("f(a).", e)
     assert_true("module(user).", e)
     prolog_raises("existence_error(_, _)", "f(a)", e)
+
+def test_retract_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    f(b).
+    """)
+    assert_true("m:f(a), m:f(b).", e)
+    assert_true("retract(m:f(a)).", e)
+    assert_false("retract(m:f(a)).", e)
+    assert_false("m:f(a).", e)
+    assert_true("m:f(b).", e)
+    assert_true("retract(m:f(b)).", e)
+    prolog_raises("existence_error(_, _)", "f(b)", e)
