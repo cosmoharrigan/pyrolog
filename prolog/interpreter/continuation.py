@@ -144,13 +144,12 @@ class Engine(object):
         return self.parser
 
     def _expand_and_add_rule(self, term):
-        sig = Signature.getsignature("expand_and_assert", 1)
-        if self.system_loaded and self.modules["system"].fetch_function(
-                self, sig) is not None:
-            call = Callable.build("expand_and_assert", [term, Var()], sig)
+        if self.system_loaded:
+            v = Var()
+            call = Callable.build("term_expand", [term, v])
             self.run(call, self.current_module)
-        else:
-            self.add_rule(term)
+            term = v.getvalue(None)
+        self.add_rule(term)
 
     def runstring(self, s):
         from prolog.interpreter.parsing import parse_file

@@ -575,15 +575,15 @@ def test_term_expansion():
 
 def test_overwrite_term_expand():
     e = get_engine("""
-    term_expand(A, A) :- assert(A).
+    term_expand(A, A).
     a --> [b].
     """,
     load_system=True)
-    assert_true("a([b], []).", e)
+    assert_true("(X --> Y), X == a, Y == [b].", e)
     assert_true("system:term_expand((a --> [b]), R), assert(R).", e)
     assert_true("a([b], []).", e)
     assert_true("term_expand((a --> b), R), assert(R).", e)
-    assert_true("a --> b.", e)
+    assert_true("(A --> b), A == a.", e)
 
 def test_module_with_dcg():
     e = get_engine("""
