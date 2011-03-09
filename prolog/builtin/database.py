@@ -9,6 +9,9 @@ from prolog.builtin.helpers import unpack_modname_and_predicate
 
 @expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
+    modname = None
+    if predicate.name() == ":":
+        modname, predicate = unpack_modname_and_predicate(predicate)
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
         error.throw_domain_error("not_less_than_zero", term.Number(arity))
@@ -16,7 +19,8 @@ def impl_abolish(engine, heap, module, predicate):
     if signature.get_extra("builtin"):
         error.throw_permission_error("modify", "static_procedure",
                                      predicate)
-
+    if modname is not None:
+        module = engine.modules[modname]
     try:
         module.functions.pop(signature)
     except KeyError:

@@ -653,3 +653,19 @@ def test_retract_other_module():
     assert_true("m:f(b).", e)
     assert_true("retract(m:f(b)).", e)
     prolog_raises("existence_error(_, _)", "f(b)", e)
+
+def test_abolish_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    f(b).
+    g(c).
+    """)
+    assert_true("m:f(a), m:f(b), m:g(c).", e)
+    assert_true("abolish(m:f/1).", e)
+    prolog_raises("existence_error(_, _)", "m:f(X)", e)
+    assert_true("m:g(c).", e)
+    assert_true("abolish(m:g/1).", e)
+    prolog_raises("existence_error(_, _)", "m:g(c)", e)
+    assert_true("abolish(m:g/1).", e)
