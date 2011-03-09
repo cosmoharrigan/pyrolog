@@ -96,6 +96,26 @@ def test_list():
     builder = TermBuilder()
     facts = builder.build(t)
 
+def test_braces():
+    t = parse_file("""
+        W = {}.
+        X = {}(a, b, c).
+        Y = {a, b, c}.
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+
+    t = parse_file("""
+        {a, b, c}.
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == "{}"
+    assert facts[0].argument_count() == 1
+    assert facts[0].argument_at(0).name() == ","
+    assert facts[0].argument_at(0).argument_count() == 2
+
 def test_number():
     t = parse_file("""
         X = -1.

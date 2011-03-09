@@ -4,6 +4,8 @@ from prolog.interpreter.term import Atom, Var, Number, Callable, Term
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter.helper import is_term
+from prolog.interpreter.stream import PrologStream, PrologInputStream, \
+PrologOutputStream
 
 def test_atom():
     a = Callable.build("hallo")

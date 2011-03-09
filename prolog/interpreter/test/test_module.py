@@ -41,6 +41,22 @@ def test_use_module_with_file():
     assert len(e.modules) == 2
     assert_true("f.", e)
 
+def test_use_module_locate_file():
+    src1 = "src.pl"
+    src2 = "src2"
+    create_file(src1, ":- module(src, []).")
+    create_file(src2, ":- module(src2, []).")
+    try:
+        assert_true("use_module('%s')." % src1)
+        assert_true("use_module('%s')." % "src")
+        # XXX some problems with unification, should be existence_error(_, _) 
+        # instead of X
+        prolog_raises("X", "use_module('%s')" % "src2.pl")
+        assert_true("use_module('%s')." % "src2")
+    finally:
+        delete_file(src1)
+        delete_file(src2)
+
 def test_module_uses():
     e = get_engine("""
     :- use_module(b).
@@ -525,3 +541,78 @@ def test_nonexisting_predicates_in_import_list():
     """)
     prolog_raises("existence_error(X, Y)", "z", e)
     prolog_raises("existence_error(X, Y)", "g(A)", e)
+
+def test_existing_system_module():
+    e = Engine(load_system=True)
+    assert e.modules.has_key("system")
+
+# needs list module
+def test_access_system_predicate():
+    e = Engine(load_system=True)
+    assert_true("append([1], [2], [1, 2]).", e)
+
+# needs list and dcg module
+def test_term_expansion():
+    e = get_engine("""
+    a --> [b].
+    f(X) :-
+        X = x;
+        X = y.
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)
+    assert_false("a([], []).", e)
+    assert_false("f(a).", e)
+    assert_false("f(b).", e)
+    assert_true("f(x).", e)
+    assert_true("f(y).", e)
+    assert_true("assert((g --> [h])).", e)
+    prolog_raises("existence_error(A, B)", "g([h], [])", e)
+    assert_true("g --> [h].", e)
+    assert_false("g --> [].", e)
+    assert_true("term_expand((z --> [q]), R).", e)
+    prolog_raises("existence_error(A, B)", "z([q], [])", e)
+
+def test_overwrite_term_expand():
+    e = get_engine("""
+    term_expand(A, A).
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("(X --> Y), X == a, Y == [b].", e)
+    assert_true("system:term_expand((a --> [b]), R), assert(R).", e)
+    assert_true("a([b], []).", e)
+    assert_true("term_expand((a --> b), R), assert(R).", e)
+    assert_true("(A --> b), A == a.", e)
+
+def test_module_with_dcg():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/1]).
+    f(X) :- a(X, []).
+    a --> [b], c, [d].
+    c --> [1].
+    c --> [x, y, z].
+    """,
+    load_system=True)
+    assert_true("f([b, 1, d]).", e)
+    assert_true("f([b, x, y, z, d]).", e)
+    assert_false("f([b, y, z, d]).", e)
+    assert_false("f([]).", e)
+
+def test_assert_dcg():
+    e = Engine(load_system=True)
+    assert_true("assert((a --> b)).", e)
+    assert_true("a --> b.", e)
+
+def test_term_expand_fail():
+    # Since self-defined term_expand fails
+    # the system term_expand should be called.
+    e = get_engine("""
+    term_expand(A, A) :- fail.
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)

@@ -8,7 +8,7 @@
 
 [functor(mats(A,B),A,B), [[A <-- mats,B <-- 2]]].
 
-[functor(foo(a),foo,2), success]. % Must fail
+[functor(foo(a),foo,2), success]. % Must fail %%SKIP%%
 
 [functor(foo(a),fo,1), failure].
 

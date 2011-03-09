@@ -5,9 +5,11 @@ from prolog.interpreter.term import Float, Number, Var, Atom, Callable
 from prolog.interpreter import error, helper, parsing
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.stream import PrologStream
 
 conssig = Signature.getsignature(".", 2)
 nilsig = Signature.getsignature("[]", 0)
+tuplesig = Signature.getsignature(",", 2)
 
 
 class TermFormatter(object):
@@ -63,6 +65,8 @@ class TermFormatter(object):
             return self.format_term(term)
         elif isinstance(term, Var):
             return self.format_var(term)
+        elif isinstance(term, PrologStream):
+            return self.format_stream(term)
         else:
             return '?'
 
@@ -102,6 +106,9 @@ class TermFormatter(object):
         else:
             return self.format_with_ops(term)[1]
 
+    def format_stream(self, stream):
+        return "'$stream'(%d)" % stream.fd()
+
     def format_with_ops(self, term):
         if not helper.is_term(term):
             return (0, self.format(term))
@@ -120,6 +127,17 @@ class TermFormatter(object):
                 result[-1] = "|"
                 result.append(self.format(term))
                 result.append("]")
+            return (0, "".join(result))
+        if term.signature().eq(tuplesig):
+            result = ["("]
+            while helper.is_term(term) and isinstance(term, Callable) and term.signature().eq(tuplesig):
+                first = term.argument_at(0)
+                second = term.argument_at(1)
+                result.append(self.format(first))
+                result.append(", ")
+                term = second
+            result.append(self.format(term))
+            result.append(")")
             return (0, "".join(result))
         if (term.argument_count(), term.name()) not in self.op_mapping:
             return (0, self.format_term_normally(term))
@@ -151,18 +169,3 @@ class TermFormatter(object):
                 for op in ops:
                     m[len(form) - 1, op] = (form, prec)
         self.op_mapping = m
-
-@expose_builtin("write_term", unwrap_spec=["concrete", "list"])
-def impl_write_term(engine, heap, term, options):
-    f = TermFormatter.from_option_list(engine, options)
-    os.write(1, f.format(term)) # XXX use streams
-
-@expose_builtin("nl", unwrap_spec=[])
-def impl_nl(engine, heap):
-    os.write(1, "\n") # XXX use streams
-
-@expose_builtin("write", unwrap_spec=["concrete"])
-def impl_write(engine, heap, term):
-    impl_write_term(engine, heap, term, [])
-
-

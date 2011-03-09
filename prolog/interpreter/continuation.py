@@ -10,6 +10,7 @@ from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.module import Module
 from prolog.interpreter.helper import unwrap_predicate_indicator
+from prolog.interpreter.stream import StreamWrapper
 
 Signature.register_extr_attr("function", engine=True)
 
@@ -73,7 +74,7 @@ def driver(scont, fcont, heap):
         raise error.UnificationFailed
 
 class Engine(object):
-    def __init__(self):
+    def __init__(self, load_system=False):
         self.heap = Heap()
         self.parser = None
         self.operations = None
@@ -81,9 +82,14 @@ class Engine(object):
         self.modules = {"user": self.user_module} # all known modules
         self.current_module = self.user_module
         self.libs = {}
+        self.system = None
+        if load_system:
+            self.init_system_module()
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
+        self.streamwrapper = StreamWrapper()
+
     # _____________________________________________________
     # database functionality
 
@@ -133,8 +139,21 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0), self.current_module)
         else:
-            self.add_rule(term)
+            self._term_expand(term)
         return self.parser
+
+    def _term_expand(self, term):
+        if self.system is not None:
+            v = Var()
+            call = Callable.build("term_expand", [term, v])
+            try:
+                self.run(call, self.current_module)
+            except error.UnificationFailed:
+                v = Var()
+                call = Callable.build("term_expand", [term, v])
+                self.run(call, self.system)
+            term = v.getvalue(None)
+        self.add_rule(term)
 
     def runstring(self, s):
         from prolog.interpreter.parsing import parse_file
@@ -174,10 +193,7 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
-        function = module.fetch_function(self, signature)
-        if function is None:
-            return error.throw_existence_error(
-                    "procedure", query.get_prolog_signature())
+        function = self._get_function(signature, module, query)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -187,6 +203,16 @@ class Engine(object):
             raise error.UnificationFailed
         scont = UserCallContinuation(self, module, scont, query, rulechain)
         return self.continue_(scont, fcont, heap)
+
+    def _get_function(self, signature, module, query): 
+        function = module.fetch_function(self, signature)
+        if function is None and self.system is not None:
+            function = self.system.fetch_function(self, signature)
+        if function is None:
+            return error.throw_existence_error(
+                    "procedure", query.get_prolog_signature())
+        return function
+        
 
 
     # _____________________________________________________
@@ -207,6 +233,13 @@ class Engine(object):
             module = Module(modulename)
             self.modules[modulename] = module
             self.current_module = module
+
+    def init_system_module(self):
+        from prolog.builtin.sourcehelper import get_source
+        source = get_source("system.pl")
+        self.runstring(source)
+        self.system = self.modules["system"]
+        self.current_module = self.user_module
 
     # _____________________________________________________
     # error handling

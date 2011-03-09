@@ -366,6 +366,8 @@ class Callable(NonVar):
                     signature = Signature.getsignature(term_name, len(args))
                 else:
                     signature = Signature(term_name, len(args))
+            else:
+                assert signature.numargs == len(args)
             assert isinstance(signature, Signature)
 
             cls = Callable._find_specialized_class(term_name, len(args))

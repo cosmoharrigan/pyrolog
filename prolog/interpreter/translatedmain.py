@@ -110,6 +110,13 @@ def run(query, var_to_pos, engine):
                         printmessage("Syntax error: '%s'\n" % \
                         f.format(errorterm.argument_at(0)))
                         return
+                elif errorterm.name() == "permission_error":
+                    if isinstance(errorterm, term.Callable):    
+                        printmessage("Permission error: '%s', '%s', '%s'\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1)),
+                        f.format(errorterm.argument_at(2))))
+                        return
 
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
@@ -144,7 +151,7 @@ def execute(e, filename):
 
 if __name__ == '__main__':
     from sys import argv
-    e = Engine()
+    e = Engine(load_system=True)
     if len(argv) == 2:
         execute(e, argv[1])
     repl(e)

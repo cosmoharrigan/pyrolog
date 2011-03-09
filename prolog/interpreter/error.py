@@ -36,7 +36,6 @@ def throw_instantiation_error(obj = None):
     raise wrap_error(term.Callable.build("instantiation_error"))
 
 def throw_type_error(valid_type, obj):
-    from prolog.interpreter import term
     # valid types are:
     # atom, atomic, byte, callable, character
     # evaluable, in_byte, in_character, integer, list
