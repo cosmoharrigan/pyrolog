@@ -1,5 +1,4 @@
 :- module(dcg, [trans/2]).
-:- use_module('../../prolog_modules/list').
 
 trans((H --> B), (TransH :- TransB)) :-
 	add_arguments(H, X0, X1, TransH),

@@ -469,10 +469,10 @@ def unescape(s):
         i += 1
     return "".join(result)
 
-def get_engine(source, create_files=False, **modules):
+def get_engine(source, create_files=False, load_system=False, **modules):
     from prolog.interpreter.continuation import Engine
     from prolog.interpreter.test.tool import create_file, delete_file
-    e = Engine()
+    e = Engine(load_system)
     for name, module in modules.iteritems():
         if create_files:
             create_file(name, module)

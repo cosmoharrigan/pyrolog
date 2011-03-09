@@ -151,7 +151,7 @@ def execute(e, filename):
 
 if __name__ == '__main__':
     from sys import argv
-    e = Engine()
+    e = Engine(load_system=True)
     if len(argv) == 2:
         execute(e, argv[1])
     repl(e)
