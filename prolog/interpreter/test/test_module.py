@@ -606,3 +606,13 @@ def test_assert_dcg():
     e = Engine(load_system=True)
     assert_true("assert((a --> b)).", e)
     assert_true("a --> b.", e)
+
+def test_term_expand_fail():
+    # Since self-defined term_expand fails
+    # the system term_expand should be called.
+    e = get_engine("""
+    term_expand(A, A) :- fail.
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)

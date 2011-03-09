@@ -139,14 +139,19 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run(term.argument_at(0), self.current_module)
         else:
-            self._expand_and_add_rule(term)
+            self._term_expand(term)
         return self.parser
 
-    def _expand_and_add_rule(self, term):
+    def _term_expand(self, term):
         if self.system is not None:
             v = Var()
             call = Callable.build("term_expand", [term, v])
-            self.run(call, self.current_module)
+            try:
+                self.run(call, self.current_module)
+            except error.UnificationFailed:
+                v = Var()
+                call = Callable.build(":", [Callable.build("system"), Callable.build("term_expand", [term, v])])
+                self.run(call, self.current_module)
             term = v.getvalue(None)
         self.add_rule(term)
 
