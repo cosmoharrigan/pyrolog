@@ -82,10 +82,9 @@ class Engine(object):
         self.modules = {"user": self.user_module} # all known modules
         self.current_module = self.user_module
         self.libs = {}
-        self.system_loaded = False
+        self.system = None
         if load_system:
             self.init_system_module()
-            self.system_loaded = True
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -144,7 +143,7 @@ class Engine(object):
         return self.parser
 
     def _expand_and_add_rule(self, term):
-        if self.system_loaded:
+        if self.system is not None:
             v = Var()
             call = Callable.build("term_expand", [term, v])
             self.run(call, self.current_module)
@@ -189,16 +188,7 @@ class Engine(object):
             return self.continue_(BuiltinContinuation(self, module, scont, builtin, query), fcont, heap)
 
         # do a real call
-        function = module.fetch_function(self, signature)
-        if function is None:
-            try:
-                system = self.modules["system"]
-                function = system.fetch_function(self, signature)
-            except KeyError:
-                pass
-            if function is None:
-                return error.throw_existence_error(
-                        "procedure", query.get_prolog_signature())
+        function = self._get_function(signature, module, query)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(
@@ -208,6 +198,16 @@ class Engine(object):
             raise error.UnificationFailed
         scont = UserCallContinuation(self, module, scont, query, rulechain)
         return self.continue_(scont, fcont, heap)
+
+    def _get_function(self, signature, module, query): 
+        function = module.fetch_function(self, signature)
+        if function is None and self.system is not None:
+            function = self.system.fetch_function(self, signature)
+        if function is None:
+            return error.throw_existence_error(
+                    "procedure", query.get_prolog_signature())
+        return function
+        
 
 
     # _____________________________________________________
@@ -233,6 +233,7 @@ class Engine(object):
         from prolog.builtin.sourcehelper import get_source
         source = get_source("system.pl")
         self.runstring(source)
+        self.system = self.modules["system"]
         self.current_module = self.user_module
 
     # _____________________________________________________
