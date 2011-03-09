@@ -2,6 +2,7 @@ import py
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
 from prolog.builtin.register import expose_builtin
+from prolog.builtin.helpers import unpack_modname_and_predicate
 
 # ___________________________________________________________________
 # database
@@ -23,12 +24,20 @@ def impl_abolish(engine, heap, module, predicate):
 
 @expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
 def impl_assert(engine, heap, rule):
-    engine.add_rule(rule.getvalue(heap))
+    handle_assert(engine, heap, rule, True)
 
 @expose_builtin("asserta", unwrap_spec=["callable"])
 def impl_asserta(engine, heap, rule):
-    engine.add_rule(rule.getvalue(heap), end=False)
+    #engine.add_rule(rule.getvalue(heap), end=False)
+    handle_assert(engine, heap, rule, False)
 
+def handle_assert(engine, heap, rule, end):
+    current_modname = None
+    if rule.name() == ":":
+        current_modname = engine.current_module.name
+        modname, rule = unpack_modname_and_predicate(rule)
+        engine.switch_module(modname)
+    engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
 
 @expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
 def impl_retract(engine, heap, module, pattern):

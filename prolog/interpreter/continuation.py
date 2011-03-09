@@ -93,7 +93,7 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, rule, end=True):
+    def add_rule(self, rule, end=True, old_modname=None):
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
             if rule.signature().eq(predsig):
@@ -113,6 +113,8 @@ class Engine(object):
 
         function = self._lookup(signature)
         function.add_rule(rule, end)
+        if old_modname is not None:
+            self.switch_module(old_modname)
 
     @jit.purefunction_promote("0")
     def get_builtin(self, signature):

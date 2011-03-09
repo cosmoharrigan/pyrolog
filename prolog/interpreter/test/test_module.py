@@ -616,3 +616,25 @@ def test_term_expand_fail():
     """,
     load_system=True)
     assert_true("a([b], []).", e)
+
+def test_assert_other_module():
+    e = Engine()
+    assert_true("assert(m:f(a)).", e)
+    assert len(e.modules) == 2
+    assert_true("m:f(a).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+    assert_true("module(m).", e)
+    assert_true("f(a).", e)
+    assert_true("module(user).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+
+def test_asserta_other_module():
+    e = Engine()
+    assert_true("asserta(m:f(a)).", e)
+    assert len(e.modules) == 2
+    assert_true("m:f(a).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+    assert_true("module(m).", e)
+    assert_true("f(a).", e)
+    assert_true("module(user).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
