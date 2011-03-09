@@ -669,3 +669,21 @@ def test_abolish_other_module():
     assert_true("abolish(m:g/1).", e)
     prolog_raises("existence_error(_, _)", "m:g(c)", e)
     assert_true("abolish(m:g/1).", e)
+
+def test_call_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    """)
+    assert_true("call(m:f(X)), X = a.", e)
+    prolog_raises("existence_error(_, _)", "f(X)", e)
+
+def test_once_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    """)
+    assert_true("once(m:f(X)), X = a.", e)
+    prolog_raises("existence_error(_, _)", "f(X)", e)
