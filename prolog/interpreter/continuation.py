@@ -150,8 +150,8 @@ class Engine(object):
                 self.run(call, self.current_module)
             except error.UnificationFailed:
                 v = Var()
-                call = Callable.build(":", [Callable.build("system"), Callable.build("term_expand", [term, v])])
-                self.run(call, self.current_module)
+                call = Callable.build("term_expand", [term, v])
+                self.run(call, self.system)
             term = v.getvalue(None)
         self.add_rule(term)
 
