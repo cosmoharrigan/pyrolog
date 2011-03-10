@@ -491,6 +491,19 @@ def test_structural_comparison():
     assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
     assert_true("@=<(1.0, 1).")
 
+def test_structural_comparison_2():
+    e = Engine(load_system=True)
+    assert_true("1 =@= 1.", e)
+    assert_true("f(X) =@= f(A).", e)
+    assert_false("f(X) =@= X.", e)
+    assert_false("f(X, Y) =@= f(X, X).", e)
+    assert_true("f(X, Y) =@= f(A, B).", e)
+    assert_false("'=@='(1, 1.0).", e)
+    assert_false("'=@='(a, b).", e)
+    assert_true("'=@='(f(A, B), f(B, A)).", e)
+    assert_true("'=@='(f(A, B), f(C, A)).", e)
+    assert_false("a =@= A.", e)
+
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
     assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")

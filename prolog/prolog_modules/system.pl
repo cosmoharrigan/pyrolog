@@ -3,6 +3,7 @@
 :- use_module(list).
 :- use_module(dcg).
 :- use_module(numbervars).
+:- use_module(structural_comparison).
 
 term_expand(A, A) :-
 	A \= (_X --> _Y).
