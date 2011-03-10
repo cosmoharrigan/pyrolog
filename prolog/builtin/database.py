@@ -2,10 +2,12 @@ import py
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
 from prolog.builtin.register import expose_builtin
-from prolog.builtin.helpers import unpack_modname_and_predicate
 
 # ___________________________________________________________________
 # database
+
+def unpack_modname_and_predicate(rule):
+    return rule.argument_at(0).name(), rule.argument_at(1)
 
 @expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
