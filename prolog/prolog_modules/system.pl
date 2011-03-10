@@ -2,6 +2,7 @@
 
 :- use_module(list).
 :- use_module(dcg).
+:- use_module(numbervars).
 
 term_expand(A, A) :-
 	A \= (_X --> _Y).
