@@ -687,3 +687,15 @@ def test_once_other_module():
     """)
     assert_true("once(m:f(X)), X = a.", e)
     prolog_raises("existence_error(_, _)", "f(X)", e)
+
+def test_file_parsing():
+    e = get_engine("""
+    :- use_module(m).
+    :- use_module(m).
+    """,
+    create_files=True,
+    m = """
+    :- module(m, [f/1]).
+    f(a).
+    """)
+    assert_true("findall(X, f(X), [a]).", e)
