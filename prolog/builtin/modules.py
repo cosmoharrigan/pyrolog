@@ -16,7 +16,7 @@ def handle_use_module(engine, heap, module, path, imports=None):
         if path.name() == "library":
             import os
             modulename = path.argument_at(0).name()
-            for libpath, modules in engine.libs.iteritems():
+            for libpath, modules in engine.modulewrapper.libs.iteritems():
                 try:
                     modules[modulename]
                     path = Callable.build("%s/%s" % (libpath, modulename))
@@ -26,17 +26,18 @@ def handle_use_module(engine, heap, module, path, imports=None):
 
     if isinstance(path, Atom):
         from os.path import basename
+        m = engine.modulewrapper
         path = path.name()
         modulename = basename(path)
         if path.endswith(".pl"):
             modulename = modulename[:len(modulename) - 3]
-        if modulename not in engine.modules: # prevent recursive imports
-            current_module = engine.current_module
+        if modulename not in m.modules: # prevent recursive imports
+            current_module = m.current_module
             file_content = get_source(path)
             engine.runstring(file_content)
-            module = engine.current_module = current_module
+            module = m.current_module = current_module
             # XXX should use name argument of module here like SWI
-        imported_module = engine.modules[modulename]
+        imported_module = m.modules[modulename]
         module.use_module(engine, imported_module, imports)
 
 @expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
@@ -60,7 +61,7 @@ def impl_module_1(engine, heap, name):
 def impl_module_prefixing(engine, heap, modulename, 
         call, scont, fcont):
     try:
-        module = engine.modules[modulename]
+        module = engine.modulewrapper.modules[modulename]
     except KeyError:
         error.throw_existence_error("procedure", call)
     return engine.call(call, module, scont, fcont, heap)
@@ -84,7 +85,7 @@ def impl_add_library_dir(engine, heap, path):
         if module.endswith('.pl'):
             module = module[:len(module) - 3]
         moduledict[module] = True
-    engine.libs[abspath] = moduledict
+    engine.modulewrapper.libs[abspath] = moduledict
 
 class LibraryDirContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, pathvar):
@@ -92,7 +93,7 @@ class LibraryDirContinuation(continuation.ChoiceContinuation):
         self.undoheap = heap
         self.orig_fcont = fcont
         self.pathvar = pathvar
-        self.libkeys = engine.libs.keys()
+        self.libkeys = engine.modulewrapper.libs.keys()
         self.keycount = 0
         self.engine = engine
 

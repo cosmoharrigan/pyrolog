@@ -479,7 +479,7 @@ def get_engine(source, create_files=False, load_system=False, **modules):
         else:
             e.runstring(module)
     try:
-        e.current_module = e.user_module
+        e.modulewrapper.current_module = e.modulewrapper.user_module
         e.runstring(source)
     finally:
         if create_files:

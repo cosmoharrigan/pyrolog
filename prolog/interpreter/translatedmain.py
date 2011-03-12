@@ -126,7 +126,7 @@ def run(query, var_to_pos, engine):
 def repl(engine):
     printmessage("welcome!\n")
     while 1:
-        module = engine.current_module.name
+        module = engine.modulewrapper.current_module.name
         if module == "user":
             module = ""
         else:

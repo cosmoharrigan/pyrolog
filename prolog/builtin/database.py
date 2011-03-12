@@ -22,7 +22,7 @@ def impl_abolish(engine, heap, module, predicate):
         error.throw_permission_error("modify", "static_procedure",
                                      predicate)
     if modname is not None:
-        module = engine.modules[modname]
+        module = engine.modulewrapper.modules[modname]
     try:
         module.functions.pop(signature)
     except KeyError:
@@ -39,7 +39,7 @@ def impl_asserta(engine, heap, rule):
 def handle_assert(engine, heap, rule, end):
     current_modname = None
     if rule.name() == ":":
-        current_modname = engine.current_module.name
+        current_modname = engine.modulewrapper.current_module.name
         modname, rule = unpack_modname_and_predicate(rule)
         engine.switch_module(modname)
     engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
@@ -62,7 +62,7 @@ def impl_retract(engine, heap, module, pattern):
     if modname is None:
         function = module.fetch_function(engine, head.signature())
     else:
-        function = engine.modules[modname].fetch_function(engine,
+        function = engine.modulewrapper.modules[modname].fetch_function(engine,
                 head.signature())
     if function is None:
         raise error.UnificationFailed

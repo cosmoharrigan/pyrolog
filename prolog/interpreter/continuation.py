@@ -8,7 +8,7 @@ from prolog.interpreter.term import Term, Atom, Var, Callable
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
-from prolog.interpreter.module import Module
+from prolog.interpreter.module import Module, ModuleWrapper
 from prolog.interpreter.helper import unwrap_predicate_indicator
 from prolog.interpreter.stream import StreamWrapper
 
@@ -78,13 +78,17 @@ class Engine(object):
         self.heap = Heap()
         self.parser = None
         self.operations = None
+        self.modulewrapper = ModuleWrapper(self)
+        """
         self.user_module = Module("user")
         self.modules = {"user": self.user_module} # all known modules
         self.current_module = self.user_module
         self.libs = {}
         self.system = None
+        """
         if load_system:
-            self.init_system_module()
+            self.modulewrapper.init_system_module()
+        
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
@@ -94,15 +98,16 @@ class Engine(object):
     # database functionality
 
     def add_rule(self, rule, end=True, old_modname=None):
+        m = self.modulewrapper
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
             if rule.signature().eq(predsig):
                 rule = Rule(rule.argument_at(0), rule.argument_at(1),
-                        self.current_module)
+                        m.current_module)
             else:
-                rule = Rule(rule, None, self.current_module)
+                rule = Rule(rule, None, m.current_module)
         elif isinstance(rule, Atom):
-            rule = Rule(rule, None, self.current_module)
+            rule = Rule(rule, None, m.current_module)
         else:
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
@@ -123,11 +128,12 @@ class Engine(object):
 
     @jit.purefunction_promote("0")
     def _lookup(self, signature):
+        m = self.modulewrapper
         try:
-            function = self.current_module.functions[signature]
+            function = m.current_module.functions[signature]
         except KeyError:
-            function = Function(self.current_module.name)
-            self.current_module.functions[signature] = function
+            function = Function(m.current_module.name)
+            m.current_module.functions[signature] = function
         return function
 
 
@@ -139,21 +145,21 @@ class Engine(object):
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
-            self.run(term.argument_at(0), self.current_module)
+            self.run(term.argument_at(0), self.modulewrapper.current_module)
         else:
             self._term_expand(term)
         return self.parser
 
     def _term_expand(self, term):
-        if self.system is not None:
+        if self.modulewrapper.system is not None:
             v = Var()
             call = Callable.build("term_expand", [term, v])
             try:
-                self.run(call, self.current_module)
+                self.run(call, self.modulewrapper.current_module)
             except error.UnificationFailed:
                 v = Var()
                 call = Callable.build("term_expand", [term, v])
-                self.run(call, self.system)
+                self.run(call, self.modulewrapper.system)
             term = v.getvalue(None)
         self.add_rule(term)
 
@@ -208,8 +214,8 @@ class Engine(object):
 
     def _get_function(self, signature, module, query): 
         function = module.fetch_function(self, signature)
-        if function is None and self.system is not None:
-            function = self.system.fetch_function(self, signature)
+        if function is None and self.modulewrapper.system is not None:
+            function = self.modulewrapper.system.fetch_function(self, signature)
         if function is None:
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
@@ -222,26 +228,28 @@ class Engine(object):
 
     def add_module(self, name, exports = []):
         mod = Module(name)
-        self.modules[name] = mod
-        self.current_module = mod
+        self.modulewrapper.modules[name] = mod
+        self.modulewrapper.current_module = mod
         for export in exports:
             mod.exports.append(Signature.getsignature(
                     *unwrap_predicate_indicator(export)))
 
     def switch_module(self, modulename):
+        m = self.modulewrapper
         try:
-            self.current_module = self.modules[modulename]
+            m.current_module = m.modules[modulename]
         except KeyError:
             module = Module(modulename)
-            self.modules[modulename] = module
-            self.current_module = module
-
+            m.modules[modulename] = module
+            m.current_module = module
+    """
     def init_system_module(self):
         from prolog.builtin.sourcehelper import get_source
         source = get_source("system.pl")
         self.runstring(source)
         self.system = self.modules["system"]
         self.current_module = self.user_module
+    """
 
     # _____________________________________________________
     # error handling
