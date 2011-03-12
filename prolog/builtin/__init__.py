@@ -17,3 +17,4 @@ import prolog.builtin.modules
 import prolog.builtin.flags
 import prolog.builtin.streams
 import prolog.builtin.term_variables
+import prolog.builtin.attvars

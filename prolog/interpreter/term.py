@@ -158,7 +158,8 @@ class Var(PrologObject):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
-
+class AttVar(Var):
+    pass
 
 class NumberedVar(PrologObject):
     _immutable_ = True
