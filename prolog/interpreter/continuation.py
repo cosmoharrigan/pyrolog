@@ -79,13 +79,6 @@ class Engine(object):
         self.parser = None
         self.operations = None
         self.modulewrapper = ModuleWrapper(self)
-        """
-        self.user_module = Module("user")
-        self.modules = {"user": self.user_module} # all known modules
-        self.current_module = self.user_module
-        self.libs = {}
-        self.system = None
-        """
         if load_system:
             self.modulewrapper.init_system_module()
         
@@ -242,14 +235,6 @@ class Engine(object):
             module = Module(modulename)
             m.modules[modulename] = module
             m.current_module = module
-    """
-    def init_system_module(self):
-        from prolog.builtin.sourcehelper import get_source
-        source = get_source("system.pl")
-        self.runstring(source)
-        self.system = self.modules["system"]
-        self.current_module = self.user_module
-    """
 
     # _____________________________________________________
     # error handling
