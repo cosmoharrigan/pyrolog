@@ -30,4 +30,10 @@ def impl_get_attr(engine, heap, var, attr, value):
         value.unify(var.atts[attr], heap)
     except KeyError:
         raise UnificationFailed
-        
+ 
+@expose_builtin("del_attr", unwrap_spec=["obj", "atom"])
+def impl_del_attr(engine, heap, var, attr):
+    if isinstance(var, AttVar):
+        var.atts.pop(attr)
+        if var.atts == {}:
+            var.unify(Var(), heap)
