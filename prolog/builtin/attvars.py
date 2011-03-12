@@ -6,14 +6,14 @@ from prolog.interpreter.error import UnificationFailed
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
     if not isinstance(obj, AttVar):
-        raise UnificationFailed
+        raise UnificationFailed()
 
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
         var.atts[attr] = value
     elif isinstance(var, Var):
-        attvar = AttVar()
+        attvar = AttVar(engine)
         attvar.atts[attr] = value
         var.unify(attvar, heap)
     else:
@@ -25,11 +25,11 @@ def impl_get_attr(engine, heap, var, attr, value):
     if not isinstance(var, Var):
         error.throw_instantiation_error(var)
     if not isinstance(var, AttVar):
-        raise UnificationFailed
+        raise UnificationFailed()
     try:
         value.unify(var.atts[attr], heap)
     except KeyError:
-        raise UnificationFailed
+        raise UnificationFailed()
  
 @expose_builtin("del_attr", unwrap_spec=["obj", "atom"])
 def impl_del_attr(engine, heap, var, attr):
