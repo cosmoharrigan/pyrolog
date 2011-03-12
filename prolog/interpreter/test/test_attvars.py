@@ -19,3 +19,10 @@ def test_put_attr():
 def test_attvar_and_put_attr():
     assert_true("put_attr(X, m, 1), attvar(X).")
     assert_false("attvar(X), put_attr(X, m, 1).")
+
+def test_get_attr():
+    assert_true("put_attr(X, m, 1), get_attr(X, m, 1).")
+    assert_false("get_attr(X, m, 1).")
+    prolog_raises("type_error(A, B)", "get_attr(X, 2, 2)")
+    prolog_raises("instantiation_error", "get_attr(X, Y, 2)")
+    assert_true("put_attr(X, m, 1), put_attr(X, m, 2), get_attr(X, m, 2).")
