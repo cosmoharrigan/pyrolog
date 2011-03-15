@@ -16,6 +16,14 @@ class Heap(object):
     # interface that term.py uses
 
     def add_trail(self, var):
+        self._add_trail(var)
+
+    def add_trail_atts(self, attvar):
+        i = self._add_trail(attvar)
+        if i != -1:
+            self.attvars[i] = attvar.atts.copy()
+
+    def _add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
         # if the variable doesn't exist before the last choice point, don't
@@ -25,31 +33,14 @@ class Heap(object):
             created_in = created_in._find_not_discarded()
             var.created_after_choice_point = created_in
         if self is created_in:
-            return
-        # actually trail the variable
+            return -1
         i = jit.hint(self.i, promote=True)
         if i >= len(self.trail_var):
             self._double_size()
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
-
-    def add_trail_atts(self, attvar):
-        assert isinstance(attvar, AttVar) 
-        created_in = attvar.created_after_choice_point
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            attvar.created_after_choice_point = created_in
-        if self is created_in:
-            return
-        # actually trail the variable
-        i = jit.hint(self.i, promote=True)
-        if i >= len(self.trail_var):
-            self._double_size()
-        self.trail_var[i] = attvar
-        self.trail_binding[i] = attvar.binding
-        self.attvars[i] = attvar.atts.copy()
-        self.i = i + 1
+        return i
 
     def _find_not_discarded(self):
         while self is not None and self.discarded:
