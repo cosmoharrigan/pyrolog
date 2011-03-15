@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Var
+from prolog.interpreter.term import Var, AttVar
 
 from pypy.rlib import jit
 
@@ -7,6 +7,7 @@ class Heap(object):
     def __init__(self, prev=None):
         self.trail_var = [None] * Heap.INITSIZE
         self.trail_binding = [None] * Heap.INITSIZE
+        self.trail_atts = [None] * Heap.INITSIZE
         self.i = 0
         self.prev = prev
         self.discarded = False
@@ -33,6 +34,24 @@ class Heap(object):
         self.trail_binding[i] = var.binding
         self.i = i + 1
 
+    def add_trail_atts(self, attvar):
+        assert isinstance(attvar, AttVar) 
+        created_in = attvar.created_after_choice_point
+        if created_in is not None and created_in.discarded:
+            created_in = created_in._find_not_discarded()
+            attvar.created_after_choice_point = created_in
+        if self is created_in:
+            return
+        # actually trail the variable
+        i = jit.hint(self.i, promote=True)
+        if i >= len(self.trail_var):
+            self._double_size()
+        self.trail_var[i] = attvar
+        self.trail_binding[i] = attvar.binding
+        self.trail_atts[i] = attvar.atts.copy()
+        self.i = i + 1
+
+
     def _find_not_discarded(self):
         while self is not None and self.discarded:
             self = self.prev
@@ -41,17 +60,26 @@ class Heap(object):
     @jit.unroll_safe
     def _double_size(self):
         trail_var = [None] * (len(self.trail_var) * 2)
-        trail_binding = [None] * len(trail_var)
+        l = len(trail_var)
+        trail_binding = [None] * l
+        trail_atts = [None] * l
         for i in range(self.i):
             trail_var[i] = self.trail_var[i]
             trail_binding[i] = self.trail_binding[i]
+            trail_atts[i] = self.trail_atts[i]
         self.trail_var = trail_var
         self.trail_binding = trail_binding
+        self.trail_atts = trail_atts
 
     def newvar(self):
         """ Make a new variable. Should return a Var instance, possibly with
         interesting attributes set that e.g. add_trail can inspect."""
         result = Var()
+        result.created_after_choice_point = self
+        return result
+
+    def new_attvar(self):
+        result = AttVar(None)
         result.created_after_choice_point = self
         return result
 
@@ -80,7 +108,13 @@ class Heap(object):
     @jit.unroll_safe
     def _revert(self):
         for i in range(self.i-1, -1, -1):
+            v = self.trail_var[i]
             self.trail_var[i].binding = self.trail_binding[i]
+            if isinstance(v, AttVar) and self.trail_atts[i]:
+                v.atts.clear()
+                for key, val in self.trail_atts[i].iteritems():
+                    v.atts[key] = val
+                self.trail_atts[i] = None
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
@@ -97,13 +131,16 @@ class Heap(object):
             for i in range(current_heap.i):
                 var = current_heap.trail_var[i]
                 binding = current_heap.trail_binding[i]
+                atts = current_heap.trail_atts[i]
                 if var.created_after_choice_point is self:
                     var.created_after_choice_point = self.prev
                     current_heap.trail_var[i] = None
                     current_heap.trail_binding[i] = None
+                    current_heap.trail_atts[i] = None
                 else:
                     current_heap.trail_var[targetpos] = var
                     current_heap.trail_binding[targetpos] = binding
+                    current_heap.trail_atts[targetpos] = atts
                     targetpos += 1
             current_heap.i = targetpos
 
@@ -113,9 +150,19 @@ class Heap(object):
                 var = self.trail_var[i]
                 currbinding = var.binding
                 binding = self.trail_binding[i]
+
                 var.binding = binding
-                current_heap.add_trail(var)
+                if isinstance(var, AttVar):
+                    current_atts = var.atts
+                    atts = self.trail_atts[i]
+                    if atts:
+                        var.atts = atts.copy()
+                    current_heap.add_trail_atts(var)
+                    var.atts = current_atts
+                else:
+                    current_heap.add_trail(var)
                 var.binding = currbinding
+
             current_heap.prev = self.prev
             self.trail_var = None
             self.trail_binding = None

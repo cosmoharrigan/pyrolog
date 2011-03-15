@@ -8,11 +8,10 @@ def impl_attvar(engine, heap, obj):
     if not isinstance(obj, AttVar):
         raise UnificationFailed()
 
-@expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"], 
-        handles_continuation=True)
-def impl_put_attr(engine, heap, var, attr, value, scont, fcont):
-    import pdb; pdb.set_trace()
+@expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
+def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
+        heap.add_trail_atts(var)
         var.atts[attr] = value
     elif isinstance(var, Var):
         attvar = AttVar(engine)
@@ -21,7 +20,6 @@ def impl_put_attr(engine, heap, var, attr, value, scont, fcont):
     else:
         # XXX raise representation error
         pass
-    return scont, fcont, heap
 
 @expose_builtin("get_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_get_attr(engine, heap, var, attr, value):
