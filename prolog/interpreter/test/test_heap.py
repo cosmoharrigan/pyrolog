@@ -122,7 +122,7 @@ def test_add_trail_atts():
     va.binding = 1
     va.atts = {"m": 17}
     h1.add_trail_atts(va)
-    assert {"m": 17} == h1.trail_atts[0]
+    assert {"m": 17} == h1.attvars[0]
 
     h2 = h1.branch() 
     h2.add_trail_atts(va)

@@ -7,7 +7,7 @@ class Heap(object):
     def __init__(self, prev=None):
         self.trail_var = [None] * Heap.INITSIZE
         self.trail_binding = [None] * Heap.INITSIZE
-        self.trail_atts = [None] * Heap.INITSIZE
+        self.attvars = {}
         self.i = 0
         self.prev = prev
         self.discarded = False
@@ -48,9 +48,8 @@ class Heap(object):
             self._double_size()
         self.trail_var[i] = attvar
         self.trail_binding[i] = attvar.binding
-        self.trail_atts[i] = attvar.atts.copy()
+        self.attvars[i] = attvar.atts.copy()
         self.i = i + 1
-
 
     def _find_not_discarded(self):
         while self is not None and self.discarded:
@@ -62,14 +61,11 @@ class Heap(object):
         trail_var = [None] * (len(self.trail_var) * 2)
         l = len(trail_var)
         trail_binding = [None] * l
-        trail_atts = [None] * l
         for i in range(self.i):
             trail_var[i] = self.trail_var[i]
             trail_binding[i] = self.trail_binding[i]
-            trail_atts[i] = self.trail_atts[i]
         self.trail_var = trail_var
         self.trail_binding = trail_binding
-        self.trail_atts = trail_atts
 
     def newvar(self):
         """ Make a new variable. Should return a Var instance, possibly with
@@ -110,11 +106,11 @@ class Heap(object):
         for i in range(self.i-1, -1, -1):
             v = self.trail_var[i]
             self.trail_var[i].binding = self.trail_binding[i]
-            if isinstance(v, AttVar) and self.trail_atts[i]:
+            if i in self.attvars:
                 v.atts.clear()
-                for key, val in self.trail_atts[i].iteritems():
+                for key, val in self.attvars[i].iteritems():
                     v.atts[key] = val
-                self.trail_atts[i] = None
+                self.attvars.pop(i)
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
@@ -131,16 +127,20 @@ class Heap(object):
             for i in range(current_heap.i):
                 var = current_heap.trail_var[i]
                 binding = current_heap.trail_binding[i]
-                atts = current_heap.trail_atts[i]
                 if var.created_after_choice_point is self:
                     var.created_after_choice_point = self.prev
                     current_heap.trail_var[i] = None
                     current_heap.trail_binding[i] = None
-                    current_heap.trail_atts[i] = None
+                    try:
+                        current_heap.attvars.pop(i)
+                    except KeyError:
+                        pass
                 else:
                     current_heap.trail_var[targetpos] = var
                     current_heap.trail_binding[targetpos] = binding
-                    current_heap.trail_atts[targetpos] = atts
+                    if i in current_heap.attvars and i != targetpos:
+                        current_heap.attvars[targetpos] = current_heap.attvars[i]
+                        current_heap.attvars.pop(i)
                     targetpos += 1
             current_heap.i = targetpos
 
@@ -152,11 +152,10 @@ class Heap(object):
                 binding = self.trail_binding[i]
 
                 var.binding = binding
-                if isinstance(var, AttVar):
+                if i in self.attvars:
                     current_atts = var.atts
-                    atts = self.trail_atts[i]
-                    if atts:
-                        var.atts = atts.copy()
+                    atts = self.attvars[i]
+                    var.atts = atts.copy()
                     current_heap.add_trail_atts(var)
                     var.atts = current_atts
                 else:
@@ -166,6 +165,7 @@ class Heap(object):
             current_heap.prev = self.prev
             self.trail_var = None
             self.trail_binding = None
+            self.attvars = None
             self.i = -1
             # make self.prev point to the heap that replaced it
             self.prev = current_heap
