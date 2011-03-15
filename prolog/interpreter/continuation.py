@@ -213,8 +213,6 @@ class Engine(object):
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
         return function
-        
-
 
     # _____________________________________________________
     # module handling

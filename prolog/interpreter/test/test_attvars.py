@@ -1,6 +1,7 @@
 import py
 from prolog.interpreter.test.tool import prolog_raises, \
 assert_true, assert_false
+from prolog.interpreter.parsing import get_engine
 
 
 def test_not_attvar():
@@ -35,3 +36,16 @@ def test_del_attr():
     assert_false("put_attr(X, m, 1), del_attr(X, m), attvar(X).")
     assert_true("""put_attr(X, m, 1), put_attr(X, m2, 2), 
                     del_attr(X, m), attvar(X).""")
+
+def test_attr_unify_hook():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    
+    attr_unify_hook(Attr, Value) :-
+        10 is Attr + Value.
+    """)
+    assert_true("put_attr(X, m, 1), X = 9.", e)
+    assert_true("put_attr(X, m, 2), X = 8.", e)
+    assert_false("put_attr(X, m, 1), X = 10.", e)
+    assert_false("put_attr(X, m, 0), X = 11.", e)

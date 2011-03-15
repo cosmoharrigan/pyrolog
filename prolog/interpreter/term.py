@@ -159,9 +159,13 @@ class Var(PrologObject):
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
 class AttVar(Var):
-    def __init__(self):
-        super(AttVar, self).__init__()
+    def __init__(self, engine):
+        Var.__init__(self)
         self.atts = {} # mapping from modules to values
+        self.engine = engine
+
+    def unify(self, other, heap, occurs_check=False):
+        Var.unify(self, other, heap, occurs_check)
 
 class NumberedVar(PrologObject):
     _immutable_ = True
