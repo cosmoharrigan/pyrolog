@@ -5,7 +5,7 @@ from prolog.interpreter.error import UnificationFailed
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
-    if not isinstance(obj, AttVar):
+    if not (isinstance(obj, Var) and isinstance(obj.getvalue(heap), AttVar)):
         raise UnificationFailed()
 
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])

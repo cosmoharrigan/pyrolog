@@ -17,7 +17,8 @@ def test_put_attr():
     prolog_raises("type_error(A, B)", "put_attr(X, 1, 1)")
     assert_true("put_attr(X, m1, 1), put_attr(X, m2, 1), put_attr(X, m1, 2).")
     assert_true("put_attr(X, b, 1), (put_attr(X, b, 1), fail; get_attr(X, b, 1)).")
-
+    assert_true("put_attr(X, a, 1), Y = X, attvar(Y), attvar(X).")
+    assert_true("put_attr(X, a, 1), X = Y, attvar(Y), attvar(X).")
     e = get_engine("g(X) :- !, put_attr(X, m, 1), fail.")
     assert_true("\+ g(X), \+ attvar(X).", e)
 
