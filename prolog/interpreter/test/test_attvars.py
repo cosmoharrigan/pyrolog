@@ -49,7 +49,7 @@ def test_del_attr():
     assert_true("put_attr(X, m, 1), (del_attr(X, m), fail; true), get_attr(X, m, 1).")
     assert_true("put_attr(X, m, 1), (del_attr(X, m), fail; attvar(X)).")
 
-def xtest_attr_unify_hook():
+def test_attr_unify_hook():
     e = get_engine("",
     m = """
     :- module(m, []).
@@ -57,7 +57,7 @@ def xtest_attr_unify_hook():
     attr_unify_hook(Attr, Value) :-
         10 is Attr + Value.
     """)
-    assert_true("put_attr(X, m, 1), X = 9.", e)
-    assert_true("put_attr(X, m, 2), X = 8.", e)
     assert_false("put_attr(X, m, 1), X = 10.", e)
     assert_false("put_attr(X, m, 0), X = 11.", e)
+    assert_true("put_attr(X, m, 1), X = 9.", e)
+    assert_true("put_attr(X, m, 2), X = 8.", e)
