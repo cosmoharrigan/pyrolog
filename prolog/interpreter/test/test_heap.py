@@ -7,6 +7,7 @@ def test_heap():
     v2 = h1.newvar()
     h1.add_trail(v1)
     v1.binding = 1
+    h2 = h1.branch()
     h2.add_trail(v1)
     v1.binding = 2
     h2.add_trail(v2)
@@ -116,22 +117,38 @@ def test_new_attvar():
     assert v.created_after_choice_point is h
 
 def test_add_trail_atts():
-    h1 = Heap()  
-    va = AttVar(None)
-    va.binding = 1
+    h1 = Heap()
+    va = h1.new_attvar()
+    vb = h1.new_attvar()
     va.atts = {"m": 17}
-    h1.add_trail_atts(va)
-    assert {"m": 17} == h1.attvars[0]
 
     h2 = h1.branch() 
-    h2.add_trail_atts(va)
-    va.binding = 2
+    h2.add_trail_atts(va, "m")
     va.atts["m"] = 45
+    h2.add_trail_atts(vb, "m")
+    vb.atts["m"] = 39
 
     h3 = h2.revert_upto(h1)
     assert h3 is h2
-    assert va.binding == 1
     assert va.atts["m"] == 17
+    assert vb.atts == {}
+
+def test_heap_dont_trail_new_att_vars():
+    h1 = Heap()
+    v1 = h1.new_attvar()
+    h1.add_trail_atts(v1, "m")
+    v1.atts["m"] = 1
+    h2 = h1.branch()
+    v2 = h2.new_attvar()
+    h2.add_trail_atts(v1, "m")
+    v1.atts["m"] = 2
+    h2.add_trail_atts(v2, "m")
+    v2.atts["m"] = 3
+
+    h3 = h2.revert_upto(h1)
+    assert v1.atts["m"] == 1
+    assert v2.atts["m"] == 3 # wasn't undone, because v2 dies
+    assert h3 is h2
     
 def test_discard_with_attvars():
     h0 = Heap()
@@ -143,26 +160,19 @@ def test_discard_with_attvars():
     h2 = h1.branch()
     v2 = h2.new_attvar()
 
-    h2.add_trail_atts(v0)
-    v0.binding = 1
-    v0.atts = {'m': 1}
-    h2.add_trail_atts(v1)
-    v1.binding = 2
-    v1.atts = {'n': 2}
+    h2.add_trail_atts(v0, "m")
+    v0.atts = {"m": 1}
+    h2.add_trail_atts(v1, "n")
+    v1.atts = {"n": 2}
 
     h3 = h2.branch()
-    h3.add_trail_atts(v2)
-    v2.binding = 3
-    v2.atts = {'a': 3}
+    h3.add_trail_atts(v2, "a")
+    v2.atts = {"a": 3}
 
     h = h2.discard(h3)
     assert h3.prev is h1
     assert h3 is h
-
     assert h3.revert_upto(h0)
-    assert v0.binding is None
     assert v0.atts == {}
-    assert v1.binding is None
     assert v1.atts == {}
-    assert v2.binding == 3 # not backtracked, because it goes away
-    assert v2.atts == {'a': 3}
+    assert v2.atts == {"a": 3}

@@ -11,7 +11,7 @@ def impl_attvar(engine, heap, obj):
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
-        heap.add_trail_atts(var)
+        heap.add_trail_atts(var, attr)
         var.atts[attr] = value
     elif isinstance(var, Var):
         attvar = AttVar(engine)
@@ -35,7 +35,7 @@ def impl_get_attr(engine, heap, var, attr, value):
 @expose_builtin("del_attr", unwrap_spec=["obj", "atom"])
 def impl_del_attr(engine, heap, var, attr):
     if isinstance(var, AttVar):
-        heap.add_trail_atts(var)
+        heap.add_trail_atts(var, attr)
         var.atts.pop(attr)
         if var.atts == {}:
             var.unify(Var(), heap)

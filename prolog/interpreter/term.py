@@ -74,6 +74,8 @@ class Var(PrologObject):
         next = self.binding
         while isinstance(next, Var):
             self = next
+            if isinstance(next, AttVar):
+                self.unify(other, heap)
             next = next.binding
         if next is None:
             assert isinstance(self, Var)
@@ -166,6 +168,12 @@ class AttVar(Var):
 
     def unify(self, other, heap, occurs_check=False):
         Var.unify(self, other, heap, occurs_check)
+
+    def __repr__(self):
+        attrs = []
+        for key, val in self.atts.iteritems():
+            attrs.append("%s=%s" % (key, val))
+        return "AttVar(%s)" % ("[" + ", ".join(attrs) + "]", )
 
 class NumberedVar(PrologObject):
     _immutable_ = True
