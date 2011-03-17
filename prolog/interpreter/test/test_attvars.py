@@ -46,6 +46,8 @@ def test_del_attr():
     assert_false("put_attr(X, m, 1), del_attr(X, m), attvar(X).")
     assert_true("""put_attr(X, m, 1), put_attr(X, m2, 2), 
                     del_attr(X, m), attvar(X).""")
+    assert_true("put_attr(X, m, 1), (del_attr(X, m), fail; true), get_attr(X, m, 1).")
+    assert_true("put_attr(X, m, 1), (del_attr(X, m), fail; attvar(X)).")
 
 def xtest_attr_unify_hook():
     e = get_engine("",
