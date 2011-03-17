@@ -18,6 +18,9 @@ def test_put_attr():
     assert_true("put_attr(X, m1, 1), put_attr(X, m2, 1), put_attr(X, m1, 2).")
     assert_true("put_attr(X, b, 1), (put_attr(X, b, 1), fail; get_attr(X, b, 1)).")
 
+    e = get_engine("g(X) :- !, put_attr(X, m, 1), fail.")
+    assert_true("\+ g(X), \+ attvar(X).", e)
+
 def test_attvar_and_put_attr():
     assert_true("put_attr(X, m, 1), attvar(X).")
     assert_false("attvar(X), put_attr(X, m, 1).")
