@@ -7,7 +7,6 @@ def test_heap():
     v2 = h1.newvar()
     h1.add_trail(v1)
     v1.binding = 1
-    h2 = h1.branch()
     h2.add_trail(v1)
     v1.binding = 2
     h2.add_trail(v2)
@@ -135,13 +134,6 @@ def test_add_trail_atts():
     assert va.atts["m"] == 17
     
 def test_discard_with_attvars():
-    h1 = Heap()
-    h2 = h1.branch()
-    h3 = h2.branch()
-    h = h2.discard(h3)
-    assert h3.prev is h1
-    assert h3 is h
-
     h0 = Heap()
     v0 = h0.new_attvar()
 
@@ -151,15 +143,15 @@ def test_discard_with_attvars():
     h2 = h1.branch()
     v2 = h2.new_attvar()
 
-    h2.add_trail(v0)
+    h2.add_trail_atts(v0)
     v0.binding = 1
     v0.atts = {'m': 1}
-    h2.add_trail(v1)
+    h2.add_trail_atts(v1)
     v1.binding = 2
     v1.atts = {'n': 2}
 
     h3 = h2.branch()
-    h3.add_trail(v2)
+    h3.add_trail_atts(v2)
     v2.binding = 3
     v2.atts = {'a': 3}
 
@@ -169,8 +161,8 @@ def test_discard_with_attvars():
 
     assert h3.revert_upto(h0)
     assert v0.binding is None
-    assert v0.atts is None
+    assert v0.atts == {}
     assert v1.binding is None
-    assert v1.atts is None
+    assert v1.atts == {}
     assert v2.binding == 3 # not backtracked, because it goes away
     assert v2.atts == {'a': 3}
