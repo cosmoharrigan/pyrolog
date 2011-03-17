@@ -96,7 +96,7 @@ class Heap(object):
     def _revert(self):
         for i in range(self.i-1, -1, -1):
             v = self.trail_var[i]
-            self.trail_var[i].binding = self.trail_binding[i]
+            v.binding = self.trail_binding[i]
             if i in self.attvars:
                 v.atts.clear()
                 for key, val in self.attvars[i].iteritems():
