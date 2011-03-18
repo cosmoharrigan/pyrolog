@@ -81,13 +81,19 @@ class Var(PrologObject):
             self = next
             next = next.binding
             if isinstance(self, AttVar):
-                spotted_attvars.append(self)
+                if not isinstance(other, AttVar):
+                    spotted_attvars.append(self)
+                else:
+                    spotted_attvars.append(other)
         if next is None:
             assert isinstance(self, Var)
-            if isinstance(self, AttVar) and self.atts != {}:
-                return other._unify_derefed(self, heap, occurs_check, triggered=spotted_attvars)
+            if isinstance(self, AttVar) and self.atts != {}\
+                    and isinstance(other, Var):
+                return other._unify_derefed(self, heap, occurs_check,
+                        triggered=spotted_attvars)
             else:
-                return self._unify_derefed(other, heap, occurs_check, triggered=spotted_attvars)
+                return self._unify_derefed(other, heap, occurs_check,
+                        triggered=spotted_attvars)
         else:
             assert isinstance(next, NonVar)
             if next is not other:
