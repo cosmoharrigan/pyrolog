@@ -9,6 +9,8 @@ class Heap(object):
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
         self.trail_attrs = []
+        self.hooks = []
+        self.hook_dict = {}
         self.prev = prev
         self.discarded = False
 
@@ -42,6 +44,11 @@ class Heap(object):
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
+
+    def add_hook(self, attvar):
+        if attvar not in self.hook_dict:
+            self.hooks.append(attvar)
+            self.hook_dict[attvar] = None
 
     def _find_not_discarded(self):
         while self is not None and self.discarded:

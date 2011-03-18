@@ -1,5 +1,5 @@
 from prolog.interpreter.heap import Heap
-from prolog.interpreter.term import AttVar, Var
+from prolog.interpreter.term import AttVar, Var, Callable, Number
 
 def test_heap():
     h1 = Heap()
@@ -176,3 +176,51 @@ def test_discard_with_attvars():
     assert v0.atts == {}
     assert v1.atts == {}
     assert v2.atts == {"a": 3}
+
+def test_num_hooks():
+    hp = Heap()
+    v = Var()
+    a = AttVar(None)
+    v.unify(a, hp)
+    assert len(hp.hooks) == 0
+    v.unify(Number(1), hp)
+    assert len(hp.hooks) == 1
+
+    hp = Heap()
+    v1 = Var()
+    v2 = Var()
+    a1 = AttVar(None)
+    a2 = AttVar(None)
+    v1.unify(a1, hp)
+    assert len(hp.hooks) == 0
+    v2.unify(a2, hp)
+    assert len(hp.hooks) == 0
+    v1.unify(v2, hp)
+    assert len(hp.hooks) == 1
+
+    hp = Heap()
+    v1 = Var()
+    v2 = Var()
+    v3 = Var()
+    a1 = AttVar(None)
+    a2 = AttVar(None)
+    a3 = AttVar(None)
+    v1.unify(a1, hp)
+    v2.unify(a2, hp)
+    v3.unify(a3, hp)
+    v1.unify(v2, hp)
+    v2.unify(v3, hp)
+    assert len(hp.hooks) == 2
+
+    hp = Heap()
+    v1 = Var()
+    v2 = Var()
+    a1 = AttVar(None)
+    a2 = AttVar(None)
+    v1.unify(a1, hp)
+    v2.unify(a2, hp)
+    assert len(hp.hooks) == 0
+    v1.unify(v2, hp)
+    assert len(hp.hooks) == 1
+    v1.unify(Number(1), hp)
+    assert len(hp.hooks) == 2

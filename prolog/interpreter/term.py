@@ -70,17 +70,24 @@ class Var(PrologObject):
     @specialize.arg(3)
     @jit.unroll_safe
     def unify(self, other, heap, occurs_check=False):
+        #if isinstance(other, Number):
+        #    import pdb; pdb.set_trace()
+        spotted_attvars = []
+        if isinstance(self, AttVar):
+            spotted_attvars.append(self)
         other = other.dereference(heap)
         next = self.binding
         while isinstance(next, Var):
             self = next
             next = next.binding
+            if isinstance(self, AttVar):
+                spotted_attvars.append(self)
         if next is None:
             assert isinstance(self, Var)
             if isinstance(self, AttVar) and self.atts != {}:
-                return other._unify_derefed(self, heap, occurs_check)
+                return other._unify_derefed(self, heap, occurs_check, triggered=spotted_attvars)
             else:
-                return self._unify_derefed(other, heap, occurs_check)
+                return self._unify_derefed(other, heap, occurs_check, triggered=spotted_attvars)
         else:
             assert isinstance(next, NonVar)
             if next is not other:
@@ -89,13 +96,14 @@ class Var(PrologObject):
                 next._unify_derefed(other, heap, occurs_check)
 
     @specialize.arg(3)
-    def _unify_derefed(self, other, heap, occurs_check=False):
+    def _unify_derefed(self, other, heap, occurs_check=False, triggered=[]):
         if isinstance(other, Var) and other is self:
             pass
         elif occurs_check and other.contains_var(self, heap):
             raise UnificationFailed()
         else:
-            self.setvalue(other, heap)
+            set_hook = isinstance(other, NonVar) or isinstance(other, AttVar)
+            self.setvalue(other, heap, set_hook=set_hook, triggered=triggered)
     
     def dereference(self, heap):
         next = self.binding
@@ -114,9 +122,12 @@ class Var(PrologObject):
             return res.getvalue(heap)
         return res
     
-    def setvalue(self, value, heap):
+    def setvalue(self, value, heap, set_hook=False, triggered=[]):
         heap.add_trail(self)
         self.binding = value
+        if set_hook:
+            for attvar in triggered:
+                heap.add_hook(attvar)
     
     def copy(self, heap, memo):
         self = self.dereference(heap)
