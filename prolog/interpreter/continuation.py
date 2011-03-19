@@ -49,6 +49,7 @@ jitdriver = jit.JitDriver(
 
 def driver(scont, fcont, heap):
     rule = None
+    #import pdb; pdb.set_trace()
     while not scont.is_done():
         #view(scont, fcont, heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
@@ -59,6 +60,19 @@ def driver(scont, fcont, heap):
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
+
+            call = None
+            for hook in heap.hooks:
+                for module, val in hook.atts.iteritems():
+                    hook_call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
+                    if call is None:
+                        call = hook_call
+                    else:
+                        call = Callable.build(",", [call, hook_call])
+            if call:
+                e = scont.engine
+                e.run(call, e.modulewrapper.current_module)
+
         except error.UnificationFailed:
             if not we_are_translated():
                 if fcont.is_done():

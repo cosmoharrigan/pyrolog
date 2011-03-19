@@ -44,7 +44,6 @@ class Heap(object):
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
-
     def add_hook(self, attvar):
         if attvar not in self.hook_dict:
             self.hooks.append(attvar)

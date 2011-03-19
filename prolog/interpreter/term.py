@@ -82,7 +82,8 @@ class Var(PrologObject):
             next = next.binding
             if isinstance(self, AttVar):
                 if not isinstance(other, AttVar):
-                    spotted_attvars.append(self)
+                    if not isinstance(other, Var):
+                        spotted_attvars.append(self)
                 else:
                     spotted_attvars.append(other)
         if next is None:

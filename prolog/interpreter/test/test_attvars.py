@@ -62,3 +62,6 @@ def test_attr_unify_hook():
     assert_false("put_attr(X, m, 0), X = 11.", e)
     assert_true("put_attr(X, m, 1), X = 9.", e)
     assert_true("put_attr(X, m, 2), X = 8.", e)
+    
+    assert_true("X = 11, put_attr(Y, m, -1), Y = X.", e)
+    assert_false("X = 11, put_attr(Y, m, 0), Y = X.", e)
