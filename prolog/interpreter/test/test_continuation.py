@@ -33,12 +33,12 @@ def test_driver():
             pass
 
     c5 = FakeC(FakeC(FakeC(FakeC(FakeC(done, 1), 2), 3), 4), 5)
-    driver(c5, done, None)
+    driver(c5, done, Heap())
     assert order == [5, 4, 3, 2, 1]
 
     order = []
     ca = FakeC(FakeC(FakeC(FakeC(FakeC(done, -1), 2), 3), 4), 5)
-    driver(ca, c5, None)
+    driver(ca, c5, Heap())
     assert order == [5, 4, 3, 2, "fail", 5, 4, 3, 2, 1]
 
 def test_failure_continuation():

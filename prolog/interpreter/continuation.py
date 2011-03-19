@@ -62,13 +62,14 @@ def driver(scont, fcont, heap):
             scont, fcont, heap  = scont.activate(fcont, heap)
 
             call = None
-            for hook in heap.hooks:
-                for module, val in hook.atts.iteritems():
-                    hook_call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
-                    if call is None:
-                        call = hook_call
-                    else:
-                        call = Callable.build(",", [call, hook_call])
+            if heap:
+                for hook in heap.hooks:
+                    for module, val in hook.atts.iteritems():
+                        hook_call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
+                        if call is None:
+                            call = hook_call
+                        else:
+                            call = Callable.build(",", [call, hook_call])
             if call:
                 e = scont.engine
                 e.run(call, e.modulewrapper.current_module)
