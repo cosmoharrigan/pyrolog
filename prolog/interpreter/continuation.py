@@ -61,15 +61,18 @@ def driver(scont, fcont, heap):
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
 
-            e = scont.engine
             if heap:
-                for hook in heap.hooks:
-                    for module, val in hook.atts.iteritems():
-                        call = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
-                        try:
-                            e.run(call, e.modulewrapper.modules[module])
-                        except KeyError:
-                            error.throw_existence_error("procedure", call.get_prolog_signature())
+                try:
+                    e = scont.engine
+                    for hook in heap.hooks:
+                        for module, val in hook.atts.iteritems():
+                            call = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                            try:
+                                e.run(call, e.modulewrapper.modules[module])
+                            except KeyError:
+                                error.throw_existence_error("procedure", call.get_prolog_signature())
+                except AttributeError:
+                    pass
 
         except error.UnificationFailed:
             if not we_are_translated():
