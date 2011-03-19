@@ -57,6 +57,9 @@ def test_attr_unify_hook():
     
     attr_unify_hook(Attr, Value) :-
         10 is Attr + Value.
+    """, 
+    m2 = """
+    :- module(m2, []).
     """)
     assert_false("put_attr(X, m, 1), X = 10.", e)
     assert_false("put_attr(X, m, 0), X = 11.", e)
@@ -65,3 +68,8 @@ def test_attr_unify_hook():
     
     assert_true("X = 11, put_attr(Y, m, -1), Y = X.", e)
     assert_false("X = 11, put_attr(Y, m, 0), Y = X.", e)
+
+    assert_false("put_attr(X, m, 11), (X = -1, fail; X = 0).", e)
+    assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
+    prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
+    prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1")
