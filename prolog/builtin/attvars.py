@@ -1,7 +1,8 @@
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter import continuation
 from prolog.interpreter.term import AttVar, Var
-from prolog.interpreter.error import UnificationFailed
+from prolog.interpreter.error import UnificationFailed,\
+throw_representation_error
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
@@ -18,8 +19,8 @@ def impl_put_attr(engine, heap, var, attr, value):
         attvar.atts[attr] = value
         var.unify(attvar, heap)
     else:
-        # XXX raise representation error
-        pass
+        throw_representation_error("put_attr/3",
+                "argument must be unbound (1-st argument)")
 
 @expose_builtin("get_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_get_attr(engine, heap, var, attr, value):

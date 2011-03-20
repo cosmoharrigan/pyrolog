@@ -21,6 +21,7 @@ def test_put_attr():
     assert_true("put_attr(X, a, 1), X = Y, attvar(Y), attvar(X).")
     e = get_engine("g(X) :- !, put_attr(X, m, 1), fail.")
     assert_true("\+ g(X), \+ attvar(X).", e)
+    prolog_raises("representation_error(_, _)", "put_attr(a, a, a)")
 
 def test_attvar_and_put_attr():
     assert_true("put_attr(X, m, 1), attvar(X).")
