@@ -94,3 +94,24 @@ def test_run_hook_once():
     put_attr(X, m, 1), (X = a, fail; true),
     findall(Z, f(Z), [a]).
     """, e)
+
+def test_attvar_unification():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(Attr, Value) :-
+        assert(user:f(Value)).
+    """)
+    assert_true("""
+    put_attr(X, m, 1), put_attr(Y, m, 2),
+    X = Y, X = a,
+    findall(Z, f(Z), [W, a]).
+    """, e)
+    assert_true("abolish(f/1).", e)
+    assert_true("""
+    put_attr(X, m, 1), put_attr(Y, m, 2),
+    X = Y, X = a, X = a, Y = a,
+    findall(Z, f(Z), [W, a]).
+    """, e)
+
+    
