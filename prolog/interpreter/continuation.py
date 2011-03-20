@@ -67,11 +67,8 @@ def driver(scont, fcont, heap):
                     e = scont.engine
                     for hook in heap.hooks:
                         for module, val in hook.atts.iteritems():
-                            call = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
-                            try:
-                                e.run(call, e.modulewrapper.modules[module])
-                            except KeyError:
-                                error.throw_existence_error("procedure", call.get_prolog_signature())
+                            call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
+                            e.run(call, e.modulewrapper.current_module)
                     heap.trail_hooks += heap.hooks
                     heap.hooks = []
                 except AttributeError:
@@ -84,7 +81,7 @@ def driver(scont, fcont, heap):
             if scont.candiscard():
                 scont.discard()
             scont, fcont, heap = fcont.fail(heap)
-        except error.CatchableError, e:
+        except (error.UncaughtError, error.CatchableError), e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
