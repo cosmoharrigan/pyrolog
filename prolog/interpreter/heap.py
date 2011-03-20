@@ -11,6 +11,7 @@ class Heap(object):
         self.trail_attrs = []
         self.hooks = []
         self.hook_dict = {}
+        self.trail_hooks = []
         self.prev = prev
         self.discarded = False
 
@@ -113,9 +114,7 @@ class Heap(object):
             else:
                 attvar.atts[name] = value
         self.trail_attrs = []
-
-        for hook in self.hooks:
-            hook.fired = False
+        self.hooks = self.trail_hooks + self.hooks
 
     @jit.unroll_safe
     def discard(self, current_heap):
