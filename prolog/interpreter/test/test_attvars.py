@@ -83,3 +83,14 @@ def test_run_hook_once():
     """)
     assert_true("put_attr(X, m, 1), X = a, X = a.", e)
     assert_true("findall(Y, f(Y), [a]).", e)
+    assert_true("abolish(f/1).", e) # clear the database
+    assert_true("""
+    put_attr(X, m, 1), put_attr(Y, m, 2),
+    X = a, (X = a, fail; Y = b),
+    findall(A, f(A), [a, b]).
+    """, e)
+    assert_true("abolish(f/1).", e)
+    assert_true("""
+    put_attr(X, m, 1), (X = a, fail; true),
+    findall(Z, f(Z), [a]).
+    """, e)
