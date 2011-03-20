@@ -72,4 +72,4 @@ def test_attr_unify_hook():
     assert_false("put_attr(X, m, 11), (X = -1, fail; X = 0).", e)
     assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
     prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
-    prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1")
+    prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1", e)
