@@ -116,6 +116,9 @@ class Heap(object):
                 attvar.atts[name] = value
         self.trail_attrs = []
 
+        for hook in self.hooks:
+            hook.fired = False
+
     @jit.unroll_safe
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from

@@ -73,3 +73,13 @@ def test_attr_unify_hook():
     assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
     prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
     prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1", e)
+
+def test_run_hook_once():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(Attr, Value) :-
+        assert(user:f(Value)).
+    """)
+    assert_true("put_attr(X, m, 1), X = a, X = a.", e)
+    assert_true("findall(Y, f(Y), [a]).", e)

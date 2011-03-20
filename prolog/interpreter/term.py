@@ -184,6 +184,7 @@ class AttVar(Var):
         Var.__init__(self)
         self.atts = {} # mapping from modules to values
         self.engine = engine
+        self.fired = False
 
     def unify(self, other, heap, occurs_check=False):
         Var.unify(self, other, heap, occurs_check)

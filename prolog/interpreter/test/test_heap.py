@@ -225,3 +225,15 @@ def test_simple_hooks():
     assert hp.hooks == [a2]
     v1.unify(Number(1), hp)
     assert hp.hooks == [a2, a1]
+
+def test_number_of_hooks():
+    hp = Heap()
+    v = Var()
+    av = AttVar(None)
+    v.unify(av, hp)
+    assert hp.hooks == []
+    a = Callable.build('a')
+    v.unify(a, hp)
+    assert hp.hooks == [av]
+    v.unify(a, hp)
+    assert hp.hooks == [av]

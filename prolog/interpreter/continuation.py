@@ -66,12 +66,14 @@ def driver(scont, fcont, heap):
                 try:
                     e = scont.engine
                     for hook in heap.hooks:
-                        for module, val in hook.atts.iteritems():
-                            call = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
-                            try:
-                                e.run(call, e.modulewrapper.modules[module])
-                            except KeyError:
-                                error.throw_existence_error("procedure", call.get_prolog_signature())
+                        if not hook.fired:
+                            hook.fired = True
+                            for module, val in hook.atts.iteritems():
+                                call = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                                try:
+                                    e.run(call, e.modulewrapper.modules[module])
+                                except KeyError:
+                                    error.throw_existence_error("procedure", call.get_prolog_signature())
                 except AttributeError:
                     pass
 
