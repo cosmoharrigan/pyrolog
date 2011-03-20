@@ -18,12 +18,7 @@ class Heap(object):
     # interface that term.py uses
 
     def add_trail_atts(self, attvar, attr_name):
-        created_in = attvar.created_after_choice_point
-        # XXX remove code duplication with add_trail
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            attvar.created_after_choice_point = created_in
-        if self is created_in:
+        if self._is_created_in_self(attvar):
             return
         self.trail_attrs.append((attvar, attr_name, attvar.atts.get(attr_name, None)))
 
@@ -32,11 +27,7 @@ class Heap(object):
         to that state. Usually called just before a variable changes. """
         # if the variable doesn't exist before the last choice point, don't
         # trail it (variable shunting)
-        created_in = var.created_after_choice_point
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            var.created_after_choice_point = created_in
-        if self is created_in:
+        if self._is_created_in_self(var):
             return
         i = jit.hint(self.i, promote=True)
         if i >= len(self.trail_var):
@@ -54,6 +45,13 @@ class Heap(object):
         while self is not None and self.discarded:
             self = self.prev
         return self
+
+    def _is_created_in_self(self, var):
+        created_in = var.created_after_choice_point
+        if created_in is not None and created_in.discarded:
+            created_in = created_in._find_not_discarded()
+            var.created_after_choice_point = created_in
+        return self is created_in
 
     @jit.unroll_safe
     def _double_size(self):
