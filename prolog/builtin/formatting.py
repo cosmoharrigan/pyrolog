@@ -9,6 +9,7 @@ from prolog.interpreter.stream import PrologStream
 
 conssig = Signature.getsignature(".", 2)
 nilsig = Signature.getsignature("[]", 0)
+tuplesig = Signature.getsignature(",", 2)
 
 
 class TermFormatter(object):
@@ -126,6 +127,17 @@ class TermFormatter(object):
                 result[-1] = "|"
                 result.append(self.format(term))
                 result.append("]")
+            return (0, "".join(result))
+        if term.signature().eq(tuplesig):
+            result = ["("]
+            while helper.is_term(term) and isinstance(term, Callable) and term.signature().eq(tuplesig):
+                first = term.argument_at(0)
+                second = term.argument_at(1)
+                result.append(self.format(first))
+                result.append(", ")
+                term = second
+            result.append(self.format(term))
+            result.append(")")
             return (0, "".join(result))
         if (term.argument_count(), term.name()) not in self.op_mapping:
             return (0, self.format_term_normally(term))

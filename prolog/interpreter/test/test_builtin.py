@@ -396,7 +396,8 @@ def test_repeat():
     assert_true("repeat, true.")
     e = Engine()
     py.test.raises(UnificationFailed,
-        e.run, parse_query_term("repeat, !, fail."), e.user_module)
+        e.run, parse_query_term("repeat, !, fail."), 
+                e.modulewrapper.user_module)
     # hard to test repeat differently
     e = get_engine('f :- repeat, !, fail.')
     assert_false('f.', e)
@@ -490,6 +491,19 @@ def test_structural_comparison():
     assert_true("1.0 @=< 10000000000000000000000000000000000000000.")
     assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
     assert_true("@=<(1.0, 1).")
+
+def test_structural_comparison_2():
+    e = Engine(load_system=True)
+    assert_true("1 =@= 1.", e)
+    assert_true("f(X) =@= f(A).", e)
+    assert_false("f(X) =@= X.", e)
+    assert_false("f(X, Y) =@= f(X, X).", e)
+    assert_true("f(X, Y) =@= f(A, B).", e)
+    assert_false("'=@='(1, 1.0).", e)
+    assert_false("'=@='(a, b).", e)
+    assert_true("'=@='(f(A, B), f(B, A)).", e)
+    assert_true("'=@='(f(A, B), f(C, A)).", e)
+    assert_false("a =@= A.", e)
 
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
@@ -585,7 +599,8 @@ def test_number_chars():
     prolog_raises("instantiation_error", "number_chars(X, Y)")
     prolog_raises("type_error(list, E)", "number_chars(1, ['a'|2])")
     prolog_raises("type_error(number, a)", "number_chars(a, X)")
-
+    prolog_raises("type_error(number, a)", "number_chars(a, X)")
+    prolog_raises("syntax_error(E)", "number_chars(A, ['-', '.', '1'])")
 
 def test_atom_chars():
     assert_true("atom_chars(abc, X), X = [a, b, c].")
@@ -598,3 +613,6 @@ def test_atom_chars():
     prolog_raises("type_error(text, E)", "atom_chars(X, [f(a)])")
     prolog_raises("type_error(list, E)", "atom_chars(X, f(a))")
     prolog_raises("type_error(text, E)", "atom_chars(X, [[]])")
+
+def test_atom_chars_2():
+    assert_true("atom_chars(ab, [a|B]), B = [b].")

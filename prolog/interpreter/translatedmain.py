@@ -72,7 +72,8 @@ def run(query, var_to_pos, engine):
     try:
         if query is None:
             return
-        engine.run(query, engine.current_module, ContinueContinuation(engine, var_to_pos, printmessage))
+        engine.run(query, engine.modulewrapper.current_module, 
+                ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("no\n")
     except (error.UncaughtError, error.CatchableError), e:
@@ -126,7 +127,7 @@ def run(query, var_to_pos, engine):
 def repl(engine):
     printmessage("welcome!\n")
     while 1:
-        module = engine.current_module.name
+        module = engine.modulewrapper.current_module.name
         if module == "user":
             module = ""
         else:
@@ -151,7 +152,7 @@ def execute(e, filename):
 
 if __name__ == '__main__':
     from sys import argv
-    e = Engine()
+    e = Engine(load_system=True)
     if len(argv) == 2:
         execute(e, argv[1])
     repl(e)

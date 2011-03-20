@@ -11,10 +11,11 @@ def test_set_currently_parsed_module():
     e = get_engine("""
     f(a).
     """)
-    assert e.current_module == e.user_module
+    m = e.modulewrapper
+    assert m.current_module == m.user_module
     e.add_module("m1", [])
-    assert "m1" in e.modules
-    mod1 = e.modules["m1"]
+    assert "m1" in m.modules
+    mod1 = m.modules["m1"]
     assert mod1.exports == []
     assert mod1.functions == {}
     atom = term.Callable.build("f")
@@ -27,7 +28,7 @@ def test_module_exports():
     g(a, b).
     f(c, d, e).
     """)
-    exports = e.modules["m"].exports
+    exports = e.modulewrapper.modules["m"].exports
     assert len(exports) == 1 and exports[0].eq(Signature("g", 2))
 
 def test_use_module_with_file():
@@ -38,8 +39,24 @@ def test_use_module_with_file():
     :- module(m, [f/0]).
     f.
     """)
-    assert len(e.modules) == 2
+    assert len(e.modulewrapper.modules) == 2
     assert_true("f.", e)
+
+def test_use_module_locate_file():
+    src1 = "src.pl"
+    src2 = "src2"
+    create_file(src1, ":- module(src, []).")
+    create_file(src2, ":- module(src2, []).")
+    try:
+        assert_true("use_module('%s')." % src1)
+        assert_true("use_module('%s')." % "src")
+        # XXX some problems with unification, should be existence_error(_, _) 
+        # instead of X
+        prolog_raises("X", "use_module('%s')" % "src2.pl")
+        assert_true("use_module('%s')." % "src2")
+    finally:
+        delete_file(src1)
+        delete_file(src2)
 
 def test_module_uses():
     e = get_engine("""
@@ -55,7 +72,7 @@ def test_module_uses():
     f(X) :- h(X).
     g(a).
     """)
-    assert len(e.modules) == 3
+    assert len(e.modulewrapper.modules) == 3
 
 def test_fetch_function():
     e = get_engine("""
@@ -70,8 +87,8 @@ def test_fetch_function():
     f_sig = Signature.getsignature("f", 1)
     g_sig = Signature.getsignature("g", 2)
     h_sig = Signature.getsignature("h", 1)
-    user = e.modules["user"]
-    m = e.modules["m"]
+    user = e.modulewrapper.modules["user"]
+    m = e.modulewrapper.modules["m"]
 
     assert user.fetch_function(e, g_sig) == m.functions[g_sig]
     assert user.fetch_function(e, h_sig) is None
@@ -164,14 +181,14 @@ def test_abolish():
     """)
 
     assert_true("f(a).", e)
-    assert len(e.modules["user"].functions) == 2
+    assert len(e.modulewrapper.modules["user"].functions) == 2
     assert_true("abolish(f/1).", e)
     prolog_raises("existence_error(A, B)", "f(a)", e)
     assert_true("g(a).", e)
     assert_true("abolish(g/1).", e)
     prolog_raises("existence_error(A, B)", "g(a)", e)
-    assert len(e.modules["user"].functions) == 0
-    assert len(e.modules["m"].functions) == 1
+    assert len(e.modulewrapper.modules["user"].functions) == 0
+    assert len(e.modulewrapper.modules["m"].functions) == 1
 
 def test_if():
     e = get_engine("""
@@ -212,7 +229,7 @@ def test_module_switch_1():
     g.
     f.
     """)
-    assert e.current_module.name == "m"
+    assert e.modulewrapper.current_module.name == "m"
     assert_true("g.", e)
     assert_true("f.", e)
 
@@ -227,11 +244,11 @@ def test_module_switch_2():
     g.
     """)
 
-    assert e.current_module.name == "m"
+    assert e.modulewrapper.current_module.name == "m"
     prolog_raises("existence_error(X, Y)", "f", e)
     assert_true("g.", e)
     assert_true("module(user).", e)
-    assert e.current_module.name == "user"
+    assert e.modulewrapper.current_module.name == "user"
     prolog_raises("existence_error(X, Y)", "g", e)
     assert_true("f.", e)
 
@@ -344,12 +361,13 @@ def test_recursive_ring_import():
     f(a).
     :- use_module(m2).
     """)
+    m = e.modulewrapper
     try:
-        assert len(e.modules) == 4
-        assert len(e.modules["user"].functions) == 2
-        assert len(e.modules["m1"].functions) == 2
-        assert len(e.modules["m2"].functions) == 2
-        assert len(e.modules["m3"].functions) == 2
+        assert len(m.modules) == 4
+        assert len(m.modules["user"].functions) == 2
+        assert len(m.modules["m1"].functions) == 2
+        assert len(m.modules["m2"].functions) == 2
+        assert len(m.modules["m3"].functions) == 2
         assert_true("z(a).", e)
         assert_true("f(a).", e)
         assert_true("m1:f(a).", e)
@@ -390,24 +408,27 @@ def test_impl_use_module():
     """
     e = Engine()
     h = Heap()
+    m = e.modulewrapper
     create_file("blub.pl", filecontent)
     try:
-        impl_use_module(e, e.user_module, h, term.Callable.build("blub.pl"))
-        assert "blub" in e.modules.keys()
+        impl_use_module(e, m.user_module, h,
+                term.Callable.build("blub.pl"))
+        assert "blub" in e.modulewrapper.modules.keys()
     finally:
         delete_file("blub.pl")
 
     create_file("blub", filecontent)
-    e.modules = {}
+    m.modules = {}
     try:
-        impl_use_module(e, e.user_module, h, term.Callable.build("blub"))
-        assert "blub" in e.modules.keys()
+        impl_use_module(e, m.user_module, h, term.Callable.build("blub"))
+        assert "blub" in m.modules.keys()
     finally:
         delete_file("blub")
 
 def test_add_library_dir():
     e = Engine()
-    assert e.libs == {}
+    m = e.modulewrapper
+    assert m.libs == {}
     prolog_raises("existence_error(X, Y)", "add_library_dir('does_not_exist')", e)
 
     lib1 = "__lib1__"
@@ -418,14 +439,15 @@ def test_add_library_dir():
     try:
         assert_true("add_library_dir('%s')." % lib1, e)
         assert_true("add_library_dir('%s')." % lib2, e)
-        assert len(e.libs) == 2
+        assert len(m.libs) == 2
     finally:
         delete_dir(lib1)
         delete_dir(lib2)
 
 def test_library_directory():
     e = Engine()
-    assert e.libs == {}
+    m = e.modulewrapper
+    assert m.libs == {}
     libs = collect_all(e, "library_directory(X).")
     assert len(libs) == 0
 
@@ -439,7 +461,7 @@ def test_library_directory():
         assert_true("add_library_dir('%s')." % tempdir2, e)
         libs = collect_all(e, "library_directory(X).")
         assert len(libs) == 2
-        assert len(e.libs) == 2
+        assert len(m.libs) == 2
     finally:
         delete_dir(tempdir1)
         delete_dir(tempdir2)
@@ -447,6 +469,7 @@ def test_library_directory():
 def test_library_with_files():
     from os.path import abspath
     e = Engine()
+    m = e.modulewrapper
     tempdir = "__tempdir__"
     mod1 = "m1"
     mod2 = "m2.pl"
@@ -457,10 +480,10 @@ def test_library_with_files():
 
     try:
         assert_true("add_library_dir('%s')." % tempdir, e)
-        assert len(e.libs) == 1
+        assert len(m.libs) == 1
         path = abspath(tempdir)
-        assert "m1" in e.libs[path]
-        assert "m2" in e.libs[path]
+        assert "m1" in m.libs[path]
+        assert "m2" in m.libs[path]
     finally:
         delete_dir(tempdir)
 
@@ -477,7 +500,7 @@ def test_library():
 
     try:
         e = get_engine(":- add_library_dir('%s')." % tempdir)
-        assert len(e.libs) == 1
+        assert len(e.modulewrapper.libs) == 1
         assert_true("use_module(library('%s'))." % mod, e)
         assert_true("f(a).", e)
         prolog_raises("existence_error(X, Y)", "g", e)
@@ -508,7 +531,7 @@ def test_empty_import_list():
     g.
     q.
     """)
-    assert len(e.modules["user"].functions) == 0
+    assert len(e.modulewrapper.modules["user"].functions) == 0
     prolog_raises("existence_error(X, Y)", "f(a)", e)
     prolog_raises("existence_error(X, Y)", "g", e)
     prolog_raises("existence_error(X, Y)", "q", e)
@@ -525,3 +548,161 @@ def test_nonexisting_predicates_in_import_list():
     """)
     prolog_raises("existence_error(X, Y)", "z", e)
     prolog_raises("existence_error(X, Y)", "g(A)", e)
+
+def test_existing_system_module():
+    e = Engine(load_system=True)
+    assert e.modulewrapper.modules.has_key("system")
+
+# needs list module
+def test_access_system_predicate():
+    e = Engine(load_system=True)
+    assert_true("append([1], [2], [1, 2]).", e)
+
+# needs list and dcg module
+def test_term_expansion():
+    e = get_engine("""
+    a --> [b].
+    f(X) :-
+        X = x;
+        X = y.
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)
+    assert_false("a([], []).", e)
+    assert_false("f(a).", e)
+    assert_false("f(b).", e)
+    assert_true("f(x).", e)
+    assert_true("f(y).", e)
+    assert_true("assert((g --> [h])).", e)
+    prolog_raises("existence_error(A, B)", "g([h], [])", e)
+    assert_true("g --> [h].", e)
+    assert_false("g --> [].", e)
+    assert_true("term_expand((z --> [q]), R).", e)
+    prolog_raises("existence_error(A, B)", "z([q], [])", e)
+
+def test_overwrite_term_expand():
+    e = get_engine("""
+    term_expand(A, A).
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("(X --> Y), X == a, Y == [b].", e)
+    assert_true("system:term_expand((a --> [b]), R), assert(R).", e)
+    assert_true("a([b], []).", e)
+    assert_true("term_expand((a --> b), R), assert(R).", e)
+    assert_true("(A --> b), A == a.", e)
+
+def test_module_with_dcg():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/1]).
+    f(X) :- a(X, []).
+    a --> [b], c, [d].
+    c --> [1].
+    c --> [x, y, z].
+    """,
+    load_system=True)
+    assert_true("f([b, 1, d]).", e)
+    assert_true("f([b, x, y, z, d]).", e)
+    assert_false("f([b, y, z, d]).", e)
+    assert_false("f([]).", e)
+
+def test_assert_dcg():
+    e = Engine(load_system=True)
+    assert_true("assert((a --> b)).", e)
+    assert_true("a --> b.", e)
+
+def test_term_expand_fail():
+    # Since self-defined term_expand fails
+    # the system term_expand should be called.
+    e = get_engine("""
+    term_expand(A, A) :- fail.
+    a --> [b].
+    """,
+    load_system=True)
+    assert_true("a([b], []).", e)
+
+def test_assert_other_module():
+    e = Engine()
+    assert_true("assert(m:f(a)).", e)
+    assert len(e.modulewrapper.modules) == 2
+    assert_true("m:f(a).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+    assert_true("module(m).", e)
+    assert_true("f(a).", e)
+    assert_true("module(user).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+
+def test_asserta_other_module():
+    e = Engine()
+    assert_true("asserta(m:f(a)).", e)
+    assert len(e.modulewrapper.modules) == 2
+    assert_true("m:f(a).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+    assert_true("module(m).", e)
+    assert_true("f(a).", e)
+    assert_true("module(user).", e)
+    prolog_raises("existence_error(_, _)", "f(a)", e)
+
+def test_retract_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    f(b).
+    """)
+    assert_true("m:f(a), m:f(b).", e)
+    assert_true("retract(m:f(a)).", e)
+    assert_false("retract(m:f(a)).", e)
+    assert_false("m:f(a).", e)
+    assert_true("m:f(b).", e)
+    assert_true("retract(m:f(b)).", e)
+    prolog_raises("existence_error(_, _)", "f(b)", e)
+
+def test_abolish_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    f(b).
+    g(c).
+    """)
+    assert_true("m:f(a), m:f(b), m:g(c).", e)
+    assert_true("abolish(m:f/1).", e)
+    prolog_raises("existence_error(_, _)", "m:f(X)", e)
+    assert_true("m:g(c).", e)
+    assert_true("abolish(m:g/1).", e)
+    prolog_raises("existence_error(_, _)", "m:g(c)", e)
+    assert_true("abolish(m:g/1).", e)
+
+def test_call_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    """)
+    assert_true("call(m:f(X)), X = a.", e)
+    prolog_raises("existence_error(_, _)", "f(X)", e)
+
+def test_once_other_module():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    f(a).
+    """)
+    assert_true("once(m:f(X)), X = a.", e)
+    prolog_raises("existence_error(_, _)", "f(X)", e)
+
+def test_file_parsing():
+    e = get_engine("""
+    :- use_module(m).
+    :- use_module(m).
+    """,
+    create_files=True,
+    m = """
+    :- module(m, [f/1]).
+    f(a).
+    """)
+    assert_true("findall(X, f(X), [a]).", e)
