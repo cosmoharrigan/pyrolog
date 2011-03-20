@@ -70,22 +70,14 @@ class Var(PrologObject):
     @specialize.arg(3)
     @jit.unroll_safe
     def unify(self, other, heap, occurs_check=False):
-        #if isinstance(other, Number):
-        #    import pdb; pdb.set_trace()
         spotted_attvars = []
-        if isinstance(self, AttVar):
-            spotted_attvars.append(self)
         other = other.dereference(heap)
         next = self.binding
+        self._check_attvar(other, spotted_attvars)
         while isinstance(next, Var):
             self = next
             next = next.binding
-            if isinstance(self, AttVar):
-                if not isinstance(other, AttVar):
-                    if not isinstance(other, Var):
-                        spotted_attvars.append(self)
-                else:
-                    spotted_attvars.append(other)
+            self._check_attvar(other, spotted_attvars)
         if next is None:
             assert isinstance(self, Var)
             if isinstance(self, AttVar) and self.atts != {}\
@@ -101,6 +93,14 @@ class Var(PrologObject):
                 if isinstance(other, NonVar):
                     self.setvalue(other, heap)
                 next._unify_derefed(other, heap, occurs_check)
+
+    def _check_attvar(self, other, spotted_attvars):
+        if isinstance(self, AttVar):
+            if not isinstance(other, AttVar):
+                if not isinstance(other, Var):
+                    spotted_attvars.append(self)
+            else:
+                spotted_attvars.append(other)
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False, triggered=[]):
