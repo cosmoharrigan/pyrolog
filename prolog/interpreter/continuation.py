@@ -62,6 +62,7 @@ def driver(scont, fcont, heap):
             scont, fcont, heap  = scont.activate(fcont, heap)
 
             if heap:
+                # XXX do continuations always provide an engine?
                 try:
                     e = scont.engine
                     for hook in heap.hooks:
