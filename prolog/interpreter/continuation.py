@@ -49,6 +49,7 @@ jitdriver = jit.JitDriver(
 
 def driver(scont, fcont, heap):
     rule = None
+    #import pdb; pdb.set_trace()
     while not scont.is_done():
         #view(scont, fcont, heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
@@ -59,6 +60,20 @@ def driver(scont, fcont, heap):
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
+
+            if heap:
+                # XXX do continuations always provide an engine?
+                try:
+                    e = scont.engine
+                    for hook in heap.hooks:
+                        for module, val in hook.atts.iteritems():
+                            call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
+                            e.run(call, e.modulewrapper.current_module)
+                    heap.trail_hooks += heap.hooks
+                    heap.hooks = []
+                except AttributeError:
+                    pass
+
         except error.UnificationFailed:
             if not we_are_translated():
                 if fcont.is_done():
@@ -66,7 +81,7 @@ def driver(scont, fcont, heap):
             if scont.candiscard():
                 scont.discard()
             scont, fcont, heap = fcont.fail(heap)
-        except error.CatchableError, e:
+        except (error.UncaughtError, error.CatchableError), e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
@@ -213,8 +228,6 @@ class Engine(object):
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
         return function
-        
-
 
     # _____________________________________________________
     # module handling

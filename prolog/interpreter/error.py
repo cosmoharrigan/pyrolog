@@ -35,6 +35,12 @@ def throw_instantiation_error(obj = None):
     from prolog.interpreter import term
     raise wrap_error(term.Callable.build("instantiation_error"))
 
+def throw_representation_error(signature, msg):
+    from prolog.interpreter import term
+    t = term.Callable.build("representation_error",
+            [term.Callable.build(signature), term.Callable.build(msg)])
+    raise wrap_error(t)
+
 def throw_type_error(valid_type, obj):
     # valid types are:
     # atom, atomic, byte, callable, character

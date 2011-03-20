@@ -118,6 +118,12 @@ def run(query, var_to_pos, engine):
                         f.format(errorterm.argument_at(1)),
                         f.format(errorterm.argument_at(2))))
                         return
+                elif errorterm.name() == "representation_error":
+                    if isinstance(errorterm, term.Callable):
+                        printmessage("%s: Cannot represent: %s\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1))))
+                        return
 
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))

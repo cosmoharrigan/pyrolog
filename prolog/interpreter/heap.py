@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Var
+from prolog.interpreter.term import Var, AttVar
 
 from pypy.rlib import jit
 
@@ -8,24 +8,28 @@ class Heap(object):
         self.trail_var = [None] * Heap.INITSIZE
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
+        self.trail_attrs = []
+        self.hooks = []
+        self.hook_dict = {}
+        self.trail_hooks = []
         self.prev = prev
         self.discarded = False
 
     # _____________________________________________________
     # interface that term.py uses
 
+    def add_trail_atts(self, attvar, attr_name):
+        if self._is_created_in_self(attvar):
+            return
+        self.trail_attrs.append((attvar, attr_name, attvar.atts.get(attr_name, None)))
+
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
         # if the variable doesn't exist before the last choice point, don't
         # trail it (variable shunting)
-        created_in = var.created_after_choice_point
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            var.created_after_choice_point = created_in
-        if self is created_in:
+        if self._is_created_in_self(var):
             return
-        # actually trail the variable
         i = jit.hint(self.i, promote=True)
         if i >= len(self.trail_var):
             self._double_size()
@@ -33,15 +37,28 @@ class Heap(object):
         self.trail_binding[i] = var.binding
         self.i = i + 1
 
+    def add_hook(self, attvar):
+        if attvar not in self.hook_dict:
+            self.hooks.append(attvar)
+            self.hook_dict[attvar] = None
+
     def _find_not_discarded(self):
         while self is not None and self.discarded:
             self = self.prev
         return self
 
+    def _is_created_in_self(self, var):
+        created_in = var.created_after_choice_point
+        if created_in is not None and created_in.discarded:
+            created_in = created_in._find_not_discarded()
+            var.created_after_choice_point = created_in
+        return self is created_in
+
     @jit.unroll_safe
     def _double_size(self):
         trail_var = [None] * (len(self.trail_var) * 2)
-        trail_binding = [None] * len(trail_var)
+        l = len(trail_var)
+        trail_binding = [None] * l
         for i in range(self.i):
             trail_var[i] = self.trail_var[i]
             trail_binding[i] = self.trail_binding[i]
@@ -52,6 +69,11 @@ class Heap(object):
         """ Make a new variable. Should return a Var instance, possibly with
         interesting attributes set that e.g. add_trail can inspect."""
         result = Var()
+        result.created_after_choice_point = self
+        return result
+
+    def new_attvar(self):
+        result = AttVar(None)
         result.created_after_choice_point = self
         return result
 
@@ -80,10 +102,19 @@ class Heap(object):
     @jit.unroll_safe
     def _revert(self):
         for i in range(self.i-1, -1, -1):
-            self.trail_var[i].binding = self.trail_binding[i]
+            v = self.trail_var[i]
+            v.binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
+
+        for attvar, name, value in self.trail_attrs:
+            if value is None:
+                del attvar.atts[name]
+            else:
+                attvar.atts[name] = value
+        self.trail_attrs = []
+        self.hooks = self.trail_hooks + self.hooks
 
     @jit.unroll_safe
     def discard(self, current_heap):
@@ -107,15 +138,32 @@ class Heap(object):
                     targetpos += 1
             current_heap.i = targetpos
 
+            trail_attrs = []
+            targetpos = 0
+            for var, attr, value in current_heap.trail_attrs:
+                if var.created_after_choice_point is self:
+                    var.created_after_choice_point = self.prev
+                else:
+                    trail_attrs[targetpos] = (var, attr, value)
+            current_heap.trail_attrs = trail_attrs
+
             # move the variable bindings from the discarded heap to the current
             # heap
             for i in range(self.i):
                 var = self.trail_var[i]
                 currbinding = var.binding
                 binding = self.trail_binding[i]
+
                 var.binding = binding
                 current_heap.add_trail(var)
                 var.binding = currbinding
+
+            for attvar, name, value in self.trail_attrs:
+                current_val = attvar.atts[name]
+                attvar.atts[name] = value
+                current_heap.add_trail_atts(attvar, name)
+                attvar.atts[name] = current_val
+
             current_heap.prev = self.prev
             self.trail_var = None
             self.trail_binding = None

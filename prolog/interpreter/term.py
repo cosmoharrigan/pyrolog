@@ -70,14 +70,23 @@ class Var(PrologObject):
     @specialize.arg(3)
     @jit.unroll_safe
     def unify(self, other, heap, occurs_check=False):
+        spotted_attvars = []
         other = other.dereference(heap)
         next = self.binding
+        self._check_attvar(other, spotted_attvars)
         while isinstance(next, Var):
             self = next
             next = next.binding
+            self._check_attvar(other, spotted_attvars)
         if next is None:
             assert isinstance(self, Var)
-            return self._unify_derefed(other, heap, occurs_check)
+            if isinstance(self, AttVar) and self.atts != {}\
+                    and isinstance(other, Var):
+                return other._unify_derefed(self, heap, occurs_check,
+                        triggered=spotted_attvars)
+            else:
+                return self._unify_derefed(other, heap, occurs_check,
+                        triggered=spotted_attvars)
         else:
             assert isinstance(next, NonVar)
             if next is not other:
@@ -85,14 +94,23 @@ class Var(PrologObject):
                     self.setvalue(other, heap)
                 next._unify_derefed(other, heap, occurs_check)
 
+    def _check_attvar(self, other, spotted_attvars):
+        if isinstance(self, AttVar):
+            if not isinstance(other, AttVar):
+                if not isinstance(other, Var):
+                    spotted_attvars.append(self)
+            else:
+                spotted_attvars.append(other)
+
     @specialize.arg(3)
-    def _unify_derefed(self, other, heap, occurs_check=False):
+    def _unify_derefed(self, other, heap, occurs_check=False, triggered=[]):
         if isinstance(other, Var) and other is self:
             pass
         elif occurs_check and other.contains_var(self, heap):
             raise UnificationFailed()
         else:
-            self.setvalue(other, heap)
+            set_hook = isinstance(other, NonVar) or isinstance(other, AttVar)
+            self.setvalue(other, heap, set_hook=set_hook, triggered=triggered)
     
     def dereference(self, heap):
         next = self.binding
@@ -111,9 +129,12 @@ class Var(PrologObject):
             return res.getvalue(heap)
         return res
     
-    def setvalue(self, value, heap):
+    def setvalue(self, value, heap, set_hook=False, triggered=[]):
         heap.add_trail(self)
         self.binding = value
+        if set_hook:
+            for attvar in triggered:
+                heap.add_hook(attvar)
     
     def copy(self, heap, memo):
         self = self.dereference(heap)
@@ -158,7 +179,20 @@ class Var(PrologObject):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
+class AttVar(Var):
+    def __init__(self, engine):
+        Var.__init__(self)
+        self.atts = {} # mapping from modules to values
+        self.engine = engine
 
+    def unify(self, other, heap, occurs_check=False):
+        Var.unify(self, other, heap, occurs_check)
+
+    def __repr__(self):
+        attrs = []
+        for key, val in self.atts.iteritems():
+            attrs.append("%s=%s" % (key, val))
+        return "AttVar(%s)" % ("[" + ", ".join(attrs) + "]", )
 
 class NumberedVar(PrologObject):
     _immutable_ = True
