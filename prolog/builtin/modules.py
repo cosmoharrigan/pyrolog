@@ -60,10 +60,7 @@ def impl_module_1(engine, heap, name):
         handles_continuation=True)
 def impl_module_prefixing(engine, heap, modulename, 
         call, scont, fcont):
-    try:
-        module = engine.modulewrapper.modules[modulename]
-    except KeyError:
-        error.throw_existence_error("procedure", call.get_prolog_signature())
+    module = engine.modulewrapper.get_module(modulename, call)
     return engine.call(call, module, scont, fcont, heap)
 
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
