@@ -58,9 +58,6 @@ def test_attr_unify_hook():
     
     attr_unify_hook(Attr, Value) :-
         10 is Attr + Value.
-    """, 
-    m2 = """
-    :- module(m2, []).
     """)
     assert_false("put_attr(X, m, 1), X = 10.", e)
     assert_false("put_attr(X, m, 0), X = 11.", e)
@@ -72,8 +69,27 @@ def test_attr_unify_hook():
 
     assert_false("put_attr(X, m, 11), (X = -1, fail; X = 0).", e)
     assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
+
+def test_hook_not_defined():
+    e = get_engine("",
+    m = """
+    :- module(m2, []).
+    """)
     prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
-    prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1", e)
+    prolog_raises("existence_error(A, B)", "put_attr(X, m, blub), X = 1", e)
+
+def test_attr_unify_hook_choice():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    
+    attr_unify_hook(Attr, f(Value)) :-
+        Value = a; Value = b.
+    """)
+    assert_false("put_attr(X, m, 1), X = c.", e)
+    assert_false("put_attr(X, m, 1), X = f(c).", e)
+    assert_true("put_attr(X, m, 1), X = f(Y), Y = a.", e)
+    assert_true("put_attr(X, m, 1), X = f(Y), Y = b.", e)
 
 def test_run_hook_once():
     e = get_engine("",
