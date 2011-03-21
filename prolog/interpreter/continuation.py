@@ -60,18 +60,6 @@ def driver(scont, fcont, heap):
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
-
-            if heap.hooks:
-                e = scont.engine
-                hooks = heap.hooks
-                heap.trail_hooks += hooks
-                heap.hooks = []
-                for hook in hooks:
-                    for module, val in hook.atts.iteritems():
-                        query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
-                        mod = e.modulewrapper.get_module(module, query)
-                        scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
-
         except error.UnificationFailed:
             if not we_are_translated():
                 if fcont.is_done():
@@ -81,6 +69,21 @@ def driver(scont, fcont, heap):
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+        else:
+            if heap.hooks:
+                e = scont.engine
+                hooks = heap.hooks
+                heap.trail_hooks += hooks
+                heap.hooks = []
+                for hook in hooks:
+                    for module, val in hook.atts.iteritems():
+                        query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                        try:
+                            mod = e.modulewrapper.get_module(module, query)
+                        except error.CatchableError, e:
+                            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+                            break
+                        scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
     if scont.failed:

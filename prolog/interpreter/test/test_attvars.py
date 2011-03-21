@@ -78,6 +78,16 @@ def test_hook_not_defined():
     prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
     prolog_raises("existence_error(A, B)", "put_attr(X, m, blub), X = 1", e)
 
+def test_multiple_hooks_one_not_defined():
+    e = get_engine("", 
+    m = """
+    :- module(m, []).
+    attr_unify_hook(_, _).
+    """)
+    prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(X, n, 2), X = a", e)
+    prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(Y, n, 2), X = a, Y = X", e)
+    #prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(Y, n, 2), X = a, X = Y", e)
+
 def test_attr_unify_hook_choice():
     e = get_engine("",
     m = """
