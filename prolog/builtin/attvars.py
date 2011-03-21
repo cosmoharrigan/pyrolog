@@ -7,7 +7,9 @@ from prolog.interpreter.helper import wrap_list
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
-    if not (isinstance(obj, Var) and isinstance(obj.getvalue(heap), AttVar)):
+    #if not (isinstance(obj, Var) and isinstance(obj.getvalue(heap), AttVar)):
+    #    raise UnificationFailed()
+    if not isinstance(obj.getvalue(heap), AttVar) or not obj.atts:
         raise UnificationFailed()
 
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
@@ -39,8 +41,6 @@ def impl_del_attr(engine, heap, var, attr):
     if isinstance(var, AttVar):
         heap.add_trail_atts(var, attr)
         var.atts.pop(attr)
-        if var.atts == {}:
-            var.unify(Var(), heap)
 
 @expose_builtin("term_attvars", unwrap_spec=["obj", "obj"])
 def impl_term_attvars(engine, heap, prolog_term, variables):

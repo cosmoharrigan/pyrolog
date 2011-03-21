@@ -177,7 +177,7 @@ def test_discard_with_attvars():
     assert v1.atts == {}
     assert v2.atts == {"a": 3}
 
-def test_simple_hooks():
+def xtest_simple_hooks():
     hp = Heap()
     v = Var()
     a = AttVar(None)
@@ -226,7 +226,7 @@ def test_simple_hooks():
     v1.unify(Number(1), hp)
     assert hp.hooks == [a2, a1]
 
-def test_number_of_hooks():
+def xtest_number_of_hooks():
     hp = Heap()
     v = Var()
     av = AttVar(None)

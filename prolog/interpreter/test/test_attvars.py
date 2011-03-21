@@ -142,7 +142,6 @@ def test_attvar_unification():
     """, e)
 
 def test_term_attvars():
-    py.test.skip("in progress")
     e = get_engine("",
     m = """
     :- module(m, []).
@@ -158,6 +157,3 @@ def test_term_attvars():
     assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X]).", e)
     assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [Y]).", e)
     assert_true("put_attr(X, m, 1), term_attvars(f(A, X, B, X), [X]).")
-
-
-    
