@@ -17,6 +17,5 @@ def impl_term_variables(engine, heap, prolog_term, variables):
         elif is_term(prolog_term):
             numargs = prolog_term.argument_count()
             for i in range(numargs - 1, -1, -1):
-                todo.append(prolog_term.argument_at(i))
-
+                todo.append(prolog_term.argument_at(i)) 
     wrap_list(varlist).unify(variables, heap)
