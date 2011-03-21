@@ -115,4 +115,23 @@ def test_attvar_unification():
     findall(Z, f(Z), [W, a]).
     """, e)
 
+def test_term_attvars():
+    py.test.skip("in progress")
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(_, _).
+    """)
+    assert_true("term_attvars(a, []).")
+    assert_true("term_attvars([], []).")
+    assert_false("term_attvars([], 1).")
+    assert_true("put_attr(X, m, 1), term_attvars(X, [X]).")
+    assert_true("put_attr(X, m, 1), term_attvars(f(g(h(X)), X), [X]).")
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), term_attvars(f(X, Y), [X, Y]).")
+    assert_false("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X, Y]).", e)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X]).", e)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [Y]).", e)
+    assert_true("put_attr(X, m, 1), term_attvars(f(A, X, B, X), [X]).")
+
+
     
