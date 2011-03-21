@@ -3,12 +3,10 @@ from prolog.interpreter import continuation
 from prolog.interpreter.term import AttVar, Var
 from prolog.interpreter.error import UnificationFailed,\
 throw_representation_error
-from prolog.interpreter.helper import wrap_list
+from prolog.interpreter.helper import wrap_list, is_term
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
-    #if not (isinstance(obj, Var) and isinstance(obj.getvalue(heap), AttVar)):
-    #    raise UnificationFailed()
     if not isinstance(obj.getvalue(heap), AttVar) or not obj.atts:
         raise UnificationFailed()
 
@@ -49,12 +47,14 @@ def impl_term_attvars(engine, heap, prolog_term, variables):
     todo = [prolog_term]
     while todo:
         t = todo.pop()
-        if isinstance(t, AttVar) and t not in seen:
-            varlist.append(t)
-            seen[t] = None
-        else:
-            numargs = prolog_term.argument_count()
+        if isinstance(t, Var):
+            value = t.getvalue(heap)
+            if isinstance(value, AttVar) and value.atts and value not in seen:
+                varlist.append(value)
+                seen[value] = None
+        elif is_term(t):
+            numargs = t.argument_count()
             for i in range(numargs - 1, -1, -1):
-                varlist.append(prolog_term.argument_at(i))
+                todo.append(t.argument_at(i))
     wrap_list(varlist).unify(variables, heap)
 

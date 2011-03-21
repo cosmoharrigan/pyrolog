@@ -157,3 +157,7 @@ def test_term_attvars():
     assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X]).", e)
     assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [Y]).", e)
     assert_true("put_attr(X, m, 1), term_attvars(f(A, X, B, X), [X]).")
+    assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [Y]).")
+    assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [X]).")
+    assert_true("term_attvars(X, []), put_attr(X, m, 1).")
+    assert_true("put_attr(X, m , 1), term_attvars(X, [X]), del_attr(X, m), term_attvars(X, []).")
