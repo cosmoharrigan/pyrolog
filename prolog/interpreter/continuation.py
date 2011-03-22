@@ -60,20 +60,6 @@ def driver(scont, fcont, heap):
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
             scont, fcont, heap  = scont.activate(fcont, heap)
-
-            if heap:
-                # XXX do continuations always provide an engine?
-                try:
-                    e = scont.engine
-                    for hook in heap.hooks:
-                        for module, val in hook.atts.iteritems():
-                            call = Callable.build(":", [Atom(module), Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])])
-                            e.run(call, e.modulewrapper.current_module)
-                    heap.trail_hooks += heap.hooks
-                    heap.hooks = []
-                except AttributeError:
-                    pass
-
         except error.UnificationFailed:
             if not we_are_translated():
                 if fcont.is_done():
@@ -81,8 +67,23 @@ def driver(scont, fcont, heap):
             if scont.candiscard():
                 scont.discard()
             scont, fcont, heap = fcont.fail(heap)
-        except (error.UncaughtError, error.CatchableError), e:
+        except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+        else:
+            if heap.hooks:
+                e = scont.engine
+                hooks = heap.hooks
+                heap.trail_hooks += hooks
+                heap.hooks = []
+                for hook in hooks:
+                    for module, val in hook.atts.iteritems():
+                        query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                        try:
+                            mod = e.modulewrapper.get_module(module, query)
+                        except error.CatchableError, e:
+                            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+                            break
+                        scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
     if scont.failed:
@@ -273,7 +274,7 @@ class Engine(object):
 
     @specialize.argtype(0)
     def continue_(scont, fcont, heap):
-        if scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+        if True: #scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             return scont, fcont, heap
         try:
             return scont.activate(fcont, heap)

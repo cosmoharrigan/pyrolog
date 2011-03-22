@@ -180,7 +180,7 @@ def test_discard_with_attvars():
 def test_simple_hooks():
     hp = Heap()
     v = Var()
-    a = AttVar(None)
+    a = AttVar()
     a.atts["m"] = 1
     v.unify(a, hp)
     assert len(hp.hooks) == 0
@@ -190,49 +190,49 @@ def test_simple_hooks():
     hp = Heap()
     v1 = Var()
     v2 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
     v1.unify(a1, hp)
     assert hp.hooks == []
     v2.unify(a2, hp)
     assert hp.hooks == []
     v1.unify(v2, hp)
-    assert hp.hooks == [a2]
+    assert hp.hooks == [a1]
 
     hp = Heap()
     v1 = Var()
     v2 = Var()
     v3 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
-    a3 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
+    a3 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
     v3.unify(a3, hp)
     v1.unify(v2, hp)
     v2.unify(v3, hp)
-    assert hp.hooks == [a2, a3]
+    assert hp.hooks == [a1, a2]
 
     hp = Heap()
     v1 = Var()
     v2 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
     assert hp.hooks == []
     v1.unify(v2, hp)
-    assert hp.hooks == [a2]
+    assert hp.hooks == [a1]
     v1.unify(Number(1), hp)
-    assert hp.hooks == [a2, a1]
+    assert hp.hooks == [a1, a2]
 
 def test_number_of_hooks():
     hp = Heap()
     v = Var()
-    av = AttVar(None)
+    av = AttVar()
     v.unify(av, hp)
     assert hp.hooks == []
-    a = Callable.build('a')
+    a = Callable.build("a")
     v.unify(a, hp)
     assert hp.hooks == [av]
     v.unify(a, hp)

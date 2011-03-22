@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter.signature import Signature
-import prolog.interpreter.continuation
+from prolog.interpreter import error
 
 class ModuleWrapper(object):
     def __init__(self, engine):
@@ -17,6 +17,13 @@ class ModuleWrapper(object):
         self.engine.runstring(source)
         self.system = self.modules["system"]
         self.current_module = self.user_module
+
+    def get_module(self, name, errorterm):
+        try:
+            return self.modules[name]
+        except KeyError:
+            error.throw_existence_error("procedure",
+                errorterm.get_prolog_signature())
         
 
 class Module(object):

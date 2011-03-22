@@ -58,9 +58,6 @@ def test_attr_unify_hook():
     
     attr_unify_hook(Attr, Value) :-
         10 is Attr + Value.
-    """, 
-    m2 = """
-    :- module(m2, []).
     """)
     assert_false("put_attr(X, m, 1), X = 10.", e)
     assert_false("put_attr(X, m, 0), X = 11.", e)
@@ -72,8 +69,37 @@ def test_attr_unify_hook():
 
     assert_false("put_attr(X, m, 11), (X = -1, fail; X = 0).", e)
     assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
+
+def test_hook_not_defined():
+    e = get_engine("",
+    m = """
+    :- module(m2, []).
+    """)
     prolog_raises("existence_error(A, B)", "put_attr(X, bla, blub), X = 1")
-    prolog_raises("existence_error(A, B)", "put_attr(X, m2, blub), X = 1", e)
+    prolog_raises("existence_error(A, B)", "put_attr(X, m, blub), X = 1", e)
+
+def test_multiple_hooks_one_not_defined():
+    e = get_engine("", 
+    m = """
+    :- module(m, []).
+    attr_unify_hook(_, _).
+    """)
+    prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(X, n, 2), X = a", e)
+    prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(Y, n, 2), X = a, Y = X", e)
+    prolog_raises("existence_error(_, _)", "put_attr(X, m, 1), put_attr(Y, n, 2), X = a, X = Y", e)
+
+def test_attr_unify_hook_choice():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    
+    attr_unify_hook(Attr, f(Value)) :-
+        Value = a; Value = b.
+    """)
+    assert_false("put_attr(X, m, 1), X = c.", e)
+    assert_false("put_attr(X, m, 1), X = f(c).", e)
+    assert_true("put_attr(X, m, 1), X = f(Y), Y = a.", e)
+    assert_true("put_attr(X, m, 1), X = f(Y), Y = b.", e)
 
 def test_run_hook_once():
     e = get_engine("",
@@ -96,6 +122,19 @@ def test_run_hook_once():
     findall(Z, f(Z), [a]).
     """, e)
 
+def test_symmetric():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(A, V) :-
+        assert(user:f(A)).
+    """)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y.", e)
+    assert_true("f(1).", e)
+    assert_true("abolish(f/1).", e)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), Y = X.", e)
+    assert_true("f(2).", e)
+
 def test_attvar_unification():
     e = get_engine("",
     m = """
@@ -115,4 +154,35 @@ def test_attvar_unification():
     findall(Z, f(Z), [W, a]).
     """, e)
 
-    
+def test_term_attvars():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(_, _).
+    """)
+    assert_true("term_attvars(a, []).")
+    assert_true("term_attvars([], []).")
+    assert_false("term_attvars([], 1).")
+    assert_true("put_attr(X, m, 1), term_attvars(X, [X]).")
+    assert_true("put_attr(X, m, 1), term_attvars(f(g(h(X)), X), [X]).")
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), term_attvars(f(X, Y), [X, Y]).")
+    assert_false("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X, Y]).", e)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X]).", e)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [Y]).", e)
+    assert_true("put_attr(X, m, 1), term_attvars(f(A, X, B, X), [X]).")
+    assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [Y]).")
+    assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [X]).")
+    assert_true("term_attvars(X, []), put_attr(X, m, 1).")
+    assert_true("put_attr(X, m , 1), term_attvars(X, [X]), del_attr(X, m), term_attvars(X, []).")
+
+def test_term_attvars_fail_fast():
+    e = get_engine("""
+    f(1, [X]) :-
+        put_attr(X, m, 1).
+    f(N, [X|R]) :-
+        N >= 1,
+        put_attr(X, m, 1),
+        N1 is N - 1,
+        f(N1, R).
+    """)
+    assert_false("f(10000, L), term_attvars(L, []).", e)

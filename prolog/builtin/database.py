@@ -22,7 +22,7 @@ def impl_abolish(engine, heap, module, predicate):
         error.throw_permission_error("modify", "static_procedure",
                                      predicate)
     if modname is not None:
-        module = engine.modulewrapper.modules[modname]
+        module = engine.modulewrapper.get_module(modname, predicate)
     try:
         module.functions.pop(signature)
     except KeyError:
@@ -62,8 +62,8 @@ def impl_retract(engine, heap, module, pattern):
     if modname is None:
         function = module.fetch_function(engine, head.signature())
     else:
-        function = engine.modulewrapper.modules[modname].fetch_function(engine,
-                head.signature())
+        function = engine.modulewrapper.get_module(modname,
+                pattern).fetch_function(engine, head.signature())
     if function is None:
         raise error.UnificationFailed
     rulechain = function.rulechain

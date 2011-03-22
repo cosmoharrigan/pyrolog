@@ -17,6 +17,7 @@ class CheckContinuation(Continuation):
     def is_done(self):
         return False
     def activate(self, fcont, heap):
+        original_heap = heap
         # hack: use _dot to count size of tree
         seen = set()
 
@@ -35,7 +36,7 @@ class CheckContinuation(Continuation):
             heap = heap.prev
         assert depth < self.seen
         assert numvars < self.seen
-        return DoneContinuation(self.engine), DoneContinuation(self.engine), heap
+        return DoneContinuation(self.engine), DoneContinuation(self.engine), original_heap
 
 def test_cut():
     e = get_engine("""
