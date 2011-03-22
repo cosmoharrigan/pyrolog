@@ -12,6 +12,7 @@ def test_basic_term_variables():
     assert_false("term_variables(a, a).")
 
 def test_more_advanced_term_variables():
+    assert_true("term_variables([Y,Y,X,X],[Y,X]).")
     assert_true("term_variables([X, Y, a, f(g(A), X)], [X, Y, A]).")
     assert_true("term_variables((A :- B, C, A), [A,B,C]).")
     assert_true("term_variables(f(X, f(X)), [X]).")

@@ -164,6 +164,7 @@ def test_term_attvars():
     assert_true("term_attvars([], []).")
     assert_false("term_attvars([], 1).")
     assert_true("put_attr(X, m, 1), term_attvars(X, [X]).")
+    assert_true("term_attvars(X,Y), Y == [].")
     assert_true("put_attr(X, m, 1), term_attvars(f(g(h(X)), X), [X]).")
     assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), term_attvars(f(X, Y), [X, Y]).")
     assert_false("put_attr(X, m, 1), put_attr(Y, m, 2), X = Y, term_attvars(f(X, Y), [X, Y]).", e)
