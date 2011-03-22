@@ -118,6 +118,12 @@ def test_run_hook_once():
     """, e)
     assert_true("abolish(f/1).", e)
     assert_true("""
+    put_attr(X, m, 1), put_attr(Y, m, 2),
+    (f(X, b) = f(a, a); Y = b),
+    findall(A, f(A), [b]).
+    """, e)
+    assert_true("abolish(f/1).", e)
+    assert_true("""
     put_attr(X, m, 1), (X = a, fail; true),
     findall(Z, f(Z), [a]).
     """, e)
@@ -175,6 +181,7 @@ def test_term_attvars():
     assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [X]).")
     assert_true("term_attvars(X, []), put_attr(X, m, 1).")
     assert_true("put_attr(X, m , 1), term_attvars(X, [X]), del_attr(X, m), term_attvars(X, []).")
+    assert_true("put_attr(X, m, Y), term_variables(X, L), L == [X].")
 
 def test_term_attvars_fail_fast():
     e = get_engine("""

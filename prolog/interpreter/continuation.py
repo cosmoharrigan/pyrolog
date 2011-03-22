@@ -73,7 +73,6 @@ def driver(scont, fcont, heap):
             if heap.hooks:
                 e = scont.engine
                 hooks = heap.hooks
-                heap.trail_hooks += hooks
                 heap.hooks = []
                 for hook in hooks:
                     for module, val in hook.atts.iteritems():
