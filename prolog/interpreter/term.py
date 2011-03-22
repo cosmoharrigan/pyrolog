@@ -159,10 +159,9 @@ class Var(PrologObject):
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
 class AttVar(Var):
-    def __init__(self, engine):
+    def __init__(self):
         Var.__init__(self)
         self.atts = {} # mapping from modules to values
-        self.engine = engine
 
     def _unify_derefed(self, other, heap, occurs_check=False):
         #import pdb; pdb.set_trace()

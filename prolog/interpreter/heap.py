@@ -73,7 +73,7 @@ class Heap(object):
         return result
 
     def new_attvar(self):
-        result = AttVar(None)
+        result = AttVar()
         result.created_after_choice_point = self
         return result
 

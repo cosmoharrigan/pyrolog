@@ -180,7 +180,7 @@ def test_discard_with_attvars():
 def xtest_simple_hooks():
     hp = Heap()
     v = Var()
-    a = AttVar(None)
+    a = AttVar()
     a.atts["m"] = 1
     v.unify(a, hp)
     assert len(hp.hooks) == 0
@@ -190,8 +190,8 @@ def xtest_simple_hooks():
     hp = Heap()
     v1 = Var()
     v2 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
     v1.unify(a1, hp)
     assert hp.hooks == []
     v2.unify(a2, hp)
@@ -203,9 +203,9 @@ def xtest_simple_hooks():
     v1 = Var()
     v2 = Var()
     v3 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
-    a3 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
+    a3 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
     v3.unify(a3, hp)
@@ -216,8 +216,8 @@ def xtest_simple_hooks():
     hp = Heap()
     v1 = Var()
     v2 = Var()
-    a1 = AttVar(None)
-    a2 = AttVar(None)
+    a1 = AttVar()
+    a2 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
     assert hp.hooks == []
@@ -229,7 +229,7 @@ def xtest_simple_hooks():
 def xtest_number_of_hooks():
     hp = Heap()
     v = Var()
-    av = AttVar(None)
+    av = AttVar()
     v.unify(av, hp)
     assert hp.hooks == []
     a = Callable.build('a')
