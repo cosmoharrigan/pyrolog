@@ -5,6 +5,7 @@ from prolog.interpreter.error import UnificationFailed,\
 throw_representation_error
 from prolog.interpreter.helper import wrap_list, is_term, unwrap_list
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.memo import CopyMemo
 
 conssig = Signature.getsignature(".", 2)
 
@@ -42,7 +43,7 @@ def impl_del_attr(engine, heap, var, attr):
     if isinstance(var, AttVar):
         heap.add_trail_atts(var, attr)
         var.atts.pop(attr)
-
+"""
 @expose_builtin("term_attvars", unwrap_spec=["obj", "obj"])
 def impl_term_attvars(engine, heap, prolog_term, variables):
     if (isinstance(variables, Callable) and variables.signature().eq(conssig)
@@ -89,8 +90,26 @@ def impl_term_attvars_default(engine, heap, prolog_term, variables):
             for i in range(numargs - 1, -1, -1):
                 todo.append(t.argument_at(i))
     wrap_list(varlist).unify(variables, heap)
-
 """
 @expose_builtin("term_attvars", unwrap_spec=["obj", "obj"])
 def impl_term_attvars(engine, heap, prolog_term, variables):
-""" 
+    varlist = []
+    varc = variables.copy(heap, CopyMemo())
+    seen = {}
+    todo = [prolog_term]
+    while todo:
+        t = todo.pop()
+        if isinstance(t, Var):
+            value = t.getvalue(heap)
+            if isinstance(value, AttVar) and value.atts and value not in seen:
+                varlist.append(value)
+                seen[value] = None
+                X = Var()
+                prolog_list = Callable.build(".", [value, X])
+                prolog_list.unify(varc, heap)
+                varc = X
+        elif is_term(t):
+            numargs = t.argument_count()
+            for i in range(numargs - 1, -1, -1):
+                todo.append(t.argument_at(i))
+    wrap_list(varlist).unify(variables, heap)
