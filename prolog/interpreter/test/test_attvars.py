@@ -174,3 +174,15 @@ def test_term_attvars():
     assert_true("put_attr(X, m, 1), Y = X, term_attvars(f(X, Y), [X]).")
     assert_true("term_attvars(X, []), put_attr(X, m, 1).")
     assert_true("put_attr(X, m , 1), term_attvars(X, [X]), del_attr(X, m), term_attvars(X, []).")
+
+def test_term_attvars_fail_fast():
+    e = get_engine("""
+    f(1, [X]) :-
+        put_attr(X, m, 1).
+    f(N, [X|R]) :-
+        N >= 1,
+        put_attr(X, m, 1),
+        N1 is N - 1,
+        f(N1, R).
+    """)
+    assert_false("f(10000, L), term_attvars(L, []).", e)
