@@ -1,7 +1,7 @@
 import os
 import string
 
-from prolog.interpreter.term import Float, Number, Var, Atom, Callable
+from prolog.interpreter.term import Float, Number, Var, Atom, Callable, AttVar
 from prolog.interpreter import error, helper, parsing
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.signature import Signature
@@ -63,6 +63,8 @@ class TermFormatter(object):
         elif helper.is_term(term):
             assert isinstance(term, Callable)
             return self.format_term(term)
+        elif isinstance(term, AttVar):
+            return self.format_attvar(term)
         elif isinstance(term, Var):
             return self.format_var(term)
         elif isinstance(term, PrologStream):
@@ -88,6 +90,13 @@ class TermFormatter(object):
 
     def format_float(self, num):
         return str(num.floatval)
+
+    def format_attvar(self, attvar):
+        l = []
+        for name, val in attvar.atts.iteritems():
+            l.append("put_attr(%s, %s, %s)" % (self.format_var(attvar),
+                    name, self.format(val)))
+        return "\n".join(l)
 
     def format_var(self, var):
         try:

@@ -40,8 +40,12 @@ def var_representation(var_to_pos, engine, write):
     for var, real_var in var_to_pos.iteritems():
         if var.startswith("_"):
             continue
-        val = f.format(real_var.getvalue(engine.heap))
-        write("%s = %s\n" % (var, val))
+        value = real_var.getvalue(engine.heap)
+        val = f.format(value)
+        if isinstance(value, term.AttVar):
+            write(val)
+        else:
+            write("%s = %s\n" % (var, val))
         
 def getch():
     line = readline()
