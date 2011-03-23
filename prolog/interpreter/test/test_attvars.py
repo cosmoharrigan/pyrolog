@@ -160,6 +160,9 @@ def test_attvar_unification():
     findall(Z, f(Z), [W, a]).
     """, e)
 
+def test_term_variables():
+    assert_true("put_attr(X, m, 1), term_variables(X, [H]), attvar(H).")
+
 def test_term_attvars():
     e = get_engine("",
     m = """
@@ -194,3 +197,26 @@ def test_term_attvars_fail_fast():
         f(N1, R).
     """)
     assert_false("f(10000, L), term_attvars(L, []).", e)
+
+def test_copy_term_2():
+    assert_true("put_attr(X, m, 1), copy_term(X, Y), attvar(Y).")
+    assert_true("put_attr(X, m, 1), copy_term(X, Y), get_attr(Y, m, 1).")
+    assert_false("put_attr(X, m, A), copy_term(X, Y), get_attr(Y, m, B), A == B.")
+
+def test_copy_term_3():
+    assert_true("copy_term(a, a, []).")
+    assert_true("copy_term(X, Y, []), X \== Y.")
+    assert_false("put_attr(X, foor, bar), copy_term(X, Y, _), X == Y.")
+    assert_false("put_attr(X, foo, bar), copy_term(X, Y, Z), attvar(Y).")
+    assert_true("put_attr(X, foo, bar), copy_term(X, Y, Z), Z == [put_attr(Y, foo, bar)], X \== Y.")
+    assert_true("put_attr(X, foo, bar), put_attr(X, blar, blupp), copy_term(X, Y, Z), Z == [put_attr(Y, foo, bar), put_attr(Y, blar, blupp)], X \== Y.")
+    
+    e = get_engine("",
+        m = """
+        :- module(m, []).
+        attr_unify_hook(_, _).
+        """)
+    assert_true("put_attr(X, m, 1), X = a, copy_term(X, a, Z), Z == [].", e)
+    assert_true("put_attr(X, a, 1), put_attr(Y, b, 2), copy_term(f(X,Y), f(A, B), [put_attr(A, a, 1), put_attr(B, b, 2)]), Z \== f(X, Y).")
+    assert_true("put_attr(X, a, Y), copy_term(X, A, [put_attr(A, a, Y)]).")
+

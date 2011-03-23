@@ -183,6 +183,20 @@ class AttVar(Var):
             attrs.append("%s=%s" % (key, val))
         return "AttVar(%s)" % ("[" + ", ".join(attrs) + "]", )
 
+    def copy(self, heap, memo):
+        self = self.dereference(heap)
+        if isinstance(self, AttVar):
+            res = memo.get(self)
+            if res is not None:
+                return res
+            newvar = heap.new_attvar()
+            for key, val in self.atts.iteritems():
+                newvar.atts[key] = val.copy(heap, memo)
+            memo.set(self, newvar)
+            return newvar
+        return self.copy(heap, memo)
+
+
 class NumberedVar(PrologObject):
     _immutable_ = True
     def __init__(self, index):
