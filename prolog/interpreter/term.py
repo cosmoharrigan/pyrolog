@@ -164,7 +164,6 @@ class AttVar(Var):
         self.atts = {} # mapping from modules to values
 
     def _unify_derefed(self, other, heap, occurs_check=False):
-        #import pdb; pdb.set_trace()
         if isinstance(other, AttVar):
             if other is not self:
                 self.setvalue(other, heap)

@@ -49,7 +49,6 @@ jitdriver = jit.JitDriver(
 
 def driver(scont, fcont, heap):
     rule = None
-    #import pdb; pdb.set_trace()
     while not scont.is_done():
         #view(scont, fcont, heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
