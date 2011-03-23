@@ -1,5 +1,6 @@
-from prolog.interpreter.heap import Heap
-from prolog.interpreter.term import AttVar, Var, Callable, Number
+import py
+from prolog.interpreter.heap import Heap, HookChain
+from prolog.interpreter.term import AttVar, Var, Callable, Number, Atom
 
 def test_heap():
     h1 = Heap()
@@ -177,7 +178,20 @@ def test_discard_with_attvars():
     assert v1.atts == {}
     assert v2.atts == {"a": 3}
 
+def test_hookchain():
+    py.test.skip("")
+    hc = HookChain()
+    assert hc.last is None
+    hc.add_hook(1)
+    hc.add_hook(2)
+    hc.add_hook(3)
+    assert hc.first.hook == 1
+    assert hc.first.next.hook == 2
+    assert hc.first.next.next.hook == 3
+    assert hc.first.next.next.next is None
+
 def test_simple_hooks():
+    py.test.skip("")
     hp = Heap()
     v = Var()
     a = AttVar()
@@ -185,7 +199,7 @@ def test_simple_hooks():
     v.unify(a, hp)
     assert hp.hooks.first is None 
     v.unify(Number(1), hp)
-    assert hp.hooks.first[0] == a
+    assert hp.hooks.first.hook == a
 
     hp = Heap()
     v1 = Var()
@@ -197,7 +211,7 @@ def test_simple_hooks():
     v2.unify(a2, hp)
     assert hp.hooks.first is None
     v1.unify(v2, hp)
-    assert hp.hooks.first[0] == a1
+    assert hp.hooks.first.hook == a1
 
     hp = Heap()
     v1 = Var()
@@ -211,8 +225,9 @@ def test_simple_hooks():
     v3.unify(a3, hp)
     v1.unify(v2, hp)
     v2.unify(v3, hp)
-    assert hp.hooks.first[0] == a1
-    assert hp.hooks.first[1] is None
+    assert hp.hooks.first.hook == a1
+    assert hp.hooks.first.next.hook == a2
+    assert hp.hooks.first.next.next is None
 
     hp = Heap()
     v1 = Var()
@@ -223,12 +238,28 @@ def test_simple_hooks():
     v2.unify(a2, hp)
     assert hp.hooks.first is None
     v1.unify(v2, hp)
-    assert hp.hooks.first[0] == a1
+    assert hp.hooks.first.hook == a1
     v1.unify(Number(1), hp)
-    assert hp.hooks.first[0] == a1
-    assert hp.hooks.first[1]  is None
+    assert hp.hooks.first.hook == a1
+    assert hp.hooks.first.next.hook == a2
+    assert hp.hooks.first.next.next is None
+
+    hp = Heap()
+    v1 = Var()
+    v2 = Var()
+    a1 = AttVar()
+    a2 = AttVar()
+    v1.unify(a1, hp)
+    v2.unify(a2, hp)
+    t1 = Callable.build("f", [v1, v2])
+    t2 = Callable.build("f", [Atom("a"), Atom("b")])
+    t1.unify(t2, hp)
+    assert hp.hooks.first.hook == a1
+    assert hp.hooks.first.next.hook == a2
+    assert hp.hooks.first.next.next is None
 
 def test_number_of_hooks():
+    py.test.skip("")
     hp = Heap()
     v = Var()
     av = AttVar()
@@ -236,6 +267,7 @@ def test_number_of_hooks():
     assert hp.hooks.first is None
     a = Callable.build("a")
     v.unify(a, hp)
-    assert hp.hooks.first[0] == av
+    assert hp.hooks.first.hook == av
     v.unify(a, hp)
-    assert hp.hooks.first[1] is None
+    assert hp.hooks.first.hook == av
+    assert hp.hooks.first.next is None

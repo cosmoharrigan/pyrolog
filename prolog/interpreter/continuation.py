@@ -69,12 +69,12 @@ def driver(scont, fcont, heap):
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
         else:
-            if heap.hooks.first:
+            if heap.hooks.last:
                 e = scont.engine
-                hooktuple = heap.hooks.first
+                hookcell = heap.hooks.last
                 heap.hooks.clear()
-                while hooktuple:
-                    hook = hooktuple[0]
+                while hookcell:
+                    hook = hookcell.hook
                     for module, val in hook.atts.iteritems():
                         query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
                         try:
@@ -83,7 +83,7 @@ def driver(scont, fcont, heap):
                             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
                             break
                         scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
-                    hooktuple = hooktuple[1]
+                    hookcell = hookcell.next
 
     assert isinstance(scont, DoneContinuation)
     if scont.failed:
@@ -274,7 +274,7 @@ class Engine(object):
 
     @specialize.argtype(0)
     def continue_(scont, fcont, heap):
-        if True: #scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+        if scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             return scont, fcont, heap
         try:
             return scont.activate(fcont, heap)

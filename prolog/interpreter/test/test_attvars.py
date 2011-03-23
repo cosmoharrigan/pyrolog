@@ -70,6 +70,22 @@ def test_attr_unify_hook():
     assert_false("put_attr(X, m, 11), (X = -1, fail; X = 0).", e)
     assert_true("put_attr(X, m, 11), (X = -1, fail; X = -1).", e)
 
+def test_attr_unify_hook_complex_term():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+    attr_unify_hook(Attr, Value) :-
+        assert(user:f(Value)).
+    """)
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, 2), g(X, Y) = g(a, b).", e)
+    assert_true("findall(X, f(X), [a, b]).", e)
+    assert_true("abolish(f/1).", e)
+    assert_true("""
+    put_attr(X, m, 1), put_attr(Y, m, 2), put_attr(Z, m, 3), 
+    f(Z, g(a, X, X, h(Z), Y)) = f(q, g(a, j, j, U, x)), U = h(q).
+    """, e)
+    assert_true("findall(X, f(X), [q, j, x]).", e)
+
 def test_hook_not_defined():
     e = get_engine("",
     m = """

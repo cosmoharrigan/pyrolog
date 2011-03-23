@@ -186,14 +186,20 @@ class Heap(object):
 
 class HookChain(object):
     def __init__(self):
-        self.first = self.last = None
+        self.last = None
 
     def add_hook(self, hook):
-        if not self.first:
-            self.first = self.last = (hook, None)
+        cell = HookCell(hook)
+        if self.last is None:
+            self.last = cell
         else:
-            new_elem = (hook, None)
-            self.last = (self.last[0], new_elem)
+            cell.next = self.last
+            self.last = cell
 
     def clear(self):
         self.__init__()
+
+class HookCell(object):
+    def __init__(self, hook):
+        self.hook = hook
+        self.next = None
