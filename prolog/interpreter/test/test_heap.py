@@ -183,9 +183,9 @@ def test_simple_hooks():
     a = AttVar()
     a.atts["m"] = 1
     v.unify(a, hp)
-    assert len(hp.hooks) == 0
+    assert hp.hooks.first is None 
     v.unify(Number(1), hp)
-    assert hp.hooks == [a]
+    assert hp.hooks.first[0] == a
 
     hp = Heap()
     v1 = Var()
@@ -193,11 +193,11 @@ def test_simple_hooks():
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
-    assert hp.hooks == []
+    assert hp.hooks.first is None
     v2.unify(a2, hp)
-    assert hp.hooks == []
+    assert hp.hooks.first is None
     v1.unify(v2, hp)
-    assert hp.hooks == [a1]
+    assert hp.hooks.first[0] == a1
 
     hp = Heap()
     v1 = Var()
@@ -211,7 +211,8 @@ def test_simple_hooks():
     v3.unify(a3, hp)
     v1.unify(v2, hp)
     v2.unify(v3, hp)
-    assert hp.hooks == [a1, a2]
+    assert hp.hooks.first[0] == a1
+    assert hp.hooks.first[1] is None
 
     hp = Heap()
     v1 = Var()
@@ -220,20 +221,21 @@ def test_simple_hooks():
     a2 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
-    assert hp.hooks == []
+    assert hp.hooks.first is None
     v1.unify(v2, hp)
-    assert hp.hooks == [a1]
+    assert hp.hooks.first[0] == a1
     v1.unify(Number(1), hp)
-    assert hp.hooks == [a1, a2]
+    assert hp.hooks.first[0] == a1
+    assert hp.hooks.first[1]  is None
 
 def test_number_of_hooks():
     hp = Heap()
     v = Var()
     av = AttVar()
     v.unify(av, hp)
-    assert hp.hooks == []
+    assert hp.hooks.first is None
     a = Callable.build("a")
     v.unify(a, hp)
-    assert hp.hooks == [av]
+    assert hp.hooks.first[0] == av
     v.unify(a, hp)
-    assert hp.hooks == [av]
+    assert hp.hooks.first[1] is None
