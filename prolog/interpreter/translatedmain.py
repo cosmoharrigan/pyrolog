@@ -43,7 +43,7 @@ def var_representation(var_to_pos, engine, write):
         value = real_var.getvalue(engine.heap)
         val = f.format(value)
         if isinstance(value, term.AttVar):
-            write(val)
+            write("%s\n" % val)
         else:
             write("%s = %s\n" % (var, val))
         
