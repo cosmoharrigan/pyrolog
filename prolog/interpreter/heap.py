@@ -9,7 +9,6 @@ class Heap(object):
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
         self.trail_attrs = []
-        #self.hooks = []
         self.hooks = HookChain()
         self.prev = prev
         self.discarded = False
@@ -37,7 +36,6 @@ class Heap(object):
         self.i = i + 1
 
     def add_hook(self, attvar):
-        #self.hooks.append(attvar)
         self.hooks.add_hook(attvar)
 
     def _find_not_discarded(self):
@@ -112,7 +110,6 @@ class Heap(object):
             else:
                 attvar.atts[name] = value
         self.trail_attrs = []
-        #self.hooks = []
         self.hooks.clear()
 
     @jit.unroll_safe
