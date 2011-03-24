@@ -66,5 +66,10 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
             gs.append(put_attr)
     prolog_term.copy(heap, memo).unify(copy, heap)
     goals.unify(wrap_list(gs), heap)
-         
 
+@expose_builtin("del_attrs", unwrap_spec=["obj"])
+def impl_del_attrs(engine, heap, attvar):
+    if isinstance(attvar, AttVar):
+        for attr in attvar.atts:
+            heap.add_trail_atts(attvar, attr)
+        attvar.atts.clear()

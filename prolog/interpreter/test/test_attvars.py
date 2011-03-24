@@ -255,7 +255,7 @@ def test_del_attrs():
     assert_true("del_attrs(a).")
     assert_true("\+ attvar(X), del_attrs(X).")
     assert_false("put_attr(X, m, 1), del_attrs(X), get_attr(X, m, 1).")
-    assert_false("put_attr(X, m, 1), del_attrs(X), \+ attvar(X).")
+    assert_true("put_attr(X, m, 1), del_attrs(X), \+ attvar(X).")
     assert_true("put_attr(X, m, 1), del_attrs(X), del_attrs(X).")
     assert_true("put_attr(X, m, 1), (del_attrs(X), fail; true), get_attr(X, m, 1).")
     assert_true("put_attr(X, m, 1), put_attr(X, m, 2), del_attrs(X), \+ attvar(X).")
