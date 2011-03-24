@@ -55,11 +55,11 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
     gs = []
     memo = CopyMemo()
     memo.seen = {}
-    X = Var()
+    X = heap.newvar()
     impl_term_attvars(engine, heap, prolog_term, X)
     attvars = unwrap_list(X.dereference(heap))
     for attvar in attvars:
-        V = Var()
+        V = heap.newvar()
         memo.set(attvar, V)
         for key, val in attvar.atts.iteritems():
             put_attr = Callable.build("put_attr", [V, Callable.build(key), val])
