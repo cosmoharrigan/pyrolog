@@ -240,3 +240,22 @@ def test_copy_term_3():
     assert_true("(put_attr(X, m, 1), fail; true), copy_term(X, A, []).")
     assert_true("copy_term(X, A, []), put_attr(X, m, 1), copy_term(X, A, [put_attr(A, m, 1)]).")
 
+def xtest_get_attrs():
+    assert_false("get_attrs(X, Y).")
+    assert_false("get_attrs(a, Y).")
+    assert_false("get_attrs(1, Y).")
+    assert_true("put_attr(X, m, 1), get_attrs(X, att(m, 1, [])).")
+    assert_false("put_attr(X, m, 1), get_attrs(f(X), att(m, 1, [])).")
+    assert_true("put_attr(X, m, 1), put_attr(X, a, 2), get_attrs(X, att(m, 1, att(a, 2, []))).")
+    assert_false("(put_attr(X, m, 1), fail; true), get_attrs(X, L).")
+    assert_true("put_attr(X, m, 1), put_attr(Y, m, X), get_attrs(Y, att(m, X, [])), get_attrs(X, att(m, 1, [])).")
+
+def test_del_attrs():
+    assert_true("del_attrs(1).")
+    assert_true("del_attrs(a).")
+    assert_true("\+ attvar(X), del_attrs(X).")
+    assert_false("put_attr(X, m, 1), del_attrs(X), get_attr(X, m, 1).")
+    assert_false("put_attr(X, m, 1), del_attrs(X), \+ attvar(X).")
+    assert_true("put_attr(X, m, 1), del_attrs(X), del_attrs(X).")
+    assert_true("put_attr(X, m, 1), (del_attrs(X), fail; true), get_attr(X, m, 1).")
+    assert_true("put_attr(X, m, 1), put_attr(X, m, 2), del_attrs(X), \+ attvar(X).")
