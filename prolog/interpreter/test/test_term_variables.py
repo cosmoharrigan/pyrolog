@@ -25,6 +25,7 @@ def test_var_binding():
     assert_true("X = f(A,B), term_variables(X, [A,B]).")
 
 def test_term_variables_huge_list():
+    py.test.skip("")
     e = get_engine("""
         make_triple_list(0, _, []).
         make_triple_list(X, Y, [Y, Y, Y | T]) :-
