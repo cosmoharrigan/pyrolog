@@ -29,5 +29,7 @@ class CopyMemo(object):
         return self.seen.get(key, None)
 
     def set(self, key, val):
+        if self.seen is None:
+            self.seen = {}
         self.seen[key] = val
 

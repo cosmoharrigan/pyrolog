@@ -54,7 +54,6 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
     from prolog.interpreter.memo import CopyMemo
     gs = []
     memo = CopyMemo()
-    memo.seen = {}
     X = heap.newvar()
     impl_term_attvars(engine, heap, prolog_term, X)
     attvars = unwrap_list(X.dereference(heap))
