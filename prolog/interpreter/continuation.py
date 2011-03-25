@@ -50,7 +50,6 @@ jitdriver = jit.JitDriver(
 def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
-        #view(scont, fcont, heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             rule = scont._rule
             jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
@@ -69,25 +68,29 @@ def driver(scont, fcont, heap):
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
         else:
-            if heap.hooks.last:
-                e = scont.engine
-                hookcell = heap.hooks.last
-                heap.hooks.clear()
-                while hookcell:
-                    hook = hookcell.hook
-                    for module, val in hook.atts.iteritems():
-                        query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
-                        try:
-                            mod = e.modulewrapper.get_module(module, query)
-                        except error.CatchableError, e:
-                            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
-                            break
-                        scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
-                    hookcell = hookcell.next
+            scont, fcont, heap = _process_hooks(scont, fcont, heap)
 
     assert isinstance(scont, DoneContinuation)
     if scont.failed:
         raise error.UnificationFailed
+
+def _process_hooks(scont, fcont, heap):
+    if heap.hooks.last:
+        e = scont.engine
+        hookcell = heap.hooks.last
+        heap.hooks.clear()
+        while hookcell:
+            hook = hookcell.hook
+            for module, val in hook.atts.iteritems():
+                query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                try:
+                    mod = e.modulewrapper.get_module(module, query)
+                except error.CatchableError, e:
+                    scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+                    break
+                scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
+            hookcell = hookcell.next
+    return scont, fcont, heap
 
 class Engine(object):
     def __init__(self, load_system=False):
