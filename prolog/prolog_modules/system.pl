@@ -4,6 +4,7 @@
 :- use_module(dcg).
 :- use_module(numbervars).
 :- use_module(structural_comparison).
+:- use_module(attvars).
 
 term_expand(A, A) :-
 	A \= (_X --> _Y).

@@ -2,6 +2,7 @@ import py
 from prolog.interpreter.test.tool import prolog_raises, \
 assert_true, assert_false
 from prolog.interpreter.parsing import get_engine
+from prolog.interpreter.continuation import Engine
 
 
 def test_not_attvar():
@@ -259,3 +260,14 @@ def test_del_attrs():
     assert_true("put_attr(X, m, 1), del_attrs(X), del_attrs(X).")
     assert_true("put_attr(X, m, 1), (del_attrs(X), fail; true), get_attr(X, m, 1).")
     assert_true("put_attr(X, m, 1), put_attr(X, m, 2), del_attrs(X), \+ attvar(X).")
+
+def test_put_attrs():
+    e = Engine(load_system=True)
+    assert_false("put_attrs(X, []), attvar(X).", e)
+    prolog_raises("representation_error(A, B)", "put_attrs(a, [])", e)
+    prolog_raises("representation_error(A, B)", "put_attrs(a, att(m, 1, []))", e)
+    assert_true("put_attrs(X, att(m, 1, [])), get_attr(X, m, 1).", e)
+    assert_true("put_attrs(X, att(m, 1, att(n, W, []))), get_attr(X, m, 1), get_attr(X, n, W).", e)
+    assert_false("put_attrs(X, att(m, 1, [])), fail; attvar(X).", e)
+    assert_true("put_attr(X, m, 1), (put_attrs(X, att(m, 2, [])), fail; true), get_attr(X, m, 1).", e)
+    assert_true("put_attr(X, m, 1), put_attrs(X, att(m, 2, [])), get_attr(X, m, 2).", e)
