@@ -1,4 +1,5 @@
 :- module(freeze, []).
 
 attr_unify_hook(Goals, _) :-
-	call(Goals).
+	this_module(M),
+	call(M:Goals).
