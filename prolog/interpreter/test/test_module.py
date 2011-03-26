@@ -706,3 +706,9 @@ def test_file_parsing():
     f(a).
     """)
     assert_true("findall(X, f(X), [a]).", e)
+
+def test_this_module():
+    e = get_engine(":- module(a).")
+    assert_true("this_module(user).")
+    assert_true("this_module(a).", e)
+    assert_true("this_module(X), X == user.")

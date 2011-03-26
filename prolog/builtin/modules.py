@@ -114,3 +114,8 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         directory.unify(Callable.build(engine.libs[directory.name()]))
     else:
         error.UnificationFailed()
+
+@expose_builtin("this_module", unwrap_spec=["obj"])
+def impl_this_module(engine, heap, module):
+    name = engine.modulewrapper.current_module.name
+    Callable.build(name).unify(module, heap)  
