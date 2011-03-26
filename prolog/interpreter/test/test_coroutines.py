@@ -18,3 +18,5 @@ def test_basic_freeze():
     assert_true("freeze(X, user:f(a)), X = 1.", e)
     assert_true("assert(m:g(q)).", e)
     assert_true("freeze(X, m:g(q)), X = 1.", e)
+    assert_false("freeze(X, Y = 1), freeze(X, Y = 2), X = a.", e)
+    assert_true("freeze(X, Y = 1), freeze(X, Z = 2), X = a, Y == 1, Z == 2.", e)
