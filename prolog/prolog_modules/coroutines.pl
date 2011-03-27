@@ -46,7 +46,12 @@ wellformed(ErrorCond) :-
 
 put_when_attributes([], _).
 put_when_attributes([X|Rest], When_Goal) :-
-	put_attr(X, when, When_Goal),
+	(get_attr(X, when, Current_Goals)
+	->
+		put_attr(X, when, (Current_Goals, When_Goal))
+	;
+		put_attr(X, when, When_Goal)
+	),
 	put_when_attributes(Rest, When_Goal).
 
 when(Cond, Goal) :-

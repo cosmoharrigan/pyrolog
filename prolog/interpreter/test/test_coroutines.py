@@ -39,3 +39,4 @@ def test_when():
     assert_true("when(nonvar(a), z).", e)
     assert_true("when(nonvar(X), f(a)), X = 1.", e)
     assert_true("when(ground(1), m:g(q)).", e)
+    assert_true("when(ground(X), Y = 1), when(ground(X), Z = 2), X = a, Y == 1, Z == 2.", e)
