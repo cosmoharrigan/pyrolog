@@ -21,6 +21,16 @@ def test_freeze():
     assert_false("freeze(X, Y = 1), freeze(X, Y = 2), X = a.", e)
     assert_true("freeze(X, Y = 1), freeze(X, Z = 2), X = a, Y == 1, Z == 2.", e)
 
+def test_frozen():
+    assert_false("frozen(a, a).", e)
+    assert_true("frozen(1, X), X == true.", e)
+    assert_true("frozen(X, X), X == true.", e)
+    assert_true("frozen(X, Y), Y == true, var(X).", e)
+    assert_true("freeze(X, f(a)), frozen(X, user:f(a)).", e)
+    assert_true("freeze(X, m:g(q)), frozen(X, R), R == user:(m:g(q)).", e)
+    assert_true("freeze(X, true), frozen(X, user:true), freeze(X, fail), frozen(X, (user:true, user:fail)).", e)
+    assert_true("freeze(X, true), X = a, frozen(X, R), R == true.", e)
+
 def test_when():
     prolog_raises("domain_error(_, _)", "when(var(X), f(a))", e)
     assert_true("when(nonvar(X), Y = 1), X = a, Y == 1.", e)

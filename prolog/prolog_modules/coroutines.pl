@@ -1,4 +1,4 @@
-:- module(coroutines, [freeze/2, when/2]).
+:- module(coroutines, [freeze/2, when/2, frozen/2]).
 
 % *****************************************************
 % *                  F R E E Z E                      *
@@ -6,17 +6,33 @@
 
 freeze(X, Goal) :-
 	nonvar(X),
-	call(Goal).
+	this_module(M),
+	call(M:(Goal)).
 
 freeze(X, Goal) :- 
 	var(X),
+	this_module(M),
 	\+ get_attr(X, freeze, _),
-	put_attr(X, freeze, Goal).
+	put_attr(X, freeze, M:(Goal)).
 
 freeze(X, Goal) :-
 	var(X),
+	this_module(M),
 	get_attr(X, freeze, Old_Goals),
-	put_attr(X, freeze, (Old_Goals, Goal)).
+	put_attr(X, freeze, (Old_Goals, M:(Goal))).
+
+% * FROZEN
+
+frozen(X, true) :-
+	nonvar(X).
+
+frozen(X, true) :-
+	var(X),
+	\+ get_attr(X, freeze, _).
+
+frozen(X, R) :-
+	var(X),
+	get_attr(X, freeze, R).
 
 % *****************************************************
 % *                    W H E N                        *
