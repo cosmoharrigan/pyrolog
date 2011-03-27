@@ -20,3 +20,17 @@ def test_basic_freeze():
     assert_true("freeze(X, m:g(q)), X = 1.", e)
     assert_false("freeze(X, Y = 1), freeze(X, Y = 2), X = a.", e)
     assert_true("freeze(X, Y = 1), freeze(X, Z = 2), X = a, Y == 1, Z == 2.", e)
+
+def test_when():
+    prolog_raises("domain_error(_, _)", "when(var(X), f(a))", e)
+    assert_true("when(nonvar(X), Y = 1), X = a, Y == 1.", e)
+    assert_true("when(ground(f(X, Y)), Z = 1), X = 1, var(Z), Y = a, Z == 1.", e)
+    assert_false("when(ground(f(X, Y)), Z = 1), X = 1, Z == 1.", e)
+    assert_true("when(','(ground(X), ground(Y)), Z = 1), X = a, var(Z), Y = b, Z == 1.", e)
+    assert_false("when(';'(ground(X), ground(Y)), Z = 1), X = a, var(Z), Y = b, Z == 1.", e)
+    assert_true("when(';'(ground(X), ground(Y)), Z = 1), var(Z), Y = b, Z == 1.", e)
+    assert_true("when(';'(ground(X), ground(Y)), Z = 1), var(Z), Y = b, Z == 1, X = a.", e)
+    assert_true("when(?=(1, 1), X = a), X == a.", e)
+    prolog_raises("instanciation_error", "when(X, X == 1)", e)
+    prolog_raises("instanciation_error", "when(nonvar(a), X)", e)
+    assert_true("when(nonvar(a), (X = 1, Y = 2)), X == 1, Y == 2.", e)

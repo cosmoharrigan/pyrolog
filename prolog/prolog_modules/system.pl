@@ -6,6 +6,7 @@
 :- use_module(structural_comparison).
 :- use_module(attvars).
 :- use_module(freeze).
+:- use_module(when).
 :- use_module(coroutines).
 
 term_expand(A, A) :-
