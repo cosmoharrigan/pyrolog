@@ -6,7 +6,7 @@ from prolog.interpreter.parsing import get_engine
 
 e = Engine(load_system=True)
 
-def test_basic_freeze():
+def test_freeze():
     assert_true("freeze(X, Y = 1), X = 1, Y == 1.", e)
     assert_false("freeze(X, true), X = 1, attvar(X).", e)
     assert_false("freeze(X, Y = 1), X = 1, fail; Y == 1.", e)
@@ -34,3 +34,8 @@ def test_when():
     prolog_raises("instanciation_error", "when(X, X == 1)", e)
     prolog_raises("instanciation_error", "when(nonvar(a), X)", e)
     assert_true("when(nonvar(a), (X = 1, Y = 2)), X == 1, Y == 2.", e)
+    assert_true("when(nonvar(a), f(a)).", e)
+    assert_true("assert((z :- call(f(a)))).", e)
+    assert_true("when(nonvar(a), z).", e)
+    assert_true("when(nonvar(X), f(a)), X = 1.", e)
+    assert_true("when(ground(1), m:g(q)).", e)
