@@ -39,12 +39,12 @@ frozen(X, R) :-
 % *****************************************************
 
 wellformed(Cond, Goal) :-
-	\+ var(Cond),
-	\+ var(Goal), !,
-	wellformed(Cond).
-wellformed(Cond, Goal) :-
-	(var(Cond); var(Goal)),
-	throw(error(instanciation_error)).
+	(\+ var(Cond)
+	->
+		wellformed(Cond)
+	;
+		throw(error(instantiation_error))
+	).
 wellformed(ground(_)) :- !.
 wellformed(nonvar(_)) :- !.
 wellformed(?=(_, _)) :- !.
@@ -56,7 +56,7 @@ wellformed(';'(Cond1, Cond2)) :-
 	wellformed(Cond2), !.
 wellformed(ErrorCond) :-
 	var(ErrorCond), !,
-	throw(error(instanciation_error)).
+	throw(error(instantiation_error)).
 wellformed(ErrorCond) :-
 	throw(error(domain_error(when_condition, ErrorCond))), !.
 
@@ -72,8 +72,8 @@ put_when_attributes([X|Rest], When_Goal) :-
 
 when(Cond, Goal) :-
 	wellformed(Cond, Goal),
-	ground(Cond), !,
-	this_module(M),
+	call(Cond), !,
+	this_module(M), 
 	call(M:(Goal)).
 
 when(Cond, Goal) :-
