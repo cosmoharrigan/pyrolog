@@ -52,3 +52,15 @@ def test_when():
     assert_true("when(ground(X), Y = 1), when(ground(X), Z = 2), X = a, Y == 1, Z == 2.", e)
     assert_true("when(ground(X), Y), when(ground(A), Y = (B = 3)), A = a, X = q, Y == (3 = 3).", e)
     prolog_raises("instantiation_error", "when(ground(X), Y), when(ground(A), Y = (B = 3)), X = q, A = 1", e)
+
+def test_block():
+    e = get_engine("""
+    :- block f('?', '-', '?'), f('-', '-', '?').
+
+    f(A, B, C) :-
+        C = 10.
+    """, load_system=True)
+    assert_false("f(X, Y, Z), Z == 10.", e)
+    assert_false("f(a, X, Z), Z == 10.", e)
+    assert_true("f(a, b, Z), Z == 10.", e)
+    assert_true("f(a, X, Z), \+ Z == 10, X = 5, Z == 10.", e)
