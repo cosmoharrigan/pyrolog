@@ -140,3 +140,13 @@ def test_chaining():
     t = parse_file("f(X) = X + X * 1 + 23 / 13.")
     facts = builder.build(t)
     t = parse_file("-X + 1.")
+
+def test_block():
+    t = parse_file(":- block f('-', '?'), f('-', '?', '?'), a.")
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == ":-"
+    assert facts[0].argument_at(0).name() == "block"
+    
+
