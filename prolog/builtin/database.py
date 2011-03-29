@@ -6,14 +6,14 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # database
 
-def unpack_modname_and_predicate(rule):
-    return rule.argument_at(0).name(), rule.argument_at(1)
+def unpack_modname_and_predicate(rule, heap):
+    return rule.argument_at(0).dereference(heap).name(), rule.argument_at(1)
 
 @expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
     modname = None
     if predicate.name() == ":":
-        modname, predicate = unpack_modname_and_predicate(predicate)
+        modname, predicate = unpack_modname_and_predicate(predicate, heap)
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
         error.throw_domain_error("not_less_than_zero", term.Number(arity))
@@ -40,7 +40,7 @@ def handle_assert(engine, heap, rule, end):
     current_modname = None
     if rule.name() == ":":
         current_modname = engine.modulewrapper.current_module.name
-        modname, rule = unpack_modname_and_predicate(rule)
+        modname, rule = unpack_modname_and_predicate(rule, heap)
         engine.switch_module(modname)
     engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
 
@@ -48,7 +48,7 @@ def handle_assert(engine, heap, rule, end):
 def impl_retract(engine, heap, module, pattern):
     modname = None
     if pattern.name() == ":":
-        modname, pattern = unpack_modname_and_predicate(pattern)
+        modname, pattern = unpack_modname_and_predicate(pattern, heap)
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
