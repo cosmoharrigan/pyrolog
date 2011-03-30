@@ -4,6 +4,7 @@ from prolog.interpreter.term import Atom, Var, Number, Callable, Term
 from prolog.interpreter.term import NumberedVar
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter.helper import is_term
+from prolog.interpreter.test.tool import assert_true
 
 def test_atom():
     a = Callable.build("hallo")
@@ -172,3 +173,13 @@ def test_cyclic_term():
     t.unify(t2, h) # does not crash
     X.unify(Y, h) # does not crash
 
+def test_if_then_else_unification():
+    assert_true("""
+    L = [X, Y],
+    (L = []
+    ->
+        true
+    ;
+        [Head|Tail] = L
+    ).
+    """)
