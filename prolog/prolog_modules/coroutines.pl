@@ -71,6 +71,19 @@ put_when_attributes([X|Rest], When_Goal) :-
 	put_when_attributes(Rest, When_Goal).
 
 when(Cond, Goal) :-
+	nonvar(Cond),
+	functor(Cond, ground, 1), !,
+	term_variables(Cond, Varlist),
+	(Varlist == []
+	->
+		this_module(M),
+		call(M:(Goal))
+	;
+		[Var|_] = Varlist,
+		put_when_attributes([Var], when(ground(Varlist), Goal))
+	).
+
+when(Cond, Goal) :-
 	wellformed(Cond, Goal),
 	call(Cond), !,
 	this_module(M), 
@@ -102,7 +115,7 @@ process_block(Block) :-
 	Header =.. [Functor|Vars],
 	Rule = (Header :- (Var_Constraints, !, when(When_Constraints, Header))),
 	this_module(M),
-	asserta(M:(Rule)).
+	assert(M:(Rule)).
 
 make_constraints([], [], true, nonvar(_)).
 make_constraints([Head|Rest], [X|Vars], (var(X), Var_Constraints), ';'(nonvar(X), When_Constraints)) :-
