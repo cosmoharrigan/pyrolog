@@ -88,6 +88,8 @@ class Heap(object):
         value is the new heap that should be used."""
         previous = self
         while self is not heap:
+            if self is None:
+                break
             self._revert()
             previous = self
             self = self.prev
