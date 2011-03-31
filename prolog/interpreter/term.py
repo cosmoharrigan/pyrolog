@@ -87,6 +87,7 @@ class Var(PrologObject):
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
+        assert not other.contains_var(self, heap)
         if isinstance(other, Var) and other is self:
             pass
         elif occurs_check and other.contains_var(self, heap):

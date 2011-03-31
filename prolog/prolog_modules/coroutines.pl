@@ -49,15 +49,15 @@ put_when_attributes([X|Rest], When_Goal) :-
 	put_when_attributes(Rest, When_Goal).
 
 when_impl(nonvar(X), Goal) :-
-	var(X), !,
-	put_when_attributes([X], Goal).
-
-when_impl(nonvar(X), Goal) :-
-	nonvar(X), !,
-	Goal.
+	(var(X)
+	->
+		put_when_attributes([X], Goal)
+	;
+		Goal
+	).
 
 when_impl(ground(X), Goal) :-
-	!, term_variables(X, Varlist),
+	term_variables(X, Varlist),
 	(Varlist == []
 	->
 		Goal
@@ -82,48 +82,50 @@ when_impl((A; B), Goal) :-
 	when_impl(B, coroutines:call_when_disjoint(Z, Goal)).
 
 when_impl(?=(A, B), Goal) :-
+	when_decidable(A, B, Goal).
+
+when_decidable(A, B, Goal) :-
+	write(A), write(B), nl,
 	var(A),
-	var(B), !,
+	when_decidable_first_var(A, B, Goal).
+
+when_decidable(A, B, Goal) :-
+	nonvar(A),
+	when_decidable_first_nonvar(A, B, Goal).
+
+when_decidable_first_var(A, B, Goal) :-
+	var(B),
 	(A == B
 	->
 		Goal
 	;
-		put_when_attributes([A], coroutines:when_impl(?=(A, B), Goal))
+		put_when_attributes([A], coroutines:when_decidable(A, B, Goal))
 	).
 
-when_impl(?=(A, B), Goal) :-
-	var(A),
-	nonvar(B), !,
-	put_when_attributes([A], coroutines:when_impl(?=(A, B), Goal)).
+when_decidable_first_var(A, B, Goal) :-
+	nonvar(B),
+	put_when_attributes([A], coroutines:when_decidable(A, B, Goal)).
 
-when_impl(?=(A, B), Goal) :-
-	nonvar(A),
-	var(B), !,
-	put_when_attributes([B], coroutines:when_impl(?=(A, B), Goal)).
+when_decidable_first_nonvar(A, B, Goal) :-
+	var(B),
+	put_when_attributes([B], coroutines:when_decidable(A, B, Goal)).
 
-when_impl(?=(A, B), Goal) :-
-	nonvar(A),
+when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
 	functor(A, FunctorA, ArityA),
 	functor(B, FunctorB, ArityB),
-	(FunctorA \= FunctorB; ArityA \= ArityB),
-	Goal.
-
-when_impl(?=(A, B), Goal) :-
-	atomic(A),
-	atomic(B), !,
-	Goal.
-
-when_impl(?=(A, B), Goal) :-
-	nonvar(A),
-	nonvar(B),
-	A =.. [Functor|ArgsA],
-	B =.. [Functor|ArgsB], !,
-	when_decidable_list(ArgsA, ArgsB, Goal).
+	((FunctorA \= FunctorB; ArityA \= ArityB; (atomic(A), atomic(B)))
+	-> 
+		Goal
+	;
+		A =.. [Functor|ArgsA],
+		B =.. [Functor|ArgsB],
+		when_decidable_list(ArgsA, ArgsB, coroutines:call_when_disjoint(_, Goal))
+	).
 
 when_decidable_list([], [], _).
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal) :-
-	when_impl(?=(HeadA, HeadB), Goal),
+	when_decidable(HeadA, HeadB, Goal),
 	when_decidable_list(RestA, RestB, Goal).
 
 when(Cond, Goal) :-
@@ -131,10 +133,12 @@ when(Cond, Goal) :-
 	throw(error(instantiation_error)).
 
 when(Cond, Goal) :-
-	when_impl(Cond, user:Goal).
-
-%when(Cond, _) :-
-%	!, throw(error(domain_error(when_condition, Cond))).
+	(when_impl(Cond, user:Goal)
+	->
+		true
+	;
+		throw(error(domain_error(when_condition, Cond)))
+	).
 
 % *****************************************************
 % *					   B L O C K                      *
