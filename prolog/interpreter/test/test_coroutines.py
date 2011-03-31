@@ -87,9 +87,17 @@ def test_hard_when():
 def test_block():
     e = get_engine("""
     :- block f('?', '-', '?'), f('-', '-', '?').
+    :- block g('?').
+    :- block h('-', '-', '-', '?'), h('-', '-', '?', '?'), h('-', '?', '?', '?').
 
     f(A, B, C) :-
         C = 10.
+
+    g(_) :-
+        assert(gg(1)).
+
+    h(A, B, C, D) :-
+        D is A + B + C.
     """, load_system=True)
     assert_false("f(X, Y, Z), Z == 10.", e)
     assert_false("f(a, X, Z), Z == 10.", e)
@@ -97,3 +105,8 @@ def test_block():
     assert_true("f(a, X, Z), \+ Z == 10, X = 5, Z == 10.", e)
     assert_true("f(A, B, Z), \+ Z == 10, A = a, \+ Z == 10, B = b, Z == 10.", e)
     #assert_true("f(a, X, Z), (X = 1, fail; true), var(Z).", e)
+
+    prolog_raises("existence_error(_, _)", "g(5), gg(1)", e)
+    prolog_raises("existence_error(_, _)", "g(X), gg(1)", e)
+
+    assert_true("h(A, B, C, D), var(D), C = 5, var(D), B = 5, var(D), A = 5, D == 15.", e)
