@@ -138,4 +138,6 @@ def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
     if insert_cutdelimiter:
         scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
     body = term.Callable.build(",", [if_clause, CUTATOM])
-    return engine.continue_(continuation.BodyContinuation(engine, scont, body), fcont, heap)
+    # NB: careful here, must not use engine.continue_, because we could be
+    # called from impl_or! this subtlely sucks
+    return continuation.BodyContinuation(engine, scont, body), fcont, heap
