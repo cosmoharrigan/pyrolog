@@ -523,6 +523,16 @@ def test_ifthenelse():
     assert_false("f(X) -> X \\= x; f(z).", e)
     assert_true("f(X) -> X == x; f(z).", e)
 
+    assert_true("""
+    L = [X, Y],
+    (L = []
+    ->
+        true
+    ;
+        [Head|Tail] = L
+    ).
+    """)
+
 def test_once():
     assert_true("once(repeat).")
 

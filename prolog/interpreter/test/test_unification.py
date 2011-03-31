@@ -173,13 +173,3 @@ def test_cyclic_term():
     t.unify(t2, h) # does not crash
     X.unify(Y, h) # does not crash
 
-def test_if_then_else_unification():
-    assert_true("""
-    L = [X, Y],
-    (L = []
-    ->
-        true
-    ;
-        [Head|Tail] = L
-    ).
-    """)
