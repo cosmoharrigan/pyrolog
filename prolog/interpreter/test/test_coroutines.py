@@ -78,7 +78,11 @@ def test_when():
 
 def test_hard_when():
     assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
-    #assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)
+    assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)
+    assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), X = Y, Y = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), assert(xyz(a))), when(nonvar(Y), assert(xyz(b))), X = Y, Y = a.", e)
+    assert_true("findall(X, xyz(X), L), L == [b, a].", e)
+    assert_true("abolish(xyz/1).", e)
 
 def test_block():
     e = get_engine("""
