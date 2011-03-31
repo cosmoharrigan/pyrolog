@@ -144,9 +144,9 @@ class TestArithmeticMethod(object):
         assert BigInt(rbigint.fromdecimalstr('348765738456378457436537854637845')).arith_mod(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '738607793931799615'
         assert Number(46546).arith_mod(BigInt(rbigint.fromint(33))).num == 16
 
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromint(12342424234)).arith_mod(BigInt(rbigint.fromint(0)))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(BigInt(rbigint.fromint(0)))')
         py.test.raises(ZeroDivisionError, 'Number(34535).arith_mod(BigInt(rbigint.fromint(0)))')
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromint(12342424234)).arith_mod(Number(0))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(Number(0))')
 
     def test_invert(self):
         assert Number(2345).arith_not().num == -2346
