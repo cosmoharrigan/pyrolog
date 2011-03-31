@@ -58,7 +58,7 @@ when_impl(nonvar(X), Goal) :-
 
 when_impl(ground(X), Goal) :-
 	term_variables(X, Varlist),
-	(Varlist == []
+	(Varlist = []
 	->
 		Goal
 	;
