@@ -3,7 +3,11 @@ import py
 import sys, os, re
 from pypy.tool.udir import udir
 
-app_main = py.path.local().strpath + "/../translatedmain.py"
+app_main = py.path.local(__file__).dirpath().dirpath().join("translatedmain.py")
+app_main.check()
+path = str(app_main.dirpath().dirpath().dirpath()) + ":" + os.environ["PYTHONPATH"]
+app_main = str(app_main)
+
 
 class TestInteraction:
     def _spawn(self, *args, **kwds):
@@ -25,7 +29,8 @@ class TestInteraction:
         return child
 
     def spawn(self, argv):
-        return self._spawn(sys.executable, [app_main] + argv)
+        env = {"PYTHONPATH": str(path), "PATH": os.environ["PATH"]}
+        return self._spawn(sys.executable, [app_main] + argv, env=env)
 
     def test_simple_unifications(self):
         child = self.spawn([])
