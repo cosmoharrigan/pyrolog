@@ -188,6 +188,15 @@ def test_cut():
     """)
     assert_true("f(20).", e)
 
+def test_cut_with_throw():
+    e = get_engine("""
+        raise_if_var(X) :-
+            var(X), !, throw(unbound).
+        raise_if_var(X) :- X = a.
+        c(X, Y) :- catch((raise_if_var(X), Y = b), E, Y = a).
+    """)
+    assert_true("c(_, Y), Y == a.", e)
+
 def test_call_cut():
     py.test.skip("cuts don't work properly in the presence of calls right now")
     e = get_engine("""
@@ -411,6 +420,7 @@ def test_exception_handling():
     prolog_raises("_", "catch(true, E, fail), f")
     prolog_raises("_", "catch(throw(error(x)), error(failure), fail)")
     assert_true("catch(catch(throw(error), failure, fail), error, true).")
+    assert_true("catch((X = y, throw(X)), E, E == y).")
 
 def test_between():
     assert_true("between(12, 15, 12).")

@@ -263,7 +263,10 @@ class Engine(object):
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont
                 continue
-            heap = heap.revert_upto(scont.heap)
+            discard_heap = scont.heap
+            if discard_heap.discarded:
+                discard_heap = discard_heap._find_not_discarded() # XXX strange thing
+            heap = heap.revert_upto(discard_heap)
             try:
                 scont.catcher.unify(exc, heap)
             except error.UnificationFailed:
@@ -616,3 +619,13 @@ class CatchingDelimiter(ContinuationWithModule):
 
     def activate(self, fcont, heap):
         return self.nextcont, fcont, heap
+
+    def _dot(self, seen):
+        if self in seen:
+            return
+        for line in Continuation._dot(self, seen):
+            yield line
+        if self.heap is not None:
+            yield "%s -> %s [label=heap]" % (id(self), id(self.heap))
+            for line in self.heap._dot(seen):
+                yield line
