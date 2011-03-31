@@ -20,8 +20,10 @@ class ContinueContinuation(Continuation):
         self.write("yes\n")
         var_representation(self.var_to_pos, self.engine, self.write)
         while 1:
+            if isinstance(fcont, DoneContinuation):
+                self.write("\n")
+                return DoneContinuation(None), fcont, heap
             res = getch()
-            #self.write(repr(res)+"\n")
             if res in "\r\x04\n":
                 self.write("\n")
                 raise StopItNow()

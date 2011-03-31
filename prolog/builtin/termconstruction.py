@@ -100,7 +100,7 @@ def impl_univ(engine, heap, first, second):
             error.throw_instantiation_error()
         else:
             l = helper.unwrap_list(second)
-            head = l[0]
+            head = l[0].dereference(heap)
             if not isinstance(head, term.Atom):
                 error.throw_type_error("atom", head)
             l2 = [None] * (len(l) - 1)

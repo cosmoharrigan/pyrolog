@@ -324,6 +324,7 @@ def test_univ():
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
     assert_true("L = [a|X], X = [], Z =.. L, Z == a.")
+    assert_true("L = [X, 1, 2], X = a, Z =.. L, Z == a(1, 2).")
 
 def test_arg():
     assert_true("arg(1, g(a, b, c), a).")
@@ -570,6 +571,16 @@ def test_ifthenelse():
     assert_false("f(c) -> true.", e)
     assert_false("f(X) -> X \\= x; f(z).", e)
     assert_true("f(X) -> X == x; f(z).", e)
+
+    assert_true("""
+    L = [X, Y],
+    (L = []
+    ->
+        true
+    ;
+        [Head|Tail] = L
+    ).
+    """)
 
 def test_once():
     assert_true("once(repeat).")
