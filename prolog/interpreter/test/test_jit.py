@@ -1,6 +1,5 @@
 import sys
 from pypy.jit.metainterp.test.test_basic import LLJitMixin
-from pypy.rlib.jit import OPTIMIZER_FULL, OPTIMIZER_SIMPLE
 
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.parsing import get_query_and_vars
@@ -76,4 +75,6 @@ class TestLLtype(LLJitMixin):
         option.view = False
         option.viewloops = True
         self.meta_interp(interp_w, [6], listcomp=True, backendopt=True,
-                         listops=True, optimizer=OPTIMIZER_FULL, view=True)
+                         listops=True)
+        #self.meta_interp(interp_w, [3], listcomp=True,
+        #                 listops=True)
