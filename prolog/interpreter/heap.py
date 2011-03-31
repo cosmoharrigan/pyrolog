@@ -79,6 +79,7 @@ class Heap(object):
 
     @jit.unroll_safe
     def _revert(self):
+        assert not self.discarded
         for i in range(self.i-1, -1, -1):
             self.trail_var[i].binding = self.trail_binding[i]
             self.trail_var[i] = None
