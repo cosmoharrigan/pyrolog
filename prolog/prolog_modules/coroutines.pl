@@ -38,28 +38,6 @@ frozen(X, R) :-
 % *                    W H E N                        *
 % *****************************************************
 
-wellformed(Cond, Goal) :-
-	(\+ var(Cond)
-	->
-		wellformed(Cond)
-	;
-		throw(error(instantiation_error))
-	).
-wellformed(ground(_)) :- !.
-wellformed(nonvar(_)) :- !.
-wellformed(?=(_, _)) :- !.
-wellformed(','(Cond1, Cond2)) :-
-	wellformed(Cond1),
-	wellformed(Cond2), !.
-wellformed(';'(Cond1, Cond2)) :-
-	wellformed(Cond1),
-	wellformed(Cond2), !.
-wellformed(ErrorCond) :-
-	var(ErrorCond), !,
-	throw(error(instantiation_error)).
-wellformed(ErrorCond) :-
-	throw(error(domain_error(when_condition, ErrorCond))), !.
-
 put_when_attributes([], _).
 put_when_attributes([X|Rest], When_Goal) :-
 	(get_attr(X, when, Current_Goals)
@@ -70,30 +48,93 @@ put_when_attributes([X|Rest], When_Goal) :-
 	),
 	put_when_attributes(Rest, When_Goal).
 
-when(Cond, Goal) :-
-	nonvar(Cond),
-	functor(Cond, ground, 1), !,
-	term_variables(Cond, Varlist),
+when_impl(nonvar(X), Goal) :-
+	var(X), !,
+	put_when_attributes([X], Goal).
+
+when_impl(nonvar(X), Goal) :-
+	nonvar(X), !,
+	Goal.
+
+when_impl(ground(X), Goal) :-
+	!, term_variables(X, Varlist),
 	(Varlist == []
 	->
-		this_module(M),
-		call(M:(Goal))
+		Goal
 	;
 		[Var|_] = Varlist,
-		put_when_attributes([Var], when(ground(Varlist), Goal))
+		put_when_attributes([Var], coroutines:when_impl(ground(Varlist), Goal))
 	).
 
-when(Cond, Goal) :-
-	wellformed(Cond, Goal),
-	call(Cond), !,
-	this_module(M), 
-	call(M:(Goal)).
+when_impl((A, B), Goal) :-
+	when_impl(A, coroutines:when_impl(B, Goal)).
+
+call_when_disjoint(Var, Goal) :-
+	var(Var),
+	Goal,
+	Var = a.
+
+call_when_disjoint(Var, _) :-
+	nonvar(Var).
+
+when_impl((A; B), Goal) :-
+	when_impl(A, coroutines:call_when_disjoint(Z, Goal)),
+	when_impl(B, coroutines:call_when_disjoint(Z, Goal)).
+
+when_impl(?=(A, B), Goal) :-
+	var(A),
+	var(B), !,
+	(A == B
+	->
+		Goal
+	;
+		put_when_attributes([A], coroutines:when_impl(?=(A, B), Goal))
+	).
+
+when_impl(?=(A, B), Goal) :-
+	var(A),
+	nonvar(B), !,
+	put_when_attributes([A], coroutines:when_impl(?=(A, B), Goal)).
+
+when_impl(?=(A, B), Goal) :-
+	nonvar(A),
+	var(B), !,
+	put_when_attributes([B], coroutines:when_impl(?=(A, B), Goal)).
+
+when_impl(?=(A, B), Goal) :-
+	nonvar(A),
+	nonvar(B),
+	functor(A, FunctorA, ArityA),
+	functor(B, FunctorB, ArityB),
+	(FunctorA \= FunctorB; ArityA \= ArityB),
+	Goal.
+
+when_impl(?=(A, B), Goal) :-
+	atomic(A),
+	atomic(B), !,
+	Goal.
+
+when_impl(?=(A, B), Goal) :-
+	nonvar(A),
+	nonvar(B),
+	A =.. [Functor|ArgsA],
+	B =.. [Functor|ArgsB], !,
+	when_decidable_list(ArgsA, ArgsB, Goal).
+
+when_decidable_list([], [], _).
+when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal) :-
+	when_impl(?=(HeadA, HeadB), Goal),
+	when_decidable_list(RestA, RestB, Goal).
 
 when(Cond, Goal) :-
-	wellformed(Cond, Goal),
-	term_variables(Cond, Vars),
-	this_module(M),
-	put_when_attributes(Vars, (Cond -> M:(Goal); true)).
+	var(Cond), !,
+	throw(error(instantiation_error)).
+
+when(Cond, Goal) :-
+	when_impl(Cond, user:Goal).
+
+%when(Cond, _) :-
+%	!, throw(error(domain_error(when_condition, Cond))).
 
 % *****************************************************
 % *					   B L O C K                      *
