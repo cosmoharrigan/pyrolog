@@ -110,3 +110,7 @@ def test_block():
     prolog_raises("existence_error(_, _)", "g(X), gg(1)", e)
 
     assert_true("h(A, B, C, D), var(D), C = 5, var(D), B = 5, var(D), A = 5, D == 15.", e)
+    prolog_raises("instantiation_error", "h(5, B, C, D)", e)
+    prolog_raises("instantiation_error", "h(5, 1, C, D)", e)
+    assert_true("h(1, 2, 3, 6).", e)
+    assert_true("h(A, B, C, D), var(D), B = 5, var(D), C = 5, var(D), A = 5, D == 15.", e)
