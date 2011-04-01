@@ -21,7 +21,7 @@ def impl_put_attr(engine, heap, var, attr, value):
         heap.add_trail_atts(var, attr)
         var.atts[attr] = value
     elif isinstance(var, Var):
-        attvar = AttVar()
+        attvar = heap.new_attvar()
         attvar.atts[attr] = value
         var.unify(attvar, heap)
     else:
