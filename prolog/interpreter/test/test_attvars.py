@@ -271,3 +271,35 @@ def test_put_attrs():
     assert_false("put_attrs(X, att(m, 1, [])), fail; attvar(X).", e)
     assert_true("put_attr(X, m, 1), (put_attrs(X, att(m, 2, [])), fail; true), get_attr(X, m, 1).", e)
     assert_true("put_attr(X, m, 1), put_attrs(X, att(m, 2, [])), get_attr(X, m, 2).", e)
+
+def test_integration_efficient_bools():
+    e = get_engine("",
+    swi_bool_pred = """
+    :- module(swi_bool_pred, [negate/2]).
+
+    negate(X, Y) :-
+        ( nonvar(X)  -> negate3(X, Y)
+        ; nonvar(Y)  -> negate3(Y, X)
+        ; get_attr(X, swi_bool_pred, OtherX) -> Y = OtherX, X \== Y, put_attr(Y, swi_bool_pred, X)
+        ; get_attr(Y, swi_bool_pred, OtherY) -> X = OtherY, X \== Y, put_attr(X, swi_bool_pred, Y)
+        ; X \== Y, put_attr(Y, swi_bool_pred, X), put_attr(X, swi_bool_pred, Y)
+        ).
+
+    negate3(pred_true, pred_false).
+    negate3(pred_false, pred_true).
+
+    attr_unify_hook(Other, Value) :-
+        (var(Value) -> (get_attr(Value, swi_bool_pred, Other2)
+                            -> Other = Other2, Value \== Other
+                            ; put_attr(Value, swi_bool_pred, Other)
+                        )
+                    ; negate3(Value, Other)).
+    """)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(Y,Z), X==Z, Z=pred_true, X==pred_true, Y==pred_false.", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(Y,Z), X==Z, Z=pred_true, X==pred_true, Y==pred_false.", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(X2,Y2), X=X2, Y==Y2, Y=pred_false, X2==pred_true.", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(X,Z), Y==Z, Z=pred_true, X==pred_false.", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(Y,Z), \+ swi_bool_pred:negate(Z,X).", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(Y,Z), swi_bool_pred:negate(Z,X2), \+ X2=X.", e)
+    assert_true("swi_bool_pred:negate(X,Y), swi_bool_pred:negate(Y,Z), X2=X, \+ swi_bool_pred:negate(Z,X2).", e)
+    assert_false("swi_bool_pred:negate(X,X).", e)
