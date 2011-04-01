@@ -89,7 +89,9 @@ def _process_hooks(scont, fcont, heap):
                     scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
                     break
                 scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
+                heap.add_trail_atts(hook, module)
             hookcell = hookcell.next
+            hook.atts.clear() # remove attributes from unified attvar
     return scont, fcont, heap
 
 class Engine(object):
