@@ -75,6 +75,8 @@ def test_when():
     assert_true("when(ground(f(X, Y)), when(ground(X), Z = 1)), X = a, var(Z), Y = b, Z == 1.", e)
     assert_true("when(ground(f(X, Y)), when(ground(A), Z = 1)), X = a, var(Z), Y = b, var(Z), A = 1, Z == 1.", e)
     prolog_raises("domain_error(_, _)", "when(var(X), f(a))", e)
+    prolog_raises("domain_error(_, _)", "when((ground(1), (ground(1), var(1))), f(a))", e)
+    prolog_raises("domain_error(_, _)", "when(((1; 2), (ground(1), nonvar(1))), f(a))", e)
 
 def test_hard_when():
     assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
@@ -114,3 +116,85 @@ def test_block():
     prolog_raises("instantiation_error", "h(5, 1, C, D)", e)
     assert_true("h(1, 2, 3, 6).", e)
     assert_true("h(A, B, C, D), var(D), B = 5, var(D), C = 5, var(D), A = 5, D == 15.", e)
+
+def test_sudoku_with_when():
+    e = get_engine("""
+    len(List, R) :-
+        len(List, 0, R).
+
+    len([], A, A).
+    len([_|T], A, R) :-
+        A1 is A + 1,
+        len(T, A1, R).
+
+    mem(X, [X|_]).
+    mem(X, [_|T]) :-
+        mem(X, T).
+
+    rem(_, [], []).
+    rem(X, [X|T], T).
+    rem(X, [H|T], [H|R]) :-
+        X \= H,
+        rem(X, T, R).
+
+    perm([], []).
+    perm(L, [X|R]) :-
+        mem(X, L),
+        rem(X, L, L2),
+        perm(L2, R).
+
+    set_list_constraints([]).
+    set_list_constraints([H|T]) :-
+        set_element_constrains(H, T),
+        set_list_constraints(T).
+
+    set_element_constrains(_, []).
+    set_element_constrains(X, [H|T]) :-
+        when((ground(X), ground(H)), X \== H),
+        set_element_constrains(X, T).
+
+    set_row_contraints([]).
+    set_row_contraints([H|T]) :-
+        set_list_constraints(H),
+        set_row_contraints(T).
+
+    set_col_constraints([[], [], [], []]).
+    set_col_constraints([[H1|T1], [H2|T2], [H3|T3], [H4|T4]]) :-
+        set_list_constraints([H1, H2, H3, H4]),
+        set_col_constraints([T1, T2, T3, T4]).
+
+    set_box_constraints([[A1, A2, A3, A4],
+                         [B1, B2, B3, B4],
+                         [C1, C2, C3, C4],
+                         [D1, D2, D3, D4]]) :-
+
+        set_list_constraints([A1, A2, B1, B2]),
+        set_list_constraints([C1, C2, D1, D2]),
+        set_list_constraints([A3, A4, B3, B4]),
+        set_list_constraints([C3, C4, D3, D4]).
+        
+    init([]).
+    init([H|T]) :-
+        perm([1, 2, 3, 4], H),
+        init(T).
+
+    sudoku(S) :-
+        S = [[A1, A2, A3, A4],
+             [B1, B2, B3, B4],
+             [C1, C2, C3, C4],
+             [D1, D2, D3, D4]],
+
+        set_row_contraints(S),
+        set_col_constraints(S),
+        set_box_constraints(S),
+        init(S).
+    """, load_system=True)
+
+    assert_true("sudoku([[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]]).", e)
+    assert_true("sudoku([[2, 1, 4, 3], [3, 4, 2, 1], [4, 3, 1, 2], [1, 2, 3, 4]]).", e)
+    assert_true("sudoku([[3, 1, 2, 4], [2, 4, 3, 1], [4, 3, 1, 2], [1, 2, 4, 3]]).", e)
+    assert_true("sudoku([[3, 4, 2, 1], [1, 2, 3, 4], [2, 1, 4, 3], [4, 3, 1, 2]]).", e)
+    assert_true("sudoku([[4, 2, 3, 1], [1, 3, 4, 2], [2, 4, 1, 3], [3, 1, 2, 4]]).", e)
+
+    assert_false("sudoku([[3, 4, 2, 1], [1, 2, 3, 4], [2, 1, 4, 3], [1, 3, 1, 2]]).", e)
+    assert_false("sudoku([[4, 2, 3, 1], [2, 3, 4, 1], [2, 4, 1, 3], [3, 1, 2, 4]]).", e)
