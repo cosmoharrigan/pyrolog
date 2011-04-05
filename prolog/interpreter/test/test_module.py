@@ -706,3 +706,42 @@ def test_file_parsing():
     f(a).
     """)
     assert_true("findall(X, f(X), [a]).", e)
+
+def test_renne():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m).
+    %:- meta_predicate f(:, :), g(1, 2, 3), h(a), h(a).
+    :- meta_predicate f(:, :).
+
+    f(A, B) :-
+        g(A, a),
+        h(B, b).
+    """)
+    assert_true("true.", e)
+
+def test_meta_predicate():
+    e = get_engine("""
+    :- use_module(mod).
+    """,
+    mod="""
+    :- module(mod, [test/1, test2/2]).
+    :- meta_predicate test(:), test2(:, -).
+
+    test(X) :- X \= [1,2,3].
+    test2(M:A, M:A).
+    test3(A) :-
+        A == X:Y.
+    """)
+    
+    assert_true("test(blar).", e)
+    assert_false("test2(f,f).", e)
+    assert_true("test2(f,user:f).", e)
+    assert_true("test2(f(A,B,C), user:f(A,B,C)).", e)
+
+def test_meta_predicate_errors():
+    prolog_raises("instantiation_error", "meta_predicate f(X)")
+    prolog_raises("instantiation_error", "meta_predicate X")
+    prolog_raises("domain_error(_, _)", "meta_predicate f(blub)")

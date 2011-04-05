@@ -1,6 +1,7 @@
 import py
 from prolog.interpreter.signature import Signature
 from prolog.interpreter import error
+from prolog.interpreter.term import Callable, Atom
 
 class ModuleWrapper(object):
     def __init__(self, engine):
@@ -31,6 +32,7 @@ class Module(object):
         self.name = name
         self.functions = {}
         self.exports = []
+        self.meta_predicates = {}
 
     def fetch_function(self, engine, signature):
         try:
@@ -38,13 +40,32 @@ class Module(object):
         except KeyError:
             return None
 
+    def add_meta_predicate(self, signature, indexlist):
+        self.meta_predicates[signature] = indexlist
+
     def use_module(self, engine, module, imports=None):
         if imports is None:
             importlist = module.exports
         else:
             importlist = imports
+        #import pdb; pdb.set_trace()
         for sig in importlist:
             try:
-                self.functions[sig] = module.functions[sig]
+                #self.functions[sig] = module.functions[sig]
+                func = module.functions[sig]
+                import pdb; pdb.set_trace()
+                if sig in module.meta_predicates:
+                    metaargs = module.meta_predicates[sig]
+                    for i in range(len(metaargs)):
+                        arg = metaargs[i]
+                        if arg in "?+-":
+                            continue
+                        # simple case: test(X)
+                        if func.rulechain.headargs[i].name() != ':':
+                            term = func.rulechain.headargs[i]
+                            newterm = Callable.build(':', [Atom(self.name), term])
+                            func.rulechain.headargs[i] = newterm
+                        # complex case: text(module:X)
+                self.functions[sig] = func
             except KeyError:
                 pass

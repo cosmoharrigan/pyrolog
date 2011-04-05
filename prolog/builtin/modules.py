@@ -7,6 +7,8 @@ from prolog.interpreter import continuation
 from prolog.interpreter.helper import is_term, unwrap_predicate_indicator
 from prolog.interpreter.signature import Signature
 
+meta_args = "0123456789:?+-"
+
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
@@ -114,3 +116,30 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         directory.unify(Callable.build(engine.libs[directory.name()]))
     else:
         error.UnificationFailed()
+
+@expose_builtin("meta_predicate", unwrap_spec=["obj"])
+def impl_meta_predicate(engine, heap, predlist):
+    while predlist:
+        if isinstance(predlist, Var):
+            error.throw_instantiation_error()
+        if predlist.name() == ",":
+            pred = predlist.argument_at(0)
+            predlist = predlist.argument_at(1)
+        else:
+            pred = predlist
+            predlist = None
+        args = unwrap_meta_arguments(pred)
+        engine.modulewrapper.current_module.add_meta_predicate(
+                pred.signature(), args)
+          
+def unwrap_meta_arguments(predicate):
+    args = predicate.arguments()
+    arglist = []
+    for arg in args:
+        if isinstance(arg, Var):
+            error.throw_instantiation_error()
+        elif not isinstance(arg, Atom) or arg.name() not in meta_args:
+            error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
+        arglist.append(arg.name())
+    return arglist
+
