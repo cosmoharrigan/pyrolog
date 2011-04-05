@@ -114,3 +114,36 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         directory.unify(Callable.build(engine.libs[directory.name()]))
     else:
         error.UnificationFailed()
+
+class CurrentModuleContinuation(continuation.ChoiceContinuation):
+    def __init__(self, engine, scont, fcont, heap, modvar):
+        continuation.ChoiceContinuation.__init__(self, engine, scont)
+        self.undoheap = heap
+        self.orig_fcont = fcont
+        self.modvar = modvar
+        self.engine = engine
+        self.modcount = 0
+        self.mods = self.engine.modulewrapper.modules.keys()
+        self.nummods = len(self.mods)
+
+    def activate(self, fcont, heap):
+        if self.modcount < self.nummods:
+            fcont, heap = self.prepare_more_solutions(fcont, heap)
+            self.modvar.unify(Callable.build(self.mods[self.modcount]), heap)
+            self.modcount += 1
+            return self.nextcont, fcont, heap
+        raise error.UnificationFailed()
+
+@expose_builtin("current_module", unwrap_spec=["obj"],
+        handles_continuation=True)
+def impl_current_module(engine, heap, module, scont, fcont):
+    if isinstance(module, Atom):
+        try:
+            engine.modulewrapper.modules[module.name()]
+        except KeyError:
+            raise error.UnificationFailed()
+    elif isinstance(module, Var):
+        scont = CurrentModuleContinuation(engine, scont, fcont, heap, module)
+    else:
+        raise error.UnificationFailed()
+    return scont, fcont, heap

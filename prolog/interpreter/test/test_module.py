@@ -706,3 +706,24 @@ def test_file_parsing():
     f(a).
     """)
     assert_true("findall(X, f(X), [a]).", e)
+
+def test_current_module():
+    e = get_engine("""
+    length([], 0).
+    length([_|T], R) :-
+        length(T, R1),
+        R is R1 + 1.
+    """,
+    m1 = ":- module(m1, []).",
+    m2 = ":- module(m2, []).",
+    m3 = ":- module(m3, []).")
+    assert_true("current_module(user).", e)
+    assert_true("current_module(m1).", e)
+    assert_true("current_module(m2).", e)
+    assert_true("current_module(m3).", e)
+    assert_true("findall(X, current_module(X), L), length(L, 4).", e)
+
+    e = Engine()
+    assert_true("findall(X, current_module(X), L), L == [user].", e)
+    assert_false("current_module(1).")
+    assert_false("current_module(some_strange_thing).")
