@@ -358,8 +358,8 @@ class Callable(NonVar):
         if c != 0:
             return c
         c = rcmp(self.name(), other.name())
-        print self.name()
-        print other.name()
+        #print self.name()
+        #print other.name()
         if c != 0:
             return c
         for i in range(self.argument_count()):

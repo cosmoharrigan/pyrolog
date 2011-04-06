@@ -91,7 +91,6 @@ when_impl(X, _) :-
 	throw(error(domain_error(when_condition, X))).
 
 when_decidable(A, B, Goal) :-
-	write(A), write(B), nl,
 	var(A),
 	when_decidable_first_var(A, B, Goal).
 
