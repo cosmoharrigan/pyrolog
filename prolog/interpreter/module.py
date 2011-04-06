@@ -43,7 +43,7 @@ class Module(object):
     def add_meta_predicate(self, signature, indexlist):
         self.meta_predicates[signature] = indexlist
 
-    def use_module(self, engine, module, imports=None):
+    def use_module(self, engine, heap, module, imports=None):
         if imports is None:
             importlist = module.exports
         else:
@@ -51,9 +51,21 @@ class Module(object):
         #import pdb; pdb.set_trace()
         for sig in importlist:
             try:
+                """
+                from prolog.interpreter.function import Function, Rule
                 #self.functions[sig] = module.functions[sig]
                 func = module.functions[sig]
+                #import pdb; pdb.set_trace()
+                copy = func.rulechain.copy()[1]
+                newhead = copy.head
+                newarg = Callable.build(":", [Atom(self.name), newhead.arguments()[0]])
+                name = func.rulechain.head.name()
+                x = Callable.build(name, [newarg])
+                newfunc = func.rulechain.clone_and_unify_head(heap, x)
                 import pdb; pdb.set_trace()
+                newrule = Rule(x, newfunc, func.rulechain.module)
+
+
                 if sig in module.meta_predicates:
                     metaargs = module.meta_predicates[sig]
                     for i in range(len(metaargs)):
@@ -67,5 +79,7 @@ class Module(object):
                             func.rulechain.headargs[i] = newterm
                         # complex case: text(module:X)
                 self.functions[sig] = func
+                """
+                self.functions[sig] = module.functions[sig]
             except KeyError:
                 pass

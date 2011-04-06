@@ -40,7 +40,7 @@ def handle_use_module(engine, heap, module, path, imports=None):
             module = m.current_module = current_module
             # XXX should use name argument of module here like SWI
         imported_module = m.modules[modulename]
-        module.use_module(engine, imported_module, imports)
+        module.use_module(engine, heap, imported_module, imports)
 
 @expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
 def impl_use_module(engine, heap, module, path):
