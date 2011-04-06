@@ -1,6 +1,6 @@
 import py
 from prolog.builtin.register import expose_builtin
-from prolog.interpreter.term import Atom, Callable, Var, Term
+from prolog.interpreter.term import Atom, Callable, Var, Term, Number
 from prolog.interpreter import error
 from prolog.builtin.sourcehelper import get_source
 from prolog.interpreter import continuation
@@ -138,8 +138,12 @@ def unwrap_meta_arguments(predicate):
     for arg in args:
         if isinstance(arg, Var):
             error.throw_instantiation_error()
-        elif not isinstance(arg, Atom) or arg.name() not in meta_args:
+        elif isinstance(arg, Atom) and arg.name() in meta_args:
+            val = arg.name()
+        elif isinstance(arg, Number) and arg.num in range(10):
+            val = str(arg.num)
+        else:
             error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
-        arglist.append(arg.name())
+        arglist.append(val)
     return arglist
 

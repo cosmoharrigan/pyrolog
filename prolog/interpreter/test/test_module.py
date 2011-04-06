@@ -707,6 +707,24 @@ def test_file_parsing():
     """)
     assert_true("findall(X, f(X), [a]).", e)
 
+def test_meta_function():
+    e = get_engine("""
+    :- meta_predicate f(:), g('?'), h(0).
+
+    f(X) :- X = foobar.
+    a(FooBar).
+    """)
+    user = e.modulewrapper.modules["user"]
+    assert len(user.functions) == 4
+
+    for key in user.functions.keys():
+        assert key.name in ["f","g","h","a"]
+        assert key.numargs == 1
+        if key.name in ["f", "g", "h"]:
+            assert user.functions[key].is_meta
+        else:
+            assert not user.functions[key].is_meta
+
 def test_meta_predicate():
     e = get_engine("""
     :- use_module(mod).
@@ -715,7 +733,7 @@ def test_meta_predicate():
     :- module(mod, [test/1, test2/2]).
     :- meta_predicate test(:), test2(:, -).
 
-    test(X) :- X == M:A.
+    test(X) :- X = _:_.
     test2(M:A, M:A).
     """)
     
@@ -728,7 +746,7 @@ def test_meta_predicate_2():
     e = get_engine("",
     m = """
     :- module(m, [f/4]).
-    :- meta_predicate f(:, :, ?, ?).
+    :- meta_predicate f(:, :, '?', '?').
 
     f(M1:G1, M2:G2, M1, M2).
     """)
@@ -743,22 +761,24 @@ def test_meta_predicate_2():
     assert_false("m:f(1:a, 2:b, m, m).", e)
     assert_true("m:f(1:a, 2:b, 1, 2).", e)
 
-def test_meta_predicate_user_module():
+def test_meta_predicate_prefixing():
     e = get_engine("""
-    :- use_module(m).
+    :- use_module(mod).
     """,
-    m = """
-    :- module(m, [f/2]).
-    :- meta_predicate f(:, ?).
+    mod = """
+    :- module(mod, [f/2]).
+    :- meta_predicate f(:, '?').
 
-    f(X, Y) :-
-        X = M:_.
+    f(X, M) :-
+        X = M:_,
+        M =.. [A|_],
+        A \== ':'.
     """)
     assert_true("f(a, user).", e)
     assert_true("f(user:a, user).", e)
     assert_true("mod:f(a, mod).", e)
     assert_true("mod:f(user:a, user).", e)
-    assert_true("mod:f(mod:user:a, user).", e)
+    assert_true("mod:f(mod:user:a, mod).", e)
 
 def test_meta_predicate_errors():
     prolog_raises("instantiation_error", "meta_predicate f(X)")

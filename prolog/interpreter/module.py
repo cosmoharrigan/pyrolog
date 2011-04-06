@@ -1,7 +1,9 @@
 import py
+from pypy.rlib import jit
 from prolog.interpreter.signature import Signature
 from prolog.interpreter import error
 from prolog.interpreter.term import Callable, Atom
+from prolog.interpreter.function import Function
 
 class ModuleWrapper(object):
     def __init__(self, engine):
@@ -32,7 +34,6 @@ class Module(object):
         self.name = name
         self.functions = {}
         self.exports = []
-        self.meta_predicates = {}
 
     def fetch_function(self, engine, signature):
         try:
@@ -40,46 +41,27 @@ class Module(object):
         except KeyError:
             return None
 
-    def add_meta_predicate(self, signature, indexlist):
-        self.meta_predicates[signature] = indexlist
+    def add_meta_predicate(self, signature, arglist):
+        func = self.lookup(signature)
+        func.is_meta = True
+        func.meta_args = arglist
+
+    @jit.purefunction_promote("0")
+    def lookup(self, signature):
+        try:
+            function = self.functions[signature]
+        except KeyError:
+            function = Function(self.name)
+            self.functions[signature] = function
+        return function
 
     def use_module(self, engine, heap, module, imports=None):
         if imports is None:
             importlist = module.exports
         else:
             importlist = imports
-        #import pdb; pdb.set_trace()
         for sig in importlist:
             try:
-                """
-                from prolog.interpreter.function import Function, Rule
-                #self.functions[sig] = module.functions[sig]
-                func = module.functions[sig]
-                #import pdb; pdb.set_trace()
-                copy = func.rulechain.copy()[1]
-                newhead = copy.head
-                newarg = Callable.build(":", [Atom(self.name), newhead.arguments()[0]])
-                name = func.rulechain.head.name()
-                x = Callable.build(name, [newarg])
-                newfunc = func.rulechain.clone_and_unify_head(heap, x)
-                import pdb; pdb.set_trace()
-                newrule = Rule(x, newfunc, func.rulechain.module)
-
-
-                if sig in module.meta_predicates:
-                    metaargs = module.meta_predicates[sig]
-                    for i in range(len(metaargs)):
-                        arg = metaargs[i]
-                        if arg in "?+-":
-                            continue
-                        # simple case: test(X)
-                        if func.rulechain.headargs[i].name() != ':':
-                            term = func.rulechain.headargs[i]
-                            newterm = Callable.build(':', [Atom(self.name), term])
-                            func.rulechain.headargs[i] = newterm
-                        # complex case: text(module:X)
-                self.functions[sig] = func
-                """
                 self.functions[sig] = module.functions[sig]
             except KeyError:
                 pass
