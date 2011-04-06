@@ -780,6 +780,45 @@ def test_meta_predicate_prefixing():
     assert_true("mod:f(user:a, user).", e)
     assert_true("mod:f(mod:user:a, mod).", e)
 
+def test_meta_predicate_module_chaining():
+    m1 = "m1.pl"
+    m2 = "m2.pl"
+    m3 = "m3.pl"
+    try:
+        create_file(m1, """
+        :- module(m1, [f/2]).
+        :- meta_predicate f(:, '?').
+        f(M:_, M).
+        """)
+
+        create_file(m2, """
+        :- module(m2, [g/2]).
+        :- use_module(m1).
+        g(X, Y) :- f(X, Y).
+        """)
+
+        create_file(m3, """
+        :- module(m3, [h/2]).
+        :- meta_predicate h(:, ?).
+        :- use_module(m2).
+        h(X, Y) :- g(X, Y).
+        """)
+        
+        e = get_engine("""
+        :- use_module(m2).
+        :- use_module(m3).
+        """)
+
+        assert_true("g(a, X), X == m2.", e)
+        assert_true("g(user:a, X), X == user.", e)
+        assert_true("h(a, X), X == user.", e)
+        assert_true("m3:h(a, X), X == m3.", e)
+        assert_true("m3:h(user:a, X), X == user.", e)
+    finally:
+        delete_file(m1)
+        delete_file(m2)
+        delete_file(m3)
+
 def test_meta_predicate_errors():
     prolog_raises("instantiation_error", "meta_predicate f(X)")
     prolog_raises("instantiation_error", "meta_predicate X")
