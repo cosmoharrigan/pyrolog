@@ -677,6 +677,57 @@ def test_abolish_other_module():
     prolog_raises("existence_error(_, _)", "m:g(c)", e)
     assert_true("abolish(m:g/1).", e)
 
+def test_assert_rule_into_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    """)
+    assert_true("m:assert(a).", e)
+    assert_true("m:a.", e)
+    prolog_raises("existence_error(_, _)", "a", e)
+
+    assert_true("m:assert(user:b).", e)
+    assert_true("b.", e)
+    prolog_raises("existence_error(_, _)", "m:b", e)
+
+def test_assert_rule_into_other_module_2():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/1]).
+
+    f(Rule) :-
+        assert(Rule).
+    """)
+    assert_true("f(g(a)).", e)
+    prolog_raises("existence_error(_, _)", "g(a)", e)
+    assert_true("m:g(a).", e)
+
+def test_retract_rule_from_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    a.
+    """)
+    assert_false("retract(a).", e)
+    assert_true("m:retract(a).", e)
+    assert_false("m:retract(a).", e)
+
+def test_abolish_from_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    a.
+    """)
+    assert_true("m:abolish(a/0).", e)
+    prolog_raises("existence_error(_, _)", "m:a", e)
 def test_call_other_module():
     e = get_engine("",
     m = """

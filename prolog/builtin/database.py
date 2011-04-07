@@ -28,18 +28,20 @@ def impl_abolish(engine, heap, module, predicate):
     except KeyError:
         pass
 
-@expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
-def impl_assert(engine, heap, rule):
-    handle_assert(engine, heap, rule, True)
+@expose_builtin(["assert", "assertz"], unwrap_spec=["callable"],
+        needs_module=True)
+def impl_assert(engine, heap, module, rule):
+    handle_assert(engine, heap, module, rule, True)
 
-@expose_builtin("asserta", unwrap_spec=["callable"])
-def impl_asserta(engine, heap, rule):
-    handle_assert(engine, heap, rule, False)
+@expose_builtin("asserta", unwrap_spec=["callable"], needs_module=True)
+def impl_asserta(engine, heap, module, rule):
+    handle_assert(engine, heap, module, rule, False)
 
-def handle_assert(engine, heap, rule, end):
-    current_modname = None
+def handle_assert(engine, heap, module, rule, end):
+    m = engine.modulewrapper
+    current_modname = m.current_module.name
+    engine.switch_module(module.name)
     if rule.name() == ":":
-        current_modname = engine.modulewrapper.current_module.name
         modname, rule = unpack_modname_and_predicate(rule)
         engine.switch_module(modname)
     engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
