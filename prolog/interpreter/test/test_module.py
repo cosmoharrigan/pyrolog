@@ -143,6 +143,9 @@ def test_builtin_module_or():
     g.
     """)
     assert_true("t.", e)
+    assert_true("not(x); h.", e)
+    assert_true("h; x.", e)
+    assert_true("(\+ h; \+ x); h.", e)
 
 def test_builtin_module_and():
     e = get_engine("""
@@ -157,6 +160,11 @@ def test_builtin_module_and():
     g.
     """)
     assert_true("t.", e)
+    assert_true("x, h.", e)
+    assert_false("h, \+ x.", e)
+    assert_false("\+ x, h.", e)
+    assert_false("\+ x, \+ h.", e)
+    assert_true("\+ (x, \+ h).", e)
 
 def test_catch_error():
     e = get_engine("""
