@@ -6,6 +6,7 @@ from prolog.interpreter.test.tool import collect_all
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.error import UncaughtError
 
 def test_set_currently_parsed_module():
     e = get_engine("""
@@ -786,3 +787,20 @@ def test_current_module():
     assert_true("findall(X, current_module(X), L), L == [user].", e)
     assert_false("current_module(1).")
     assert_false("current_module(some_strange_thing).")
+
+def test_engine_current_module_after_invalid_import():
+    m = "m.pl"
+    create_file(m, """
+    :- module(m, [f(a)]).
+    f(a).
+    """)
+    e = Engine()
+    try:
+        try:
+            prolog_raises("type_error(_, _)", "use_module(m)", e)
+        except UncaughtError:
+            pass
+        assert e.modulewrapper.current_module.name == "user"
+    finally:
+        delete_file(m)
+        

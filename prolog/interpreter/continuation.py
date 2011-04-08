@@ -234,12 +234,13 @@ class Engine(object):
     # module handling
 
     def add_module(self, name, exports = []):
+        m = self.modulewrapper
         mod = Module(name)
-        self.modulewrapper.modules[name] = mod
-        self.modulewrapper.current_module = mod
         for export in exports:
             mod.exports.append(Signature.getsignature(
                     *unwrap_predicate_indicator(export)))
+        m.current_module = mod
+        m.modules[name] = mod
 
     def switch_module(self, modulename):
         m = self.modulewrapper
