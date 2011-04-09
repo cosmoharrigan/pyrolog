@@ -48,3 +48,7 @@ class Module(object):
                 self.functions[sig] = module.functions[sig]
             except KeyError:
                 pass
+
+    def __repr__(self):
+        return "Module('%s')" % self.name
+        
