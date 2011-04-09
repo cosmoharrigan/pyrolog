@@ -117,8 +117,7 @@ class Rule(object):
 
 
 class Function(object):
-    def __init__(self, module, firstrule=None):
-        self.module = module
+    def __init__(self, firstrule=None):
         if firstrule is None:
             self.rulechain = self.last = None
         else:

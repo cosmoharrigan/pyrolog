@@ -141,7 +141,7 @@ class Engine(object):
         try:
             function = m.current_module.functions[signature]
         except KeyError:
-            function = Function(m.current_module.name)
+            function = Function()
             m.current_module.functions[signature] = function
         return function
 
