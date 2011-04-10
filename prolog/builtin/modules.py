@@ -1,12 +1,13 @@
 import py
 from prolog.builtin.register import expose_builtin
-from prolog.interpreter.term import Atom, Callable, Var, Term
+from prolog.interpreter.term import Atom, Callable, Var, Term, Number
 from prolog.interpreter import error
 from prolog.builtin.sourcehelper import get_source
 from prolog.interpreter import continuation
 from prolog.interpreter.helper import is_term, unwrap_predicate_indicator
 from prolog.interpreter.signature import Signature
 
+meta_args = "0123456789:?+-"
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
@@ -38,7 +39,7 @@ def handle_use_module(engine, heap, module, path, imports=None):
             module = m.current_module = current_module
             # XXX should use name argument of module here like SWI
         imported_module = m.modules[modulename]
-        module.use_module(engine, imported_module, imports)
+        module.use_module(engine, heap, imported_module, imports)
 
 @expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
 def impl_use_module(engine, heap, module, path):
@@ -114,6 +115,36 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         directory.unify(Callable.build(engine.libs[directory.name()]))
     else:
         error.UnificationFailed()
+
+@expose_builtin("meta_predicate", unwrap_spec=["obj"])
+def impl_meta_predicate(engine, heap, predlist):
+    while predlist:
+        if isinstance(predlist, Var):
+            error.throw_instantiation_error()
+        if predlist.name() == ",":
+            pred = predlist.argument_at(0)
+            predlist = predlist.argument_at(1)
+        else:
+            pred = predlist
+            predlist = None
+        args = unwrap_meta_arguments(pred)
+        engine.modulewrapper.current_module.add_meta_predicate(
+                pred.signature(), args)
+          
+def unwrap_meta_arguments(predicate):
+    args = predicate.arguments()
+    arglist = []
+    for arg in args:
+        if isinstance(arg, Var):
+            error.throw_instantiation_error()
+        elif isinstance(arg, Atom) and arg.name() in meta_args:
+            val = arg.name()
+        elif isinstance(arg, Number) and arg.num in range(10):
+            val = str(arg.num)
+        else:
+            error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
+        arglist.append(val)
+    return arglist
 
 class CurrentModuleContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, modvar):

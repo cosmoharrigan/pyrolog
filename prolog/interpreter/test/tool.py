@@ -18,7 +18,7 @@ def assert_false(query, e=None):
     if e is None:
         e = Engine()
     term = e.parse(query)[0][0]
-    py.test.raises(UnificationFailed, e.run, term, e.modulewrapper.user_module)
+    py.test.raises(UnificationFailed, e.run, term, e.modulewrapper.current_module)
 
 def prolog_raises(exc, query, e=None):
     print '=> catch(((%s), fail), error(%s), true).' % (query, exc)

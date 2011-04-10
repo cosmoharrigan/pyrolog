@@ -767,6 +767,123 @@ def test_file_parsing():
     """)
     assert_true("findall(X, f(X), [a]).", e)
 
+def test_meta_function():
+    e = get_engine("""
+    :- meta_predicate f(:), g('?'), h(0).
+
+    f(X) :- X = foobar.
+    a(FooBar).
+    """)
+    user = e.modulewrapper.modules["user"]
+    assert len(user.functions) == 4
+
+    for key in user.functions.keys():
+        assert key.name in ["f","g","h","a"]
+        assert key.numargs == 1
+        if key.name in ["f", "g", "h"]:
+            assert user.functions[key].is_meta
+        else:
+            assert not user.functions[key].is_meta
+
+def test_meta_predicate():
+    e = get_engine("""
+    :- use_module(mod).
+    """,
+    mod = """
+    :- module(mod, [test/1, test2/2]).
+    :- meta_predicate test(:), test2(:, -).
+
+    test(X) :- X = _:_.
+    test2(M:A, M:A).
+    """)
+    
+    assert_true("test(blar).", e)
+    assert_false("test2(f, f).", e)
+    assert_true("test2(f, user:f).", e)
+    assert_true("test2(f(A, B, C), user:f(A, B, C)).", e)
+
+def test_meta_predicate_2():
+    e = get_engine("",
+    m = """
+    :- module(m, [f/4]).
+    :- meta_predicate f(:, :, '?', '?').
+
+    f(M1:G1, M2:G2, M1, M2).
+    """)
+    # setup
+    assert_true("module(x).", e)
+    assert_true("use_module(m).", e)
+    # real tests
+    assert_true("f(a, b, x, x).", e)
+    assert_false("f(1:a, 2:b, x, x).", e)
+    assert_true("f(1:a, 2:b, 1, 2).", e)
+    assert_true("m:f(a, b, m, m).", e)
+    assert_false("m:f(1:a, 2:b, m, m).", e)
+    assert_true("m:f(1:a, 2:b, 1, 2).", e)
+
+def test_meta_predicate_prefixing():
+    e = get_engine("""
+    :- use_module(mod).
+    """,
+    mod = """
+    :- module(mod, [f/2]).
+    :- meta_predicate f(:, '?').
+
+    f(X, M) :-
+        X = M:_,
+        M =.. [A|_],
+        A \== ':'.
+    """)
+    assert_true("f(a, user).", e)
+    assert_true("f(user:a, user).", e)
+    assert_true("mod:f(a, mod).", e)
+    assert_true("mod:f(user:a, user).", e)
+    assert_true("mod:f(mod:user:a, mod).", e)
+
+def test_meta_predicate_module_chaining():
+    m1 = "m1.pl"
+    m2 = "m2.pl"
+    m3 = "m3.pl"
+    try:
+        create_file(m1, """
+        :- module(m1, [f/2]).
+        :- meta_predicate f(:, '?').
+        f(M:_, M).
+        """)
+
+        create_file(m2, """
+        :- module(m2, [g/2]).
+        :- use_module(m1).
+        g(X, Y) :- f(X, Y).
+        """)
+
+        create_file(m3, """
+        :- module(m3, [h/2]).
+        :- meta_predicate h(:, ?).
+        :- use_module(m2).
+        h(X, Y) :- g(X, Y).
+        """)
+        
+        e = get_engine("""
+        :- use_module(m2).
+        :- use_module(m3).
+        """)
+
+        assert_true("g(a, X), X == m2.", e)
+        assert_true("g(user:a, X), X == user.", e)
+        assert_true("h(a, X), X == user.", e)
+        assert_true("m3:h(a, X), X == m3.", e)
+        assert_true("m3:h(user:a, X), X == user.", e)
+    finally:
+        delete_file(m1)
+        delete_file(m2)
+        delete_file(m3)
+
+def test_meta_predicate_errors():
+    prolog_raises("instantiation_error", "meta_predicate f(X)")
+    prolog_raises("instantiation_error", "meta_predicate X")
+    prolog_raises("domain_error(_, _)", "meta_predicate f(blub)")
+
 def test_current_module():
     e = get_engine("""
     length([], 0).

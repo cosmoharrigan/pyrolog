@@ -49,7 +49,6 @@ jitdriver = jit.JitDriver(
 
 def driver(scont, fcont, heap):
     rule = None
-    #import pdb; pdb.set_trace()
     while not scont.is_done():
         #view(scont, fcont, heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
@@ -125,7 +124,7 @@ class Engine(object):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
 
-        function = self._lookup(signature)
+        function = m.current_module.lookup(signature)
         function.add_rule(rule, end)
         if old_modname is not None:
             self.switch_module(old_modname)
@@ -134,16 +133,6 @@ class Engine(object):
     def get_builtin(self, signature):
         from prolog import builtin # for the side-effects
         return signature.get_extra("builtin")
-
-    @jit.purefunction_promote("0")
-    def _lookup(self, signature):
-        m = self.modulewrapper
-        try:
-            function = m.current_module.functions[signature]
-        except KeyError:
-            function = Function()
-            m.current_module.functions[signature] = function
-        return function
 
 
     # _____________________________________________________
@@ -211,6 +200,7 @@ class Engine(object):
 
         # do a real call
         function = self._get_function(signature, module, query)
+        query = function.add_meta_prefixes(query, module.name)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(

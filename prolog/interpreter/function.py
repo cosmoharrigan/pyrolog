@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Callable
+from prolog.interpreter.term import Callable, Atom
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
@@ -118,11 +118,26 @@ class Rule(object):
 
 class Function(object):
     def __init__(self, firstrule=None):
+        self.is_meta = False
+        self.meta_args = []
         if firstrule is None:
             self.rulechain = self.last = None
         else:
             self.rulechain = Rule(firstrule)
             self.last = self.rulechain
+
+    def add_meta_prefixes(self, query, current_module):
+        if not self.is_meta:
+            return query
+        args = query.arguments()
+        for i in range(len(args)):
+            args[i] = self._prefix_argument(args[i], self.meta_args[i], current_module)
+        return Callable.build(query.name(), args)
+
+    def _prefix_argument(self, arg, meta_arg, module):
+        if meta_arg in "0123456789:" and not arg.name() == ":":
+            return Callable.build(":", [Atom(module), arg])
+        return arg
 
     def add_rule(self, rule, atend):
         if self.rulechain is None:
