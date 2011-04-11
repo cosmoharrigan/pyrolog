@@ -136,7 +136,7 @@ class Function(object):
 
     def _prefix_argument(self, arg, meta_arg, module):
         if meta_arg in "0123456789:" and not arg.name() == ":":
-            return Callable.build(":", [Atom(module), arg])
+            return Callable.build(":", [module, arg])
         return arg
 
     def add_rule(self, rule, atend):
