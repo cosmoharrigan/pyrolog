@@ -129,9 +129,11 @@ class Function(object):
     def add_meta_prefixes(self, query, current_module):
         if not self.is_meta:
             return query
-        args = query.arguments()
-        for i in range(len(args)):
-            args[i] = self._prefix_argument(args[i], self.meta_args[i], current_module)
+        numargs = query.argument_count()
+        args = [None] * numargs
+        for i in range(numargs):
+            args[i] = self._prefix_argument(query.argument_at(i),
+                    self.meta_args[i], current_module)
         return Callable.build(query.name(), args)
 
     def _prefix_argument(self, arg, meta_arg, module):
