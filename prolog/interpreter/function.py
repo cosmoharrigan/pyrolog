@@ -117,12 +117,8 @@ class Rule(object):
 
 
 class Function(object):
-    def __init__(self, firstrule=None):
-        if firstrule is None:
-            self.rulechain = self.last = None
-        else:
-            self.rulechain = Rule(firstrule)
-            self.last = self.rulechain
+    def __init__(self):
+        self.rulechain = self.last = None
 
     def add_rule(self, rule, atend):
         if self.rulechain is None:
