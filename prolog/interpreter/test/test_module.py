@@ -131,6 +131,21 @@ def test_modules_integration():
     assert_true("findall(X, h(X), L), L = [b].", e)
     assert_true("both(X, Y), X == a, Y == b.", e)
 
+def test_fail_and_retry_in_different_modules():
+    e = get_engine("""
+    :- use_module(m1).
+    :- use_module(m2).
+    """, 
+    m1 = """
+    :- module(m1, [f/1]).
+    f(a).
+    """, 
+    m2 = """
+    :- module(m2, [g/1]).
+    g(a).
+    """)
+    assert_true(";((f(a), fail), g(a)).", e)
+
 def test_builtin_module_or():
     e = get_engine("""
     :- use_module(m).
