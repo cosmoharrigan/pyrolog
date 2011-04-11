@@ -2,9 +2,11 @@ from prolog.interpreter.term import Callable, Atom
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
+from prolog.interpreter.helper import is_numeric
 # XXX needs tests
 
 cutsig = Signature.getsignature("!", 0)
+prefixsig = Signature.getsignature(":", 2)
 
 class Rule(object):
     _immutable_ = True
@@ -137,8 +139,9 @@ class Function(object):
         return Callable.build(query.name(), args)
 
     def _prefix_argument(self, arg, meta_arg, module):
-        if meta_arg in "0123456789:" and not arg.name() == ":":
-            return Callable.build(":", [module, arg])
+        if meta_arg in "0123456789:":
+            if is_numeric(arg) or not arg.signature().eq(prefixsig):
+                return Callable.build(":", [module, arg])
         return arg
 
     def add_rule(self, rule, atend):

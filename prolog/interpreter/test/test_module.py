@@ -894,6 +894,24 @@ def test_meta_predicate_module_chaining():
         delete_file(m2)
         delete_file(m3)
 
+def test_meta_predicate_colon_predicate():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [:/3]).
+    :- meta_predicate :(:, :, '?'), :(:, :).
+
+    :(A, B, C) :-
+        A = X:_,
+        B = Y:_,
+        C = (X, Y).
+    """)
+    assert_true(":(a, blub:b, (user, blub)).", e)
+    assert_true(":(1, a:2, (user, a)).", e)
+    assert_true(":(a:1.234, 2, (a, user)).", e)
+    assert_true(":(a:9999999999999999999999999999999999999999999999999, b:2, (a, b)).", e)
+
 def test_meta_predicate_errors():
     prolog_raises("instantiation_error", "meta_predicate f(X)")
     prolog_raises("instantiation_error", "meta_predicate X")
