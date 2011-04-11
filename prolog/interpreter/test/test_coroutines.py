@@ -218,3 +218,46 @@ def test_sudoku_with_when():
 
     assert_false("sudoku([[3, 4, 2, 1], [1, 2, 3, 4], [2, 1, 4, 3], [1, 3, 1, 2]]).", e)
     assert_false("sudoku([[4, 2, 3, 1], [2, 3, 4, 1], [2, 4, 1, 3], [3, 1, 2, 4]]).", e)
+
+def test_sat_solver():
+    e = get_engine("""
+    sat(Clauses, Vars) :-
+        problem_setup(Clauses),
+        elim_var(Vars).
+
+    elim_var([]).
+    elim_var([Var | Vars]) :-
+        elim_var(Vars),
+        (Var = true ; Var = false).
+
+    problem_setup([]).
+    problem_setup([Clause | Clauses]) :-
+        clause_setup(Clause),
+        problem_setup(Clauses).
+
+    clause_setup([Pol-Var | Pairs]) :-
+        set_watch(Pairs, Var, Pol).
+
+    set_watch([], Var, Pol) :-
+        Var = Pol.
+    set_watch([Pol2-Var2 | Pairs], Var1, Pol1) :-
+        watch(Var1, Pol1, Var2, Pol2, Pairs).
+
+    :- block watch('-', '?', '-', '?', '?').
+    watch(Var1, Pol1, Var2, Pol2, Pairs) :-
+        nonvar(Var1)
+         ->	update_watch(Var1, Pol1, Var2, Pol2, Pairs)
+         ;	update_watch(Var2, Pol2, Var1, Pol1, Pairs).
+
+    update_watch(Var1, Pol1, Var2, Pol2, Pairs) :-
+        Var1 == Pol1
+         ->	true
+         ;	set_watch(Pairs, Var2, Pol2).
+    """,
+    load_system=True)
+    assert_true("sat([[false-X]], [X]), X == false.", e)
+    assert_true("sat([[true-X], [false-Y]], [X, Y]), X == true, Y == false.", e)
+    #assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
+    assert_false("sat([[true-X], [true-Y], [true-Z], [false-Z]], [X, Y, Z]).", e)
+    #assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
+    assert_false("sat([[true-X], [false-X]], [X]).", e)
