@@ -966,3 +966,8 @@ def test_importlist_with_not_existing_rule():
         assert e.modulewrapper.current_module.name == "user"
     finally:
         delete_file(m)
+
+def test_numeric_module():
+    prolog_raises("domain_error(_, _)", "assert(:(1, 2))")
+    prolog_raises("domain_error(_, _)", "assert(:(1.2, 2.2))")
+

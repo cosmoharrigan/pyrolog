@@ -6,13 +6,17 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # database
 
+prefixsig = Signature.getsignature(":", 2)
+
 def unpack_modname_and_predicate(rule):
+    if helper.is_numeric(rule.argument_at(0)):
+        error.throw_domain_error("atom", rule.argument_at(0))
     return rule.argument_at(0).name(), rule.argument_at(1)
 
 @expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
     modname = None
-    if predicate.name() == ":":
+    if predicate.signature().eq(prefixsig):
         modname, predicate = unpack_modname_and_predicate(predicate)
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
@@ -41,7 +45,7 @@ def handle_assert(engine, heap, module, rule, end):
     m = engine.modulewrapper
     current_modname = m.current_module.name
     engine.switch_module(module.name)
-    if rule.name() == ":":
+    if rule.signature().eq(prefixsig):
         modname, rule = unpack_modname_and_predicate(rule)
         engine.switch_module(modname)
     engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
@@ -49,7 +53,7 @@ def handle_assert(engine, heap, module, rule, end):
 @expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
 def impl_retract(engine, heap, module, pattern):
     modname = None
-    if pattern.name() == ":":
+    if pattern.signature().eq(prefixsig):
         modname, pattern = unpack_modname_and_predicate(pattern)
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
