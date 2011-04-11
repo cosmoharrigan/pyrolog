@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Callable, Atom
+from prolog.interpreter.term import Callable, Atom, Var
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
@@ -140,7 +140,8 @@ class Function(object):
 
     def _prefix_argument(self, arg, meta_arg, module):
         if meta_arg in "0123456789:":
-            if is_numeric(arg) or not arg.signature().eq(prefixsig):
+            if isinstance(arg, Var) or is_numeric(arg)\
+                    or not arg.signature().eq(prefixsig):
                 return Callable.build(":", [module, arg])
         return arg
 

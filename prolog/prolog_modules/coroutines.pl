@@ -1,25 +1,22 @@
 :- module(coroutines, [freeze/2, when/2, frozen/2, block/1]).
-
+:- meta_predicate freeze('?', :), when('?', :), block(:).
 % *****************************************************
 % *                  F R E E Z E                      *
 % *****************************************************
 
 freeze(X, Goal) :-
 	nonvar(X),
-	this_module(M),
-	call(M:(Goal)).
+	call(Goal).
 
 freeze(X, Goal) :- 
 	var(X),
-	this_module(M),
 	\+ get_attr(X, freeze, _),
-	put_attr(X, freeze, M:(Goal)).
+	put_attr(X, freeze, Goal).
 
 freeze(X, Goal) :-
 	var(X),
-	this_module(M),
 	get_attr(X, freeze, Old_Goals),
-	put_attr(X, freeze, (Old_Goals, M:(Goal))).
+	put_attr(X, freeze, (Old_Goals, Goal)).
 
 % * FROZEN *
 
@@ -138,29 +135,28 @@ when(Cond, Goal) :-
 	throw(error(instantiation_error)).
 
 when(Cond, Goal) :-
-	when_impl(Cond, user:Goal).
+	when_impl(Cond, Goal).
 
 % *****************************************************
 % *					   B L O C K                      *
 % *****************************************************
 
-block(Term) :-
-	process_block_list(Term).
+block(Module:Term) :-
+	process_block_list(Term, Module).
 
-process_block_list(Term) :-
+process_block_list(Term, Module) :-
 	Term \= (A, B),
-	process_block(Term).
-process_block_list((Head, Rest)) :-
-	process_block(Head),
-	process_block_list(Rest).
+	process_block(Term, Module).
+process_block_list((Head, Rest), Module) :-
+	process_block(Head, Module),
+	process_block_list(Rest, Module).
 
-process_block(Block) :-
+process_block(Block, Module) :-
 	Block =.. [Functor|Args],
 	make_constraints(Args, Vars, Var_Constraints, When_Constraints),
 	Header =.. [Functor|Vars],
 	Rule = (Header :- (Var_Constraints, !, when(When_Constraints, Header))),
-	%this_module(M),
-	assert(user:Rule).
+	assert(Module:Rule).
 
 make_constraints([], [], true, nonvar(_)).
 make_constraints([Head|Rest], [X|Vars], (var(X), Var_Constraints), ';'(nonvar(X), When_Constraints)) :-

@@ -34,7 +34,7 @@ def test_frozen():
     assert_true("frozen(X, X), X == true.", e)
     assert_true("frozen(X, Y), Y == true, var(X).", e)
     assert_true("freeze(X, f(a)), frozen(X, user:f(a)).", e)
-    assert_true("freeze(X, m:g(q)), frozen(X, R), R == user:(m:g(q)).", e)
+    assert_true("freeze(X, m:g(q)), frozen(X, R), R == m:g(q).", e)
     assert_true("freeze(X, true), frozen(X, user:true), freeze(X, fail), frozen(X, (user:true, user:fail)).", e)
     assert_true("freeze(X, true), X = a, frozen(X, R), R == true.", e)
 
@@ -85,6 +85,26 @@ def test_hard_when():
     assert_true("when(nonvar(X), assert(xyz(a))), when(nonvar(Y), assert(xyz(b))), X = Y, Y = a.", e)
     assert_true("findall(X, xyz(X), L), L == [b, a].", e)
     assert_true("abolish(xyz/1).", e)
+
+def test_when_with_meta_predicate():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/2]).
+
+    f(X, Y) :-
+        when(nonvar(X), Y == X).
+    """, 
+    load_system=True)
+    assert_true("module(m).", e)
+    assert_true("f(X, a), X = a.", e)
+    assert_false("f(X, a), X = b.", e)
+    assert_true("module(user).", e)
+    assert_true("f(X, a), X = a.", e)
+    assert_false("f(X, a), X = b.", e)
+    assert_true("m:f(X, a), X = a.", e)
+    assert_false("m:f(X, a), X = b.", e)
 
 def test_block():
     e = get_engine("""
