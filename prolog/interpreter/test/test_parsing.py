@@ -149,4 +149,10 @@ def test_block():
     assert facts[0].name() == ":-"
     assert facts[0].argument_at(0).name() == "block"
     
-
+def test_meta_predicate():
+    t = parse_file(":- meta_predicate f(:), f(2, '+', '+'), f(:, '-'), a.")
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == ":-"
+    assert facts[0].argument_at(0).name() == "meta_predicate"

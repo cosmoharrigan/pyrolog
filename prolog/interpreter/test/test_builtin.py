@@ -129,6 +129,28 @@ def test_assert_logical_update_view():
     """)
     assert_false("q.", e)
 
+def test_assert_retract_colon():
+    e = get_engine("""
+    :(1, 2, 3).
+    :(a).
+    """)
+    assert_true(":(1, 2, 3), :(a).", e)
+    assert_true("assert(:(a, b, c, d)).", e)
+    assert_true(":(a, b, c, d).", e)
+    assert_true("retract(:(a, b, c, d)).", e)
+    prolog_raises("existence_error(_, _)", ":(a, b, c, d)", e)
+
+def test_abolish_colon():
+    e = get_engine("""
+    :(a).
+    :(1, 2, 3).
+    """)
+    assert_true("abolish(:/1).", e)
+    prolog_raises("existence_error(_, _)", ":(a)", e)
+    assert_true(":(1, 2, 3).", e)
+    assert_true("abolish(:/3).", e)
+    prolog_raises("existence_error(_, _)", ":(1, 2, 3)", e)
+
 def test_retract_logical_update_view():
     e = get_engine("""
         p :- retract(p :- true), fail.

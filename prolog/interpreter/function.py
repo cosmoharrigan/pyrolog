@@ -1,10 +1,12 @@
-from prolog.interpreter.term import Callable
+from prolog.interpreter.term import Callable, Atom
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
+from prolog.interpreter.helper import is_numeric
 # XXX needs tests
 
 cutsig = Signature.getsignature("!", 0)
+prefixsig = Signature.getsignature(":", 2)
 
 class Rule(object):
     _immutable_ = True
@@ -117,13 +119,30 @@ class Rule(object):
 
 
 class Function(object):
-    def __init__(self, module, firstrule=None):
-        self.module = module
+    def __init__(self, firstrule=None):
+        self.is_meta = False
+        self.meta_args = []
         if firstrule is None:
             self.rulechain = self.last = None
         else:
             self.rulechain = Rule(firstrule)
             self.last = self.rulechain
+
+    def add_meta_prefixes(self, query, current_module):
+        if not self.is_meta:
+            return query
+        numargs = query.argument_count()
+        args = [None] * numargs
+        for i in range(numargs):
+            args[i] = self._prefix_argument(query.argument_at(i),
+                    self.meta_args[i], current_module)
+        return Callable.build(query.name(), args)
+
+    def _prefix_argument(self, arg, meta_arg, module):
+        if meta_arg in "0123456789:":
+            if is_numeric(arg) or not arg.signature().eq(prefixsig):
+                return Callable.build(":", [module, arg])
+        return arg
 
     def add_rule(self, rule, atend):
         if self.rulechain is None:

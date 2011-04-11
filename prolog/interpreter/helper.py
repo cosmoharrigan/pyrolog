@@ -80,7 +80,6 @@ def unwrap_predicate_indicator(predicate):
     return name, arity
 
 def unwrap_stream(engine, obj):
-    #import pdb; pdb.set_trace()
     if isinstance(obj, term.Atom):
         try:
             return engine.streamwrapper.aliases[obj.name()]
@@ -118,3 +117,6 @@ def convert_to_str(obj):
         return obj.value.str()
     error.throw_type_error("atom", obj)
 
+def is_numeric(obj):
+    return isinstance(obj, term.Number) or isinstance(obj, term.BigInt)\
+            or isinstance(obj, term.Float)

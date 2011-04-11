@@ -6,14 +6,18 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # database
 
-def unpack_modname_and_predicate(rule, heap):
-    return rule.argument_at(0).dereference(heap).name(), rule.argument_at(1)
+prefixsig = Signature.getsignature(":", 2)
+
+def unpack_modname_and_predicate(rule):
+    if helper.is_numeric(rule.argument_at(0)):
+        error.throw_domain_error("atom", rule.argument_at(0))
+    return rule.argument_at(0).name(), rule.argument_at(1)
 
 @expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
     modname = None
-    if predicate.name() == ":":
-        modname, predicate = unpack_modname_and_predicate(predicate, heap)
+    if predicate.signature().eq(prefixsig):
+        modname, predicate = unpack_modname_and_predicate(predicate)
     name, arity = helper.unwrap_predicate_indicator(predicate)
     if arity < 0:
         error.throw_domain_error("not_less_than_zero", term.Number(arity))
@@ -28,27 +32,29 @@ def impl_abolish(engine, heap, module, predicate):
     except KeyError:
         pass
 
-@expose_builtin(["assert", "assertz"], unwrap_spec=["callable"])
-def impl_assert(engine, heap, rule):
-    handle_assert(engine, heap, rule, True)
+@expose_builtin(["assert", "assertz"], unwrap_spec=["callable"],
+        needs_module=True)
+def impl_assert(engine, heap, module, rule):
+    handle_assert(engine, heap, module, rule, True)
 
-@expose_builtin("asserta", unwrap_spec=["callable"])
-def impl_asserta(engine, heap, rule):
-    handle_assert(engine, heap, rule, False)
+@expose_builtin("asserta", unwrap_spec=["callable"], needs_module=True)
+def impl_asserta(engine, heap, module, rule):
+    handle_assert(engine, heap, module, rule, False)
 
-def handle_assert(engine, heap, rule, end):
-    current_modname = None
-    if rule.name() == ":":
-        current_modname = engine.modulewrapper.current_module.name
-        modname, rule = unpack_modname_and_predicate(rule, heap)
+def handle_assert(engine, heap, module, rule, end):
+    m = engine.modulewrapper
+    current_modname = m.current_module.name
+    engine.switch_module(module.name)
+    if rule.signature().eq(prefixsig):
+        modname, rule = unpack_modname_and_predicate(rule)
         engine.switch_module(modname)
-    engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)   
+    engine.add_rule(rule.getvalue(heap), end=end, old_modname=current_modname)
 
 @expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
 def impl_retract(engine, heap, module, pattern):
     modname = None
-    if pattern.name() == ":":
-        modname, pattern = unpack_modname_and_predicate(pattern, heap)
+    if pattern.signature().eq(prefixsig):
+        modname, pattern = unpack_modname_and_predicate(pattern)
     if helper.is_term(pattern) and pattern.name()== ":-":
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))

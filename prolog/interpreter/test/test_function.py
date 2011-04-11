@@ -59,7 +59,7 @@ def test_function():
             r.append((chain.head, chain.body))
             chain = chain.next
         return r
-    f = Function(m.user_module)
+    f = Function()
     r1 = Rule(C(1), C(2), m.user_module)
     r2 = Rule(C(2), C(3), m.user_module)
     r3 = Rule(C(0), C(0), m.user_module)

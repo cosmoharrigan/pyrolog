@@ -159,8 +159,8 @@ process_block(Block) :-
 	make_constraints(Args, Vars, Var_Constraints, When_Constraints),
 	Header =.. [Functor|Vars],
 	Rule = (Header :- (Var_Constraints, !, when(When_Constraints, Header))),
-	this_module(M),
-	assert(M:(Rule)).
+	%this_module(M),
+	assert(user:Rule).
 
 make_constraints([], [], true, nonvar(_)).
 make_constraints([Head|Rest], [X|Vars], (var(X), Var_Constraints), ';'(nonvar(X), When_Constraints)) :-

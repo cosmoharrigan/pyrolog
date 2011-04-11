@@ -6,6 +6,7 @@ from prolog.interpreter.test.tool import collect_all
 from prolog.interpreter import term
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.error import UncaughtError
 
 def test_set_currently_parsed_module():
     e = get_engine("""
@@ -130,6 +131,21 @@ def test_modules_integration():
     assert_true("findall(X, h(X), L), L = [b].", e)
     assert_true("both(X, Y), X == a, Y == b.", e)
 
+def test_fail_and_retry_in_different_modules():
+    e = get_engine("""
+    :- use_module(m1).
+    :- use_module(m2).
+    """, 
+    m1 = """
+    :- module(m1, [f/1]).
+    f(a).
+    """, 
+    m2 = """
+    :- module(m2, [g/1]).
+    g(a).
+    """)
+    assert_true(";((f(a), fail), g(a)).", e)
+
 def test_builtin_module_or():
     e = get_engine("""
     :- use_module(m).
@@ -143,6 +159,9 @@ def test_builtin_module_or():
     g.
     """)
     assert_true("t.", e)
+    assert_true("not(x); h.", e)
+    assert_true("h; x.", e)
+    assert_true("(\+ h; \+ x); h.", e)
 
 def test_builtin_module_and():
     e = get_engine("""
@@ -157,6 +176,11 @@ def test_builtin_module_and():
     g.
     """)
     assert_true("t.", e)
+    assert_true("x, h.", e)
+    assert_false("h, \+ x.", e)
+    assert_false("\+ x, h.", e)
+    assert_false("\+ x, \+ h.", e)
+    assert_true("\+ (x, \+ h).", e)
 
 def test_catch_error():
     e = get_engine("""
@@ -677,6 +701,57 @@ def test_abolish_other_module():
     prolog_raises("existence_error(_, _)", "m:g(c)", e)
     assert_true("abolish(m:g/1).", e)
 
+def test_assert_rule_into_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    """)
+    assert_true("m:assert(a).", e)
+    assert_true("m:a.", e)
+    prolog_raises("existence_error(_, _)", "a", e)
+
+    assert_true("m:assert(user:b).", e)
+    assert_true("b.", e)
+    prolog_raises("existence_error(_, _)", "m:b", e)
+
+def test_assert_rule_into_other_module_2():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [f/1]).
+
+    f(Rule) :-
+        assert(Rule).
+    """)
+    assert_true("f(g(a)).", e)
+    prolog_raises("existence_error(_, _)", "g(a)", e)
+    assert_true("m:g(a).", e)
+
+def test_retract_rule_from_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    a.
+    """)
+    assert_false("retract(a).", e)
+    assert_true("m:retract(a).", e)
+    assert_false("m:retract(a).", e)
+
+def test_abolish_from_other_module():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, []).
+    a.
+    """)
+    assert_true("m:abolish(a/0).", e)
+    prolog_raises("existence_error(_, _)", "m:a", e)
 def test_call_other_module():
     e = get_engine("",
     m = """
@@ -730,3 +805,193 @@ def test_this_module_2():
     """)
     assert_true("g(X), X == user.", e)
     #assert_true("n:g(X), X == n.", e)
+
+def test_meta_function():
+    e = get_engine("""
+    :- meta_predicate f(:), g('?'), h(0).
+
+    f(X) :- X = foobar.
+    a(FooBar).
+    """)
+    user = e.modulewrapper.modules["user"]
+    assert len(user.functions) == 4
+
+    for key in user.functions.keys():
+        assert key.name in ["f","g","h","a"]
+        assert key.numargs == 1
+        if key.name in ["f", "g", "h"]:
+            assert user.functions[key].is_meta
+        else:
+            assert not user.functions[key].is_meta
+
+def test_meta_predicate():
+    e = get_engine("""
+    :- use_module(mod).
+    """,
+    mod = """
+    :- module(mod, [test/1, test2/2]).
+    :- meta_predicate test(:), test2(:, -).
+
+    test(X) :- X = _:_.
+    test2(M:A, M:A).
+    """)
+    
+    assert_true("test(blar).", e)
+    assert_false("test2(f, f).", e)
+    assert_true("test2(f, user:f).", e)
+    assert_true("test2(f(A, B, C), user:f(A, B, C)).", e)
+
+def test_meta_predicate_2():
+    e = get_engine("",
+    m = """
+    :- module(m, [f/4]).
+    :- meta_predicate f(:, :, '?', '?').
+
+    f(M1:G1, M2:G2, M1, M2).
+    """)
+    # setup
+    assert_true("module(x).", e)
+    assert_true("use_module(m).", e)
+    # real tests
+    assert_true("f(a, b, x, x).", e)
+    assert_false("f(1:a, 2:b, x, x).", e)
+    assert_true("f(1:a, 2:b, 1, 2).", e)
+    assert_true("m:f(a, b, m, m).", e)
+    assert_false("m:f(1:a, 2:b, m, m).", e)
+    assert_true("m:f(1:a, 2:b, 1, 2).", e)
+
+def test_meta_predicate_prefixing():
+    e = get_engine("""
+    :- use_module(mod).
+    """,
+    mod = """
+    :- module(mod, [f/2]).
+    :- meta_predicate f(:, '?').
+
+    f(X, M) :-
+        X = M:_,
+        M =.. [A|_],
+        A \== ':'.
+    """)
+    assert_true("f(a, user).", e)
+    assert_true("f(user:a, user).", e)
+    assert_true("mod:f(a, mod).", e)
+    assert_true("mod:f(user:a, user).", e)
+    assert_true("mod:f(mod:user:a, mod).", e)
+
+def test_meta_predicate_module_chaining():
+    m1 = "m1.pl"
+    m2 = "m2.pl"
+    m3 = "m3.pl"
+    try:
+        create_file(m1, """
+        :- module(m1, [f/2]).
+        :- meta_predicate f(:, '?').
+        f(M:_, M).
+        """)
+
+        create_file(m2, """
+        :- module(m2, [g/2]).
+        :- use_module(m1).
+        g(X, Y) :- f(X, Y).
+        """)
+
+        create_file(m3, """
+        :- module(m3, [h/2]).
+        :- meta_predicate h(:, ?).
+        :- use_module(m2).
+        h(X, Y) :- g(X, Y).
+        """)
+        
+        e = get_engine("""
+        :- use_module(m2).
+        :- use_module(m3).
+        """)
+
+        assert_true("g(a, X), X == m2.", e)
+        assert_true("g(user:a, X), X == user.", e)
+        assert_true("h(a, X), X == user.", e)
+        assert_true("m3:h(a, X), X == m3.", e)
+        assert_true("m3:h(user:a, X), X == user.", e)
+    finally:
+        delete_file(m1)
+        delete_file(m2)
+        delete_file(m3)
+
+def test_meta_predicate_colon_predicate():
+    e = get_engine("""
+    :- use_module(m).
+    """,
+    m = """
+    :- module(m, [:/3]).
+    :- meta_predicate :(:, :, '?'), :(:, :).
+
+    :(A, B, C) :-
+        A = X:_,
+        B = Y:_,
+        C = (X, Y).
+    """)
+    assert_true(":(a, blub:b, (user, blub)).", e)
+    assert_true(":(1, a:2, (user, a)).", e)
+    assert_true(":(a:1.234, 2, (a, user)).", e)
+    assert_true(":(a:9999999999999999999999999999999999999999999999999, b:2, (a, b)).", e)
+
+def test_meta_predicate_errors():
+    prolog_raises("instantiation_error", "meta_predicate f(X)")
+    prolog_raises("instantiation_error", "meta_predicate X")
+    prolog_raises("domain_error(_, _)", "meta_predicate f(blub)")
+
+def test_current_module():
+    e = get_engine("""
+    length([], 0).
+    length([_|T], R) :-
+        length(T, R1),
+        R is R1 + 1.
+    """,
+    m1 = ":- module(m1, []).",
+    m2 = ":- module(m2, []).",
+    m3 = ":- module(m3, []).")
+    assert_true("current_module(user).", e)
+    assert_true("current_module(m1).", e)
+    assert_true("current_module(m2).", e)
+    assert_true("current_module(m3).", e)
+    assert_true("findall(X, current_module(X), L), length(L, 4).", e)
+
+    e = Engine()
+    assert_true("findall(X, current_module(X), L), L == [user].", e)
+    assert_false("current_module(1).")
+    assert_false("current_module(some_strange_thing).")
+
+def test_engine_current_module_after_invalid_import():
+    m = "m.pl"
+    create_file(m, """
+    :- module(m, [f(a)]).
+    f(a).
+    """)
+    e = Engine()
+    try:
+        try:
+            prolog_raises("type_error(_, _)", "use_module(m)", e)
+        except UncaughtError:
+            pass
+        assert e.modulewrapper.current_module.name == "user"
+    finally:
+        delete_file(m)
+        
+def test_importlist_with_not_existing_rule():
+    e = Engine()
+    m = "mod"
+    create_file(m, """
+    :- module('%s', [f/1]).
+    """ % m)
+    try:
+        prolog_raises("import_error(mod, 'f/1')", "use_module(%s)" % m, e)
+        assert "mod" not in e.modulewrapper.modules
+        assert e.modulewrapper.current_module.name == "user"
+    finally:
+        delete_file(m)
+
+def test_numeric_module():
+    prolog_raises("domain_error(_, _)", "assert(:(1, 2))")
+    prolog_raises("domain_error(_, _)", "assert(:(1.2, 2.2))")
+
