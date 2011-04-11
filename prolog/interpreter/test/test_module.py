@@ -921,3 +921,15 @@ def test_engine_current_module_after_invalid_import():
     finally:
         delete_file(m)
         
+def test_importlist_with_not_existing_rule():
+    e = Engine()
+    m = "mod"
+    create_file(m, """
+    :- module('%s', [f/1]).
+    """ % m)
+    try:
+        prolog_raises("import_error(mod, 'f/1')", "use_module(%s)" % m, e)
+        assert "mod" not in e.modulewrapper.modules
+        assert e.modulewrapper.current_module.name == "user"
+    finally:
+        delete_file(m)

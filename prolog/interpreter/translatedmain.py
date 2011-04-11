@@ -126,6 +126,12 @@ def run(query, var_to_pos, engine):
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1))))
                         return
+                elif errorterm.name() == "import_error":
+                    if isinstance(errorterm, term.Callable):
+                        printmessage("Exported procedure %s:%s is not defined\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1))))
+                        return
 
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))

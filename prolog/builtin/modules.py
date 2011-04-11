@@ -36,6 +36,11 @@ def handle_use_module(engine, heap, module, path, imports=None):
             current_module = m.current_module
             file_content = get_source(path)
             engine.runstring(file_content)
+            for sig in m.current_module.exports:
+                if sig not in m.current_module.functions:
+                    del m.modules[modulename]
+                    m.current_module = current_module
+                    error.throw_import_error(modulename, sig)
             module = m.current_module = current_module
             # XXX should use name argument of module here like SWI
         imported_module = m.modules[modulename]

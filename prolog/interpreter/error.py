@@ -26,6 +26,12 @@ def throw_syntax_error(msg):
     t = term.Callable.build("syntax_error", [term.Callable.build(msg)])
     raise wrap_error(t)
 
+def throw_import_error(modulename, signature):
+    from prolog.interpreter import term
+    t = term.Callable.build("import_error", [term.Callable.build(modulename),
+            term.Callable.build(signature.string())])
+    raise wrap_error(t)
+
 def throw_existence_error(object_type, obj):
     from prolog.interpreter import term
     t = term.Callable.build("existence_error", [term.Callable.build(object_type), obj])
