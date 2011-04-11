@@ -200,7 +200,7 @@ class Engine(object):
 
         # do a real call
         function = self._get_function(signature, module, query)
-        query = function.add_meta_prefixes(query, module.name)
+        query = function.add_meta_prefixes(query, module.nameatom)
         startrulechain = jit.hint(function.rulechain, promote=True)
         if startrulechain is None:
             return error.throw_existence_error(

@@ -32,6 +32,7 @@ class ModuleWrapper(object):
 class Module(object):
     def __init__(self, name):
         self.name = name
+        self.nameatom = Atom(name)
         self.functions = {}
         self.exports = []
 
