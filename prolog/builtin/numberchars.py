@@ -7,6 +7,7 @@ from pypy.rlib.rarithmetic import ovfcheck
 from pypy.rlib.rbigint import rbigint
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.helper import wrap_list
+from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 import re
 
 conssig = Signature.getsignature(".", 2)
@@ -53,13 +54,11 @@ def cons_to_num(charlist):
         first = False
     
     numstr = "".join(numlist)
-
-    try:
-        return term.Number(ovfcheck(int(numstr)))
-    except OverflowError:
-        return term.BigInt(rbigint.fromdecimalstr(numstr))
-    except ValueError:
-        pass
+    if numstr.find(".") == -1: # no float
+        try:
+            return term.Number(string_to_int(numstr))
+        except ParseStringOverflowError:
+            return term.BigInt(rbigint.fromdecimalstr(numstr))
     try:
         return term.Float(float(numstr))
     except ValueError:
