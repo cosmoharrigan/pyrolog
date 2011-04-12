@@ -8,6 +8,7 @@ from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
 from pypy.rlib import jit
 from pypy.tool.pairtype import extendabletype
+from pypy.rlib.rbigint import rbigint
 
 DEBUG = False
 
