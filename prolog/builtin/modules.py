@@ -158,11 +158,12 @@ def unwrap_meta_arguments(predicate):
             error.throw_instantiation_error()
         elif isinstance(arg, Atom) and arg.name() in meta_args:
             val = arg.name()
+            arglist.append(val)
         elif isinstance(arg, Number) and arg.num in range(10):
             val = str(arg.num)
+            arglist.append(val)
         else:
             error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
-        arglist.append(val)
     return arglist
 
 class CurrentModuleContinuation(continuation.ChoiceContinuation):
