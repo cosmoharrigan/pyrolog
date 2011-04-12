@@ -8,22 +8,29 @@ from prolog.interpreter.helper import is_term, unwrap_predicate_indicator
 from prolog.interpreter.signature import Signature
 
 meta_args = "0123456789:?+-"
+libsig = Signature.getsignature("library", 1)
+
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
 
 def handle_use_module(engine, heap, module, path, imports=None):
     if is_term(path):
-        if path.name() == "library":
-            import os
-            modulename = path.argument_at(0).name()
+        if path.signature().eq(libsig):
+            arg = path.argument_at(0)
+            path = None
+            if isinstance(arg, Var):
+                error.throw_instantiation_error()
+            modulename = arg.name()
             for libpath, modules in engine.modulewrapper.libs.iteritems():
                 try:
                     modules[modulename]
-                    path = Callable.build("%s/%s" % (libpath, modulename))
-                    break
                 except KeyError:
-                    pass
+                    continue
+                path = Callable.build("%s/%s" % (libpath, modulename))
+                break
+            if not path:
+                error.throw_existence_error("source_sink", arg)
 
     if isinstance(path, Atom):
         from os.path import basename
@@ -117,9 +124,11 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         libcont = LibraryDirContinuation(engine, scont, fcont, heap, directory)
         return libcont, fcont, heap
     elif isinstance(directory, Atom):
-        directory.unify(Callable.build(engine.libs[directory.name()]))
-    else:
-        error.UnificationFailed()
+        from os.path import basename
+        for key in engine.modulewrapper.libs.keys():
+            if basename(key) == directory.name():
+                return scont, fcont, heap
+    raise error.UnificationFailed()
 
 @expose_builtin("this_module", unwrap_spec=["obj"])
 def impl_this_module(engine, heap, module):

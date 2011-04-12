@@ -490,6 +490,21 @@ def test_library_directory():
         delete_dir(tempdir1)
         delete_dir(tempdir2)
 
+def test_use_library_errors():
+    prolog_raises("instantiation_error", "use_module(library(X))")
+    prolog_raises("existence_error(_, _)", "use_module(library(does_not_exist_))")
+
+def test_library_dir_single_query():
+    e = Engine()
+    tempdir = "__temp__"
+    create_dir(tempdir)
+    try:
+        assert_true("add_library_dir('%s')." % tempdir, e)
+        assert_true("library_directory('%s')." % tempdir, e)
+    finally:
+        delete_dir(tempdir)
+    
+
 def test_library_with_files():
     from os.path import abspath
     e = Engine()
