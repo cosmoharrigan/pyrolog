@@ -85,11 +85,6 @@ def unwrap_stream(engine, obj):
             return engine.streamwrapper.aliases[obj.name()]
         except KeyError:
             pass
-    else:
-        try:
-            return engine.streamwrapper.aliases[obj.argument_at(0).num]
-        except AttributeError:
-            pass
     error.throw_domain_error("stream", obj)
 
 def ensure_atomic(obj):
