@@ -18,7 +18,7 @@ def debug_print(*args):
 
 
 class PrologObject(object):
-    __slots__ = ()
+    #__slots__ = ()
     _immutable_ = True
     __metaclass__ = extendabletype
     
@@ -164,6 +164,7 @@ class AttVar(Var):
         Var.__init__(self)
         self.atts = {} # mapping from modules to values
 
+    @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
         if isinstance(other, AttVar):
             if other is not self:
@@ -228,7 +229,7 @@ class NumberedVar(PrologObject):
 
 
 class NonVar(PrologObject):
-    __slots__ = ()
+    #__slots__ = ()
     
     def dereference(self, heap):
         return self
@@ -274,7 +275,7 @@ class NonVar(PrologObject):
 
 class Callable(NonVar):
     _immutable_ = True
-    __slots__ = ()
+    #__slots__ = ()
     
     def name(self):
         return self.signature().name
@@ -441,7 +442,7 @@ class Callable(NonVar):
 
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
-    __slots__ = ('_name', '_signature')
+    #__slots__ = ('_name', '_signature')
     cache = {}
     _immutable_ = True
     
@@ -491,7 +492,7 @@ class Atom(Callable):
 class Number(NonVar): #, UnboxedValue):
     TYPE_STANDARD_ORDER = 3
     _immutable_ = True
-    __slots__ = ("num", )
+    #__slots__ = ("num", )
     
     def __init__(self, num):
         assert isinstance(num, int)
@@ -631,7 +632,7 @@ class Term(Callable):
     TYPE_STANDARD_ORDER = 4
     _immutable_ = True
     _immutable_fields_ = ["_args[*]"]
-    __slots__ = ('_name', '_signature', '_args')
+    #__slots__ = ('_name', '_signature', '_args')
     
     def __init__(self, term_name, args, signature):
         assert signature.name == term_name
