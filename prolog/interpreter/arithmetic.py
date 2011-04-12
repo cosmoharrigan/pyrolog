@@ -8,6 +8,7 @@ from pypy.rlib.rarithmetic import intmask, ovfcheck_float_to_int
 from pypy.rlib.unroll import unrolling_iterable
 from pypy.rlib import jit, rarithmetic
 from pypy.rlib.rbigint import rbigint
+import pypy.objspace.std.strutil
 
 Signature.register_extr_attr("arithmetic")
 
@@ -267,11 +268,7 @@ class __extend__(term.Number):
 
     # ------------------ inversion ------------------
     def arith_not(self):
-        try:
-            val = rarithmetic.ovfcheck(~self.num)
-        except OverflowError:
-            return make_int(term.BigInt(rbigint.fromint(self.num).invert()))
-        return term.Number(val)
+        return term.Number(~self.num)
 
 
     # ------------------ abs ------------------
