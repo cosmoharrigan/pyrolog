@@ -1,21 +1,23 @@
 import os
+import sys
 import py
 from prolog.interpreter.error import throw_existence_error
 
+path = os.path.dirname(__file__)
+path = os.path.join(path, "..", "prolog_modules")
+
 def get_source(filename):
-    #import pdb; pdb.set_trace()
-    path = str(py.path.local(__file__).dirpath().join("../prolog_modules")) + "/"
     try:
         fd = os.open(filename, os.O_RDONLY, 0777)
     except OSError, e:
         try:
-            fd = os.open(path + filename, os.O_RDONLY, 0777)
+            fd = os.open(os.path.join(path, filename), os.O_RDONLY, 0777)
         except OSError, e:
             try:
                 fd = os.open(filename + ".pl", os.O_RDONLY, 0777)
             except OSError, e:
                 try:
-                    fd = os.open(path + filename + ".pl", os.O_RDONLY, 0777)
+                    fd = os.open(os.path.join(path, filename + ".pl"), os.O_RDONLY, 0777)
                 except OSError, e:
                     throw_existence_error("source_sink", filename)
                     assert 0, "unreachable" # make the flow space happy
