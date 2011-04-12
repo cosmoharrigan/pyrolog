@@ -8,11 +8,11 @@ from pypy.rlib.rbigint import rbigint
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.helper import wrap_list
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
-import re
 
 conssig = Signature.getsignature(".", 2)
 num_atom_names = [str(i) for i in range(10)]
-reg = re.compile("^[0-9]{1}$") 
+digits = ["0", "1", "2", "3", "4"
+          "5", "6", "7", "8", "9"]
 
 def num_to_list(num):
     from prolog.interpreter.helper import wrap_list
@@ -38,7 +38,7 @@ def cons_to_num(charlist):
         if not isinstance(elem, term.Atom):
             error.throw_type_error("text", charlist)
         digit = elem.name()
-        if reg.match(digit) is None:
+        if digit not in digits:
             if digit == ".":
                 if saw_dot or first or (i == 1 and numlist[0] == "-"):
                     error.throw_syntax_error("Illegal number")
