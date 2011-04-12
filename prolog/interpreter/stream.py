@@ -36,9 +36,8 @@ class PrologInputStream(PrologStream):
 
     def read(self, n):
         if self.fd() == 0:
-            import sys
-            sys.stdout.write("|: ")
-            sys.stdout.flush()
+            s = fdopen_as_stream(1, "w", False)
+            s.write("|: ")
         return self.stream.read(n)
 
 class PrologOutputStream(PrologStream):
