@@ -389,13 +389,13 @@ class __extend__(term.Float):
         return other.arith_pow_float(self.floatval)
 
     def arith_pow_number(self, other_num):
-        return term.Float(float(other_num) ** self.floatval)
+        return term.Float(math.pow(float(other_num), self.floatval))
 
     def arith_pow_bigint(self, other_value):
-        return term.Float(other_value.tofloat() ** self.floatval)
+        return term.Float(math.pow(other_value.tofloat(), self.floatval))
 
     def arith_pow_float(self, other_float):
-        return term.Float(other_float ** self.floatval)
+        return term.Float(math.pow(other_float, self.floatval))
 
     # ------------------ abs ------------------ 
     def arith_abs(self):
