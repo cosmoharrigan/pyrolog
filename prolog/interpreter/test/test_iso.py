@@ -66,6 +66,7 @@ def get_lines(file_):
         elif test.startswith('['):
             last_bracket = test.rfind(']')
             first_bracket = test.find('[') + 1
+            assert first_bracket <= last_bracket
             relevant = test[first_bracket:last_bracket]
             left, right = deconstruct_line(relevant)
             yield left, right
