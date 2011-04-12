@@ -67,7 +67,8 @@ def impl_open(engine, heap, srcpath, mode, stream):
 def impl_close(engine, heap, stream):
     if stream.fd() not in [0, 1]:
         w = engine.streamwrapper
-        w.streams.pop(stream.fd()).close()
+        w.streams[stream.fd()].close()
+        del w.streams[stream.fd()]
         try:
             if w.aliases[stream.alias].fd() == w.current_instream.fd():
                 w.current_instream = w.streams[0]
