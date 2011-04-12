@@ -15,6 +15,7 @@ reg = re.compile("^[0-9]{1}$")
 
 def num_to_list(num):
     from prolog.interpreter.helper import wrap_list
+    s = ""
     if isinstance(num, term.Number):
         s = str(num.num)
     elif isinstance(num, term.Float):

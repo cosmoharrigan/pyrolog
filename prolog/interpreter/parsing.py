@@ -1,4 +1,3 @@
-
 import py
 from pypy.rlib.parsing.ebnfparse import parse_ebnf
 from pypy.rlib.parsing.regexparse import parse_regex
@@ -7,8 +6,9 @@ from pypy.rlib.parsing.deterministic import DFA
 from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from pypy.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from pypy.rlib.parsing.regex import StringExpression
-from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
+from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError, ParseStringError
 from pypy.rlib.rarithmetic import ovfcheck
+from pypy.objspace.std.strutil import string_to_int
 from pypy.rlib.rbigint import rbigint
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.module import Module
@@ -386,19 +386,18 @@ class TermBuilder(RPythonVisitor):
         from prolog.interpreter.term import Number, Float, BigInt
         s = node.additional_info
         try:
-            try:
-                ovfcheck(int(s))
-            except OverflowError:
-                return BigInt(rbigint.fromdecimalstr(s))
-            return Number(int(s))
-        except ValueError:
+            intval = string_to_int(s)
+            return Number(intval)
+        except ParseStringOverflowError: # overflow
+            return BigInt(rbigint.fromdecimalstr(s))
+        except ParseStringError: # saw dot
             return Float(float(s))
 
     def visit_STRING(self, node):
         from prolog.interpreter import helper
         from prolog.interpreter.term import Callable, Number
         info = node.additional_info
-        s = unicode(info[1:len(info) - 1], "utf8")
+        s = unicode(info.strip('"'), "utf8")
         l = [Number(ord(c)) for c in s]
         return helper.wrap_list(l)
 
