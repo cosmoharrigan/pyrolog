@@ -1,7 +1,7 @@
 import os
 import sys
-import py
 from prolog.interpreter.error import throw_existence_error
+from prolog.interpreter.term import Callable
 
 path = os.path.dirname(__file__)
 path = os.path.join(path, "..", "prolog_modules")
@@ -19,7 +19,7 @@ def get_source(filename):
                 try:
                     fd = os.open(os.path.join(path, filename + ".pl"), os.O_RDONLY, 0777)
                 except OSError, e:
-                    throw_existence_error("source_sink", filename)
+                    throw_existence_error("source_sink", Callable.build(filename))
                     assert 0, "unreachable" # make the flow space happy
     try:
         content = []
