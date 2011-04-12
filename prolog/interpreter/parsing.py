@@ -396,8 +396,10 @@ class TermBuilder(RPythonVisitor):
     def visit_STRING(self, node):
         from prolog.interpreter import helper
         from prolog.interpreter.term import Callable, Number
+        from pypy.rlib.runicode import str_decode_utf_8
         info = node.additional_info
-        s = unicode(info.strip('"'), "utf8")
+        s = info.strip('"')
+        s, _ = str_decode_utf_8(s, len(s), 'strict')
         l = [Number(ord(c)) for c in s]
         return helper.wrap_list(l)
 
