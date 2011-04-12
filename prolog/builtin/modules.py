@@ -33,12 +33,13 @@ def handle_use_module(engine, heap, module, path, imports=None):
                 error.throw_existence_error("source_sink", arg)
 
     if isinstance(path, Atom):
-        from os.path import basename
         m = engine.modulewrapper
         path = path.name()
-        modulename = basename(path)
+        modulename = _basename(path)
         if path.endswith(".pl"):
-            modulename = modulename[:len(modulename) - 3]
+            stop = len(modulename) - 3
+            assert stop >= 0
+            modulename = modulename[:stop]
         if modulename not in m.modules: # prevent recursive imports
             current_module = m.current_module
             file_content = get_source(path)
@@ -79,16 +80,15 @@ def impl_module_prefixing(engine, heap, modulename,
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
 def impl_add_library_dir(engine, heap, path):
     from os import listdir
-    from os.path import basename, isdir, abspath, isabs
+    from os.path import isdir, abspath, isabs
     if not isdir(path):
         error.throw_existence_error("source_sink", Callable.build(path))
     if isabs(path):
-        basename = basename(path)
+        basename = _basename(path)
         abspath = path
     else:
         basename = path
         abspath = abspath(path)
-    #engine.libs[basename] = abspath
     moduledict = {}
     modules = listdir(abspath)
     for module in modules:
@@ -110,8 +110,7 @@ class LibraryDirContinuation(continuation.ChoiceContinuation):
     def activate(self, fcont, heap):
         if self.keycount < len(self.libkeys):
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            from os.path import basename
-            self.pathvar.unify(Callable.build(basename(
+            self.pathvar.unify(Callable.build(_basename(
                     self.libkeys[self.keycount])), heap)
             self.keycount += 1
             return self.nextcont, fcont, heap
@@ -124,9 +123,8 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         libcont = LibraryDirContinuation(engine, scont, fcont, heap, directory)
         return libcont, fcont, heap
     elif isinstance(directory, Atom):
-        from os.path import basename
         for key in engine.modulewrapper.libs.keys():
-            if basename(key) == directory.name():
+            if _basename(key) == directory.name():
                 return scont, fcont, heap
     raise error.UnificationFailed()
 
@@ -198,3 +196,10 @@ def impl_current_module(engine, heap, module, scont, fcont):
     else:
         raise error.UnificationFailed()
     return scont, fcont, heap
+
+def _basename(path):
+    index = path.rfind("/") + 1 # XXX OS specific
+    if index == 0:
+        return path
+    assert index >= 0
+    return path[index:]
