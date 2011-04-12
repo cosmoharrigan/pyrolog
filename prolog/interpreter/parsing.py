@@ -16,7 +16,8 @@ from prolog.interpreter.module import Module
 def make_regexes():
     regexs = [
         ("VAR", parse_regex("[A-Z_]([a-zA-Z0-9]|_)*|_")),
-        ("NUMBER", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)?")),
+        ("NUMBER", parse_regex("(0|[1-9][0-9]*)")),
+        ("FLOAT", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)")),
         ("IGNORE", parse_regex(
             "[ \\n\\t]|(/\\*[^\\*]*(\\*[^/][^\\*]*)*\\*/)|(%[^\\n]*)")),
         ("ATOM", parse_regex("([a-z]([a-zA-Z0-9]|_)*)|('[^']*')|\[\]|!|\+|\-|\{\}")),
@@ -41,6 +42,9 @@ basic_rules = [
           ['NUMBER'],
           ['+', 'NUMBER'],
           ['-', 'NUMBER'],
+          ['FLOAT'],
+          ['+', 'FLOAT'],
+          ['-', 'FLOAT'],
           ['ATOM'],
           ['STRING'],
           ['(', 'toplevel_op_expr', ')'],
@@ -383,15 +387,18 @@ class TermBuilder(RPythonVisitor):
         return res
 
     def visit_NUMBER(self, node):
-        from prolog.interpreter.term import Number, Float, BigInt
+        from prolog.interpreter.term import Number, BigInt
         s = node.additional_info
         try:
             intval = string_to_int(s)
-            return Number(intval)
         except ParseStringOverflowError: # overflow
             return BigInt(rbigint.fromdecimalstr(s))
-        except ParseStringError: # saw dot
-            return Float(float(s))
+        return Number(intval)
+
+    def visit_FLOAT(self, node):
+        from prolog.interpreter.term import Float
+        s = node.additional_info
+        return Float(float(s))
 
     def visit_STRING(self, node):
         from prolog.interpreter import helper
@@ -496,7 +503,7 @@ def get_engine(source, create_files=False, load_system=False, **modules):
 parser_fact = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF']]),
   Rule('fact', [['toplevel_op_expr', '.']]),
   Rule('complexterm', [['ATOM', '(', 'toplevel_op_expr', ')'], ['expr']]),
-  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
+  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['FLOAT'], ['+', 'FLOAT'], ['-', 'FLOAT'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
   Rule('listexpr', [['[', 'listbody', ']']]),
   Rule('listbody', [['toplevel_op_expr', '|', 'toplevel_op_expr'], ['toplevel_op_expr']]),
   Rule('extratoplevel_op_expr', [[]]),
@@ -525,7 +532,7 @@ parser_fact = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF
 parser_query = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF']]),
   Rule('fact', [['toplevel_op_expr', '.']]),
   Rule('complexterm', [['ATOM', '(', 'toplevel_op_expr', ')'], ['expr']]),
-  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
+  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['FLOAT'], ['+', 'FLOAT'], ['-', 'FLOAT'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
   Rule('listexpr', [['[', 'listbody', ']']]),
   Rule('listbody', [['toplevel_op_expr', '|', 'toplevel_op_expr'], ['toplevel_op_expr']]),
   Rule('extratoplevel_op_expr', [[]]),
@@ -1038,15 +1045,15 @@ def recognize(runner, i):
                 return i
             if char == '@':
                 state = 54
-            elif char == '\\':
-                state = 55
             elif char == '.':
-                state = 56
+                state = 55
             elif char == ':':
-                state = 57
+                state = 56
             elif char == '=':
-                state = 58
+                state = 57
             elif char == '<':
+                state = 58
+            elif char == '\\':
                 state = 59
             else:
                 break
@@ -1553,7 +1560,7 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 55
                 return ~i
-            if char == '=':
+            if char == '.':
                 state = 62
             else:
                 break
@@ -1564,16 +1571,16 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 56
                 return ~i
-            if char == '.':
+            if char == '=':
                 state = 61
             else:
                 break
-        if state == 57:
+        if state == 59:
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 57
+                runner.state = 59
                 return ~i
             if char == '=':
                 state = 60
@@ -3116,12 +3123,12 @@ lexer = DummyLexer(recognize, DFA(98,
   (30, '\xff'): 30,
   (32, '-'): 64,
   (32, '>'): 65,
-  (33, '.'): 56,
-  (33, ':'): 57,
-  (33, '<'): 59,
-  (33, '='): 58,
+  (33, '.'): 55,
+  (33, ':'): 56,
+  (33, '<'): 58,
+  (33, '='): 57,
   (33, '@'): 54,
-  (33, '\\'): 55,
+  (33, '\\'): 59,
   (35, '0'): 10,
   (35, '1'): 10,
   (35, '2'): 10,
@@ -4257,9 +4264,9 @@ lexer = DummyLexer(recognize, DFA(98,
   (53, 'y'): 10,
   (53, 'z'): 10,
   (54, '='): 63,
-  (55, '='): 62,
-  (56, '.'): 61,
-  (57, '='): 60,
+  (55, '.'): 62,
+  (56, '='): 61,
+  (59, '='): 60,
   (64, '>'): 66,
   (67, '0'): 10,
   (67, '1'): 10,
@@ -5350,8 +5357,8 @@ lexer = DummyLexer(recognize, DFA(98,
       51,
       52,
       53,
+      57,
       58,
-      59,
       60,
       61,
       62,
@@ -5435,8 +5442,8 @@ lexer = DummyLexer(recognize, DFA(98,
       51,
       52,
       53,
+      57,
       58,
-      59,
       60,
       61,
       62,
@@ -5470,7 +5477,7 @@ lexer = DummyLexer(recognize, DFA(98,
       94,
       95,
       97]),
- ['0, 0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
+ ['0, 0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
   'IGNORE',
   '(',
   'ATOM',
@@ -5527,9 +5534,9 @@ lexer = DummyLexer(recognize, DFA(98,
   '2',
   '2',
   '2',
+  'ATOM',
+  'ATOM',
   '2',
-  'ATOM',
-  'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
@@ -5567,7 +5574,7 @@ lexer = DummyLexer(recognize, DFA(98,
   'ATOM',
   'ATOM',
   '1, 0',
-  'NUMBER']), {'IGNORE': None})
+  'FLOAT']), {'IGNORE': None})
 
 # generated code between this line and its other occurence
  
