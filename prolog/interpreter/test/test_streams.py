@@ -698,3 +698,7 @@ def test_seen():
         assert w.current_instream.fd() == 0
     finally:
         delete_file(src)
+
+def test_open_stream_strange_buffering():
+    prolog_raises("domain_error(buffering, _)",
+            "open(blub, write, _, [buffer(strange_stuff)])")

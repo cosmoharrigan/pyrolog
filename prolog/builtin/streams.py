@@ -24,27 +24,32 @@ def impl_open_options(engine, heap, srcpath, mode, stream, options):
     if not isinstance(stream, term.Var):
         error.throw_type_error("variable", stream)
     opts = make_option_dict(options)
-    try:
-        mode = rwa[mode]
-        if mode == "r":
-            cls = PrologInputStream
+    mode = rwa.get(mode, None)
+    if mode is None:
+        error.throw_domain_error("io_mode", term.Callable.build(
+                "mode not supported"))
+    else:
+        buffering = opts.get("buffer", "full")
+        if buffering == "full":
+            bufmode = -1
+        elif buffering == "line":
+            bufmode = 1
+        elif buffering == "false":
+            bufmode = 0
         else:
-            cls = PrologOutputStream
+            error.throw_domain_error("buffering", term.Callable.build(buffering))
+            assert 0, "unreachable"
 
         try:
-            buffering = opts["buffer"]
-            if buffering == "full":
-                buffering = -1
-            elif buffering == "line":
-                buffering == 1
-            elif buffering == "false":
-                buffering = 0
+            if mode == "r":
+                prolog_stream = PrologInputStream(open_file_as_stream(
+                        srcpath, mode, bufmode))
             else:
-                buffering = -1
-        except KeyError:
-            buffering = -1
-
-        prolog_stream = cls(open_file_as_stream(srcpath, mode, buffering))
+                prolog_stream = PrologOutputStream(open_file_as_stream(
+                        srcpath, mode, bufmode))
+        except OSError:
+            error.throw_existence_error("source_sink", term.Callable.build(srcpath))
+            assert 0, "unreachable"
         engine.streamwrapper.streams[prolog_stream.fd()] = prolog_stream
 
         try:
@@ -54,14 +59,10 @@ def impl_open_options(engine, heap, srcpath, mode, stream, options):
             alias = "$stream_%d" % prolog_stream.fd()
         engine.streamwrapper.aliases[alias] = prolog_stream
         stream.unify(term.Callable.build(alias), heap)
-    except KeyError:
-        error.throw_domain_error("io_mode", term.Callable.build(mode))
-    except OSError:
-        error.throw_existence_error("source_sink", term.Callable.build(srcpath))
 
 @expose_builtin("open", unwrap_spec=["atom", "atom", "obj"])
 def impl_open(engine, heap, srcpath, mode, stream):
-    impl_open_options(engine, heap, srcpath, mode, stream, [])
+    return impl_open_options(engine, heap, srcpath, mode, stream, [])
 
 @expose_builtin("close", unwrap_spec=["stream"])
 def impl_close(engine, heap, stream):
