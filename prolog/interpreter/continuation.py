@@ -85,8 +85,8 @@ def _process_hooks(scont, fcont, heap):
                 query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
                 try:
                     mod = e.modulewrapper.get_module(module, query)
-                except error.CatchableError, e:
-                    scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+                except error.CatchableError, err:
+                    scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
                     break
                 scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(hook, module)
