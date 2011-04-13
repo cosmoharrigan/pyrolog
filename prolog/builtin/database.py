@@ -28,7 +28,7 @@ def impl_abolish(engine, heap, module, predicate):
     if modname is not None:
         module = engine.modulewrapper.get_module(modname, predicate)
     try:
-        module.functions.pop(signature)
+        del module.functions[signature]
     except KeyError:
         pass
 
