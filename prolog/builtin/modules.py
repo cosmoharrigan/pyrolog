@@ -94,7 +94,7 @@ def impl_add_library_dir(engine, heap, path):
     for module in modules:
         if module.endswith('.pl'):
             stop = len(module) - 3
-            assert len >= 0
+            assert stop >= 0
             module = module[:stop]
         moduledict[module] = True
     engine.modulewrapper.libs[abspath] = moduledict
