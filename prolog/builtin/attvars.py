@@ -43,7 +43,7 @@ def impl_get_attr(engine, heap, var, attr, value):
 def impl_del_attr(engine, heap, var, attr):
     if isinstance(var, AttVar):
         heap.add_trail_atts(var, attr)
-        var.atts.pop(attr)
+        del var.atts[attr]
 
 @expose_builtin("term_attvars", unwrap_spec=["obj", "obj"])
 def impl_term_attvars(engine, heap, prolog_term, variables):
