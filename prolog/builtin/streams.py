@@ -75,7 +75,7 @@ def impl_close(engine, heap, stream):
                 w.current_instream = w.streams[0]
             if w.aliases[stream.alias].fd() == w.current_outstream.fd():
                 w.current_outstream = w.streams[1]
-            w.aliases.pop(stream.alias)
+            del w.aliases[stream.alias]
         except KeyError:
             pass
 
@@ -288,7 +288,7 @@ def read_till_next_dot(stream):
             continue
         if char == "end_of_file":
             ignore = False
-        if char.strip() == "":
+        if char.strip(" \n\t\r") == "":
             continue
         if not ignore:
             if char == "end_of_file":
