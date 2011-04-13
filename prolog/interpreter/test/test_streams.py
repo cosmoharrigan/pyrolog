@@ -585,10 +585,10 @@ def test_read():
 def test_read_whitespace():
     src = "__src__"
     create_file(src, """
-
+            
 
     f(a).
-
+        
 
     """)
     try:

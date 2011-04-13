@@ -302,7 +302,7 @@ def read_till_next_dot(stream):
             if char == ".":
                 nextchar, n = read_unicode_char(stream)
                 stream.seek(-n, 1)
-                if nextchar.strip() in tlist:
+                if nextchar.strip(" \n\t\r") in tlist:
                     return "".join(charlist)
 
 @expose_builtin("read", unwrap_spec=["stream", "obj"])
