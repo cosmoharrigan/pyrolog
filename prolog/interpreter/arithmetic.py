@@ -514,7 +514,7 @@ class __extend__(term.BigInt):
         return make_int(term.BigInt(other_value.pow(self.value)))
 
     def arith_pow_float(self, other_float):
-        return term.Float(other_float ** self.value.tofloat())
+        return term.Float(math.pow(other_float, self.value.tofloat()))
 
     # ------------------ shift right ------------------ 
     def arith_shr(self, other):
