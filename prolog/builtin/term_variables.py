@@ -33,7 +33,7 @@ def term_variables(engine, heap, prolog_term, variables, consider_attributes=Fal
                 prolog_list = Callable.build(".", [value, X])
                 prolog_list.unify(varc, heap)
                 varc = X
-        elif is_term(value):
+        elif isinstance(value, Callable):
             numargs = value.argument_count()
             for i in range(numargs - 1, -1, -1):
                 todo.append(value.argument_at(i))
