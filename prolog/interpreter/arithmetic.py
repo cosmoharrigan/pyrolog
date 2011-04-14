@@ -175,7 +175,7 @@ class __extend__(term.Number):
 
     def arith_pow_number(self, other_num):
         try:
-            res = rarithmetic.ovfcheck(other_num ** self.num)
+            res = ovfcheck_float_to_int(math.pow(other_num, self.num))
         except OverflowError:
             return self.arith_pow_bigint(rbigint.fromint(other_num))
         return term.Number(res)
@@ -439,7 +439,7 @@ class __extend__(term.Float):
         try:
             val = ovfcheck_float_to_int(self.floatval)
         except OverflowError:
-            val = rbigint.fromfloat(self).tofloat()
+            val = rbigint.fromfloat(self.floatval).tofloat()
         return term.Float(float(self.floatval - val))
 
     def arith_float_integer_part(self):
