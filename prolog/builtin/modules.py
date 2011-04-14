@@ -15,9 +15,9 @@ def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
 
 def handle_use_module_with_library(engine, heap, module, path, imports=None):
+    newpath = None
     if path.signature().eq(libsig):
         arg = path.argument_at(0)
-        path = None
         if isinstance(arg, Var):
             error.throw_instantiation_error()
         modulename = arg.name()
@@ -26,14 +26,14 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
                 modules[modulename]
             except KeyError:
                 continue
-            path = Callable.build("%s/%s" % (libpath, modulename))
+            newpath = Callable.build("%s/%s" % (libpath, modulename))
             break
-        if not path:
+        if not newpath:
             error.throw_existence_error("source_sink", arg)
     else:
         error.throw_existence_error("source_sink", path)
-    assert isinstance(path, Atom)
-    handle_use_module(engine, heap, module, path, imports)
+    assert isinstance(newpath, Atom)
+    handle_use_module(engine, heap, module, newpath, imports)
 
 def handle_use_module(engine, heap, module, path, imports=None):
     m = engine.modulewrapper
