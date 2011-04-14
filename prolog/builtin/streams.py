@@ -79,7 +79,8 @@ def impl_close(engine, heap, stream):
         except KeyError:
             pass
 
-def read_unicode_char(stream):
+def read_unicode_char(stream):  
+    assert isinstance(stream, PrologInputStream)
     c = stream.read(1)
     bytes_read = 1
     if c == "":
