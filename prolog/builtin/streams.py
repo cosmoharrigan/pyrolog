@@ -84,7 +84,7 @@ def read_unicode_char(stream):
     bytes_read = 1
     if c == "":
         return "end_of_file", 0
-    if ord(c) > 127: # beyond ASCII, so a character consists of 2 bytes
+    if ord(c[0]) > 127: # beyond ASCII, so a character consists of 2 bytes
         c += stream.read(1)
         bytes_read += 1
     return c, bytes_read
@@ -105,7 +105,7 @@ def peek_byte(stream):
             stream.seek(-1, os.SEEK_CUR)
         except OSError:
             pass
-        return ord(byte)
+        return ord(byte[0])
     return -1
 
 def read_term(stream):
@@ -141,7 +141,7 @@ def impl_get_byte(engine, heap, stream, obj):
     validate_stream_mode(stream, "read")
     byte = stream.read(1)
     if byte != '':
-        code = ord(byte)
+        code = ord(byte[0])
     else:
         code = -1
     obj.unify(term.Number(code), heap)
