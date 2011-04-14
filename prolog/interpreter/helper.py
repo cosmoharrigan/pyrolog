@@ -4,7 +4,8 @@ from prolog.interpreter import term
 from prolog.interpreter import error
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit
-from prolog.interpreter.stream import PrologStream
+from prolog.interpreter.stream import PrologOutputStream, PrologInputStream,\
+        PrologStream
 
 conssig = Signature.getsignature(".", 2)
 nilsig = Signature.getsignature("[]", 0)
@@ -80,11 +81,48 @@ def unwrap_predicate_indicator(predicate):
     return name, arity
 
 def unwrap_stream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
     if isinstance(obj, term.Atom):
         try:
-            return engine.streamwrapper.aliases[obj.name()]
+            stream = engine.streamwrapper.aliases[obj.name()]
         except KeyError:
             pass
+        else:
+            assert isinstance(stream, PrologStream)
+            return stream
+    error.throw_domain_error("stream", obj)
+
+def unwrap_instream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
+    if isinstance(obj, term.Atom):
+        try:
+            stream = engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+        else:
+            if not isinstance(stream, PrologInputStream):
+                error.throw_permission_error("input", "stream",
+                        term.Atom(stream.alias))
+            assert isinstance(stream, PrologInputStream)
+            return stream
+    error.throw_domain_error("stream", obj)
+
+def unwrap_outstream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
+    if isinstance(obj, term.Atom):
+        try:
+            stream = engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+        else:
+            if not isinstance(stream, PrologOutputStream):
+                error.throw_permission_error("output", "stream",
+                        term.Atom(stream.alias))
+            assert isinstance(stream, PrologOutputStream)
+            return stream
     error.throw_domain_error("stream", obj)
 
 def ensure_atomic(obj):

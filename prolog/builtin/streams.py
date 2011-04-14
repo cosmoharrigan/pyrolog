@@ -120,15 +120,8 @@ def read_term(stream):
 
     return "".join(chars)
 
-def validate_stream_mode(stream, mode): 
-    if isinstance(stream, PrologInputStream) and mode == "write":
-        error.throw_permission_error("output", "stream", term.Atom(stream.alias))
-    if isinstance(stream, PrologOutputStream) and mode == "read":
-        error.throw_permission_error("input", "stream", term.Atom(stream.alias))
-
-@expose_builtin("get_char", unwrap_spec=["stream", "obj"])
+@expose_builtin("get_char", unwrap_spec=["instream", "obj"])
 def impl_get_char(engine, heap, stream, obj):
-    validate_stream_mode(stream, "read")
     char, _ = read_unicode_char(stream)
     obj.unify(term.Callable.build(char), heap)
 
@@ -136,9 +129,8 @@ def impl_get_char(engine, heap, stream, obj):
 def impl_get_char_1(engine, heap, obj):
     impl_get_char(engine, heap, engine.streamwrapper.current_instream, obj)
 
-@expose_builtin("get_byte", unwrap_spec=["stream", "obj"])
+@expose_builtin("get_byte", unwrap_spec=["instream", "obj"])
 def impl_get_byte(engine, heap, stream, obj):
-    validate_stream_mode(stream, "read")
     byte = stream.read(1)
     if byte != '':
         code = ord(byte[0])
@@ -158,31 +150,28 @@ def impl_get_code(engine, heap, stream, obj):
 def impl_get_code_1(engine, heap, obj):
     impl_get_code(engine, heap, engine.streamwrapper.current_instream, obj)
 
-@expose_builtin("at_end_of_stream", unwrap_spec=["stream"])
+@expose_builtin("at_end_of_stream", unwrap_spec=["instream"])
 def impl_at_end_of_stream(engine, heap, stream):
     byte = peek_byte(stream)
     if byte > -1:
         raise error.UnificationFailed()
 
-@expose_builtin("peek_char", unwrap_spec=["stream", "obj"])
+@expose_builtin("peek_char", unwrap_spec=["instream", "obj"])
 def impl_peek_char(engine, heap, stream, obj):
-    validate_stream_mode(stream, "read")
     char = peek_unicode_char(stream)
     obj.unify(term.Callable.build(char), heap)
 
-@expose_builtin("peek_byte", unwrap_spec=["stream", "obj"])
+@expose_builtin("peek_byte", unwrap_spec=["instream", "obj"])
 def impl_peek_byte(engine, heap, stream, obj):
-    validate_stream_mode(stream, "read")
     byte = peek_byte(stream)
     obj.unify(term.Number(byte), heap)
 
-@expose_builtin("peek_code", unwrap_spec=["stream", "obj"])
+@expose_builtin("peek_code", unwrap_spec=["instream", "obj"])
 def impl_peek_code(engine, heap, stream, obj):
     impl_peek_byte(engine, heap, stream, obj)
 
-@expose_builtin("put_char", unwrap_spec=["stream", "atom"])
+@expose_builtin("put_char", unwrap_spec=["outstream", "atom"])
 def impl_put_char(engine, heap, stream, atom):
-    validate_stream_mode(stream, "write")
     length = len(atom)
     if length == 1:
         stream.write(atom)
@@ -197,9 +186,8 @@ def impl_put_char(engine, heap, stream, atom):
 def impl_put_char_1(engine, heap, obj):
     impl_put_char(engine, heap, engine.streamwrapper.current_outstream, obj)
 
-@expose_builtin("put_byte", unwrap_spec=["stream", "int"])
+@expose_builtin("put_byte", unwrap_spec=["outstream", "int"])
 def impl_put_byte(engine, heap, stream, byte):
-    validate_stream_mode(stream, "write")
     if byte < 0:
         # XXX have to care about bigints
         error.throw_type_error("byte", term.Number(byte))
@@ -221,17 +209,15 @@ def impl_current_output(engine, heap, obj):
         error.throw_domain_error("stream", obj)
     obj.unify(term.Atom(engine.streamwrapper.current_outstream.alias), heap)
 
-@expose_builtin("set_input", unwrap_spec=["stream"])
+@expose_builtin("set_input", unwrap_spec=["instream"])
 def impl_set_input(engine, heap, stream):
-    validate_stream_mode(stream, "read")
     engine.streamwrapper.current_instream = stream
     
-@expose_builtin("set_output", unwrap_spec=["stream"])
+@expose_builtin("set_output", unwrap_spec=["outstream"])
 def impl_set_output(engine, heap, stream):
-    validate_stream_mode(stream, "write")
     engine.streamwrapper.current_outstream = stream
 
-@expose_builtin("seek", unwrap_spec=["stream", "int", "atom", "obj"])
+@expose_builtin("seek", unwrap_spec=["instream", "int", "atom", "obj"])
 def impl_seek(engine, heap, stream, offset, mode, obj):
     try:
         mode = seek_mode[mode]
@@ -244,18 +230,16 @@ def impl_seek(engine, heap, stream, offset, mode, obj):
     pos = int(stream.tell())
     obj.unify(term.Number(pos), heap)
 
-@expose_builtin("nl", unwrap_spec=["stream"])
+@expose_builtin("nl", unwrap_spec=["outstream"])
 def impl_nl(engine, heap, stream):
-    validate_stream_mode(stream, "write")
     stream.write("\n")
 
 @expose_builtin("nl", unwrap_spec=[])
 def impl_nl_0(engine, heap):
     impl_nl(engine, heap, engine.streamwrapper.current_outstream)
 
-@expose_builtin("write", unwrap_spec=["stream", "concrete"])
+@expose_builtin("write", unwrap_spec=["outstream", "concrete"])
 def impl_write(engine, heap, stream, term):
-    validate_stream_mode(stream, "write")
     formatter = TermFormatter.from_option_list(engine, [])
     stream.write(formatter.format(term))
 
@@ -263,9 +247,8 @@ def impl_write(engine, heap, stream, term):
 def impl_write_1(engine, heap, term):
     impl_write(engine, heap, engine.streamwrapper.current_outstream, term)
 
-@expose_builtin("write_term", unwrap_spec=["stream", "concrete", "list"])
+@expose_builtin("write_term", unwrap_spec=["outstream", "concrete", "list"])
 def impl_write_term(engine, heap, stream, term, options):
-    validate_stream_mode(stream, "write")
     formatter = TermFormatter.from_option_list(engine, options)
     stream.write(formatter.format(term))
  
@@ -305,10 +288,9 @@ def read_till_next_dot(stream):
                 if _strip(nextchar) in tlist:
                     return "".join(charlist)
 
-@expose_builtin("read", unwrap_spec=["stream", "obj"])
+@expose_builtin("read", unwrap_spec=["instream", "obj"])
 def impl_read(engine, heap, stream, obj):
     from prolog.interpreter.parsing import parse_query_term
-    validate_stream_mode(stream, "read")
     src = read_till_next_dot(stream)
     parsed = parse_query_term(src)
     obj.unify(parsed, heap)
