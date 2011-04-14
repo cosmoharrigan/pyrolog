@@ -1006,7 +1006,6 @@ def test_importlist_with_not_existing_rule():
     """ % m)
     try:
         prolog_raises("import_error(mod, 'f/1')", "use_module(%s)" % m, e)
-        assert "mod" not in e.modulewrapper.modules
         assert e.modulewrapper.current_module.name == "user"
     finally:
         delete_file(m)
@@ -1015,3 +1014,15 @@ def test_numeric_module():
     prolog_raises("domain_error(_, _)", "assert(:(1, 2))")
     prolog_raises("domain_error(_, _)", "assert(:(1.2, 2.2))")
 
+def test_load_broken_module_twice():
+    e = Engine()
+    m = "mod"
+    create_file(m, """
+    :- module(%s, [f/1]).
+    """ % m)
+    try:
+        prolog_raises("import_error(mod, 'f/1')", "use_module('%s')" % m, e)
+        assert_true("use_module('%s')." % m, e)
+        assert m in e.modulewrapper.modules
+    finally:
+        delete_file(m)
