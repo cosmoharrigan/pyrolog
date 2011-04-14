@@ -44,7 +44,6 @@ class Module(object):
 
     def add_meta_predicate(self, signature, arglist):
         func = self.lookup(signature)
-        func.is_meta = True
         func.meta_args = arglist
 
     @jit.purefunction_promote("0")
