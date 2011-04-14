@@ -159,7 +159,7 @@ def unwrap_meta_arguments(predicate):
         elif isinstance(arg, Atom) and arg.name() in meta_args:
             val = arg.name()
             arglist.append(val)
-        elif isinstance(arg, Number) and arg.num in range(10):
+        elif isinstance(arg, Number) and 0 <= arg.num <= 9:
             val = str(arg.num)
             arglist.append(val)
         else:
