@@ -14,57 +14,65 @@ libsig = Signature.getsignature("library", 1)
 def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
 
-def handle_use_module(engine, heap, module, path, imports=None):
-    if is_term(path):
-        if path.signature().eq(libsig):
-            arg = path.argument_at(0)
-            path = None
-            if isinstance(arg, Var):
-                error.throw_instantiation_error()
-            modulename = arg.name()
-            for libpath, modules in engine.modulewrapper.libs.iteritems():
-                try:
-                    modules[modulename]
-                except KeyError:
-                    continue
-                path = Callable.build("%s/%s" % (libpath, modulename))
-                break
-            if not path:
-                error.throw_existence_error("source_sink", arg)
+def handle_use_module_with_library(engine, heap, module, path, imports=None):
+    if path.signature().eq(libsig):
+        arg = path.argument_at(0)
+        path = None
+        if isinstance(arg, Var):
+            error.throw_instantiation_error()
+        modulename = arg.name()
+        for libpath, modules in engine.modulewrapper.libs.iteritems():
+            try:
+                modules[modulename]
+            except KeyError:
+                continue
+            path = Callable.build("%s/%s" % (libpath, modulename))
+            break
+        if not path:
+            error.throw_existence_error("source_sink", arg)
+    else:
+        error.throw_existence_error("source_sink", path)
+    assert isinstance(path, Atom)
+    handle_use_module(engine, heap, module, path, imports)
 
-    if isinstance(path, Atom):
-        m = engine.modulewrapper
-        path = path.name()
-        modulename = _basename(path)
-        if path.endswith(".pl"):
-            stop = len(modulename) - 3
-            assert stop >= 0
-            modulename = modulename[:stop]
-        if modulename not in m.modules: # prevent recursive imports
-            current_module = m.current_module
-            file_content = get_source(path)
-            engine.runstring(file_content)
-            for sig in m.current_module.exports:
-                if sig not in m.current_module.functions:
-                    del m.modules[modulename]
-                    m.current_module = current_module
-                    error.throw_import_error(modulename, sig)
-            module = m.current_module = current_module
-            # XXX should use name argument of module here like SWI
-        imported_module = m.modules[modulename]
-        module.use_module(engine, heap, imported_module, imports)
+def handle_use_module(engine, heap, module, path, imports=None):
+    m = engine.modulewrapper
+    path = path.name()
+    modulename = _basename(path)
+    if path.endswith(".pl"):
+        stop = len(modulename) - 3
+        assert stop >= 0
+        modulename = modulename[:stop]
+    if modulename not in m.modules: # prevent recursive imports
+        current_module = m.current_module
+        file_content = get_source(path)
+        engine.runstring(file_content)
+        for sig in m.current_module.exports:
+            if sig not in m.current_module.functions:
+                m.current_module = current_module
+                error.throw_import_error(modulename, sig)
+        module = m.current_module = current_module
+        # XXX should use name argument of module here like SWI
+    imported_module = m.modules[modulename]
+    module.use_module(engine, heap, imported_module, imports)
 
 @expose_builtin("use_module", unwrap_spec=["callable"], needs_module=True)
 def impl_use_module(engine, heap, module, path):
-    handle_use_module(engine, heap, module, path)
+    if isinstance(path, Atom):
+        handle_use_module(engine, heap, module, path)
+    else:
+        handle_use_module_with_library(engine, heap, module, path)
 
 @expose_builtin("use_module", unwrap_spec=["callable", "list"], needs_module=True)
 def impl_use_module_with_importlist(engine, heap, module, path, imports):
     importlist = []
     for sigatom in imports:
         importlist.append(Signature.getsignature(
-                *unwrap_predicate_indicator(sigatom)))
-    handle_use_module(engine, heap, module, path, importlist)
+                *unwrap_predicate_indicator(sigatom))) 
+    if isinstance(path, Atom):
+        handle_use_module(engine, heap, module, path, importlist)
+    else:
+        handle_use_module_with_library(engine, heap, module, path, importlist)
 
 @expose_builtin("module", unwrap_spec=["atom"])
 def impl_module_1(engine, heap, name):

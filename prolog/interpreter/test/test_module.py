@@ -497,6 +497,7 @@ def test_library_directory():
 def test_use_library_errors():
     prolog_raises("instantiation_error", "use_module(library(X))")
     prolog_raises("existence_error(_, _)", "use_module(library(does_not_exist_))")
+    prolog_raises("existence_error(source_sink, _)", "use_module(sdfdsfsf(sadasd))")
 
 def test_library_dir_single_query():
     e = Engine()
