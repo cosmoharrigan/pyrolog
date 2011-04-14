@@ -13,7 +13,7 @@ def unpack_modname_and_predicate(rule):
         error.throw_domain_error("atom", rule.argument_at(0))
     return rule.argument_at(0).name(), rule.argument_at(1)
 
-@expose_builtin("abolish", unwrap_spec=["obj"], needs_module=True)
+@expose_builtin("abolish", unwrap_spec=["callable"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
     modname = None
     if predicate.signature().eq(prefixsig):
