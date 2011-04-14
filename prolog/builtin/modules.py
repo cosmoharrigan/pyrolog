@@ -9,6 +9,7 @@ from prolog.interpreter.signature import Signature
 
 meta_args = "0123456789:?+-"
 libsig = Signature.getsignature("library", 1)
+andsig = Signature.getsignature(",", 2)
 
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
@@ -18,7 +19,7 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
     newpath = None
     if path.signature().eq(libsig):
         arg = path.argument_at(0)
-        if isinstance(arg, Var):
+        if isinstance(arg, Var) or not isinstance(arg, Atom):
             error.throw_instantiation_error()
         modulename = arg.name()
         for libpath, modules in engine.modulewrapper.libs.iteritems():
@@ -143,17 +144,18 @@ def impl_this_module(engine, heap, module):
     name = engine.modulewrapper.current_module.name
     Callable.build(name).unify(module, heap)  
 
-@expose_builtin("meta_predicate", unwrap_spec=["obj"])
+@expose_builtin("meta_predicate", unwrap_spec=["callable"])
 def impl_meta_predicate(engine, heap, predlist):
-    while predlist:
-        if isinstance(predlist, Var):
-            error.throw_instantiation_error()
-        if predlist.name() == ",":
+    run = True
+    while run:
+        if predlist.signature().eq(andsig):
             pred = predlist.argument_at(0)
             predlist = predlist.argument_at(1)
+            if isinstance(predlist, Var):
+                error.throw_instantiation_error()
         else:
             pred = predlist
-            predlist = None
+            run = False
         args = unwrap_meta_arguments(pred)
         engine.modulewrapper.current_module.add_meta_predicate(
                 pred.signature(), args)
