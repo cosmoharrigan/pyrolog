@@ -237,7 +237,7 @@ def get_query_and_vars(s):
     tokens = lexer.tokenize(s, eof=True)
     s = parser_query.parse(tokens, lazy=False)
     builder = TermBuilder()
-    query = builder.build(s)
+    query = builder.build_query(s)
     return query, builder.varname_to_var
 
 class OrderTransformer(object):
