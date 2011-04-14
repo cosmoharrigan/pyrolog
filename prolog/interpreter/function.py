@@ -2,7 +2,7 @@ from prolog.interpreter.term import Callable, Atom, Var
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
-from prolog.interpreter.helper import is_numeric
+from prolog.interpreter.helper import is_callable
 # XXX needs tests
 
 cutsig = Signature.getsignature("!", 0)
@@ -120,8 +120,7 @@ class Rule(object):
 
 class Function(object):
     def __init__(self, firstrule=None):
-        self.is_meta = False
-        self.meta_args = []
+        self.meta_args = None
         if firstrule is None:
             self.rulechain = self.last = None
         else:
@@ -129,7 +128,7 @@ class Function(object):
             self.last = self.rulechain
 
     def add_meta_prefixes(self, query, current_module):
-        if not self.is_meta:
+        if not self.meta_args:
             return query
         numargs = query.argument_count()
         args = [None] * numargs
@@ -140,8 +139,7 @@ class Function(object):
 
     def _prefix_argument(self, arg, meta_arg, module):
         if meta_arg in "0123456789:":
-            if isinstance(arg, Var) or is_numeric(arg)\
-                    or not arg.signature().eq(prefixsig):
+            if not(is_callable(arg, None) and arg.signature().eq(prefixsig)):
                 return Callable.build(":", [module, arg])
         return arg
 
