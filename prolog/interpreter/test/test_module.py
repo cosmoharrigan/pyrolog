@@ -115,6 +115,10 @@ def test_modules_use_module():
     assert_true("h(a).", e)
     assert_false("h(b).", e)
 
+def test_use_module_not_instantiated():
+    prolog_raises("instantiation_error", "use_module(X)")
+    prolog_raises("instantiation_error", "use_module(X, [])")
+
 def test_modules_integration():
     e = get_engine("""
     :- use_module(m).

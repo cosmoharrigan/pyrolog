@@ -54,11 +54,11 @@ def handle_use_module(engine, heap, module, path, imports=None):
         imported_module = m.modules[modulename]
         module.use_module(engine, heap, imported_module, imports)
 
-@expose_builtin("use_module", unwrap_spec=["obj"], needs_module=True)
+@expose_builtin("use_module", unwrap_spec=["callable"], needs_module=True)
 def impl_use_module(engine, heap, module, path):
     handle_use_module(engine, heap, module, path)
 
-@expose_builtin("use_module", unwrap_spec=["obj", "list"], needs_module=True)
+@expose_builtin("use_module", unwrap_spec=["callable", "list"], needs_module=True)
 def impl_use_module_with_importlist(engine, heap, module, path, imports):
     importlist = []
     for sigatom in imports:
