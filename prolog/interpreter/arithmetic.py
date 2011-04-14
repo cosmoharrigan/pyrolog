@@ -439,7 +439,7 @@ class __extend__(term.Float):
         try:
             val = ovfcheck_float_to_int(self.floatval)
         except OverflowError:
-            return self.arith_hyphenminus(self.arith_floor())
+            val = rbigint.fromfloat(self).tofloat()
         return term.Float(float(self.floatval - val))
 
     def arith_float_integer_part(self):
