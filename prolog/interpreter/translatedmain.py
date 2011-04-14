@@ -166,7 +166,8 @@ def repl(engine):
             run(goal, var_to_pos, engine)
  
 def execute(e, filename):
-    e.run(term.Callable.build("consult", [term.Callable.build(filename)]), e.user_module)
+    e.run(term.Callable.build("consult", [term.Callable.build(filename)]),
+            e.modulewrapper.user_module)
 
 if __name__ == '__main__':
     from sys import argv
