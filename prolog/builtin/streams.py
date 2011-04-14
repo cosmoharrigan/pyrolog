@@ -288,7 +288,7 @@ def read_till_next_dot(stream):
             continue
         if char == "end_of_file":
             ignore = False
-        if char.strip(" \n\t\r") == "":
+        if _strip(char) == "":
             continue
         if not ignore:
             if char == "end_of_file":
@@ -302,7 +302,7 @@ def read_till_next_dot(stream):
             if char == ".":
                 nextchar, n = read_unicode_char(stream)
                 stream.seek(-n, 1)
-                if nextchar.strip(" \n\t\r") in tlist:
+                if _strip(nextchar) in tlist:
                     return "".join(charlist)
 
 @expose_builtin("read", unwrap_spec=["stream", "obj"])
@@ -337,3 +337,20 @@ def impl_see(engine, heap, obj):
 @expose_builtin("seen")
 def impl_seen(engine, heap):
     impl_close(engine, heap, engine.streamwrapper.current_instream)
+
+def _strip(s):
+    whites = " \n\r\t"
+    length = len(s)
+    start = 0
+    for c in s:
+        if c not in whites:
+            break
+        start += 1
+    end = length
+    for i in range(length - 1, -1, -1):
+        if s[i] not in whites:
+            break
+        end -= 1
+    assert start <= length
+    return s[start:end]
+        
