@@ -352,5 +352,6 @@ def _strip(s):
             break
         end -= 1
     assert start <= length
+    assert end >= 0
     return s[start:end]
         
