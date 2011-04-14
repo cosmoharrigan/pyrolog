@@ -824,7 +824,6 @@ def test_this_module_2():
     g(X) :- f(X).
     """)
     assert_true("g(X), X == user.", e)
-    #assert_true("n:g(X), X == n.", e)
 
 def test_meta_function():
     e = get_engine("""
@@ -840,9 +839,9 @@ def test_meta_function():
         assert key.name in ["f","g","h","a"]
         assert key.numargs == 1
         if key.name in ["f", "g", "h"]:
-            assert user.functions[key].is_meta
+            assert user.functions[key].meta_args != []
         else:
-            assert not user.functions[key].is_meta
+            assert not user.functions[key].meta_args == []
 
 def test_meta_predicate():
     e = get_engine("""
@@ -957,9 +956,26 @@ def test_meta_predicate_colon_predicate():
     assert_true(":(a:9999999999999999999999999999999999999999999999999, b:2, (a, b)).", e)
 
 def test_meta_predicate_errors():
+    py.test.skip("todo")
     prolog_raises("instantiation_error", "meta_predicate f(X)")
     prolog_raises("instantiation_error", "meta_predicate X")
     prolog_raises("domain_error(_, _)", "meta_predicate f(blub)")
+
+    m = "mod"
+    create_file(m, """
+    :- module(%s, []).
+    :- meta_predicate X.
+    """ % m)
+    e = Engine()
+    try:
+        try: # XXX strange behaviour, can't catch
+            prolog_raises("instantiation_error", "use_module(%s)" % m)
+        except UncaughtError:
+            pass
+        assert e.modulewrapper.current_module.name == "user"
+    finally:
+        delete_file(m)
+
 
 def test_current_module():
     e = get_engine("""
@@ -990,7 +1006,7 @@ def test_engine_current_module_after_invalid_import():
     """)
     e = Engine()
     try:
-        try:
+        try: # XXX strange, prolog_raises does not catch the error
             prolog_raises("type_error(_, _)", "use_module(m)", e)
         except UncaughtError:
             pass
