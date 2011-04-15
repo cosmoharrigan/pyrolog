@@ -1042,3 +1042,6 @@ def test_load_broken_module_twice():
         assert m in e.modulewrapper.modules
     finally:
         delete_file(m)
+
+def test_retract_module_name_is_not_atom():
+    assert_false("retract(f(x):f(y)).")
