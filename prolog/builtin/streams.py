@@ -72,9 +72,13 @@ def impl_close(engine, heap, stream):
         del w.streams[stream.fd()]
         try:
             if w.aliases[stream.alias].fd() == w.current_instream.fd():
-                w.current_instream = w.streams[0]
+                instream = w.streams[0]
+                assert isinstance(instream, PrologInputStream)
+                w.current_instream = instream
             if w.aliases[stream.alias].fd() == w.current_outstream.fd():
-                w.current_outstream = w.streams[1]
+                outstream = w.streams[1]
+                assert isinstance(outstream, PrologOutputStream)
+                w.current_outstream = outstream
             del w.aliases[stream.alias]
         except KeyError:
             pass
@@ -132,6 +136,7 @@ def impl_get_char_1(engine, heap, obj):
 
 @expose_builtin("get_byte", unwrap_spec=["instream", "obj"])
 def impl_get_byte(engine, heap, stream, obj):
+    assert isinstance(stream, PrologInputStream)
     byte = stream.read(1)
     if byte != '':
         code = ord(byte[0])
@@ -143,7 +148,7 @@ def impl_get_byte(engine, heap, stream, obj):
 def impl_get_byte_1(engine, heap, obj):
     impl_get_byte(engine, heap, engine.streamwrapper.current_instream, obj)
 
-@expose_builtin("get_code", unwrap_spec=["stream", "obj"])
+@expose_builtin("get_code", unwrap_spec=["instream", "obj"])
 def impl_get_code(engine, heap, stream, obj):
     impl_get_byte(engine, heap, stream, obj)
 
