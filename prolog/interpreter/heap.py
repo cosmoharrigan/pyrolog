@@ -102,6 +102,7 @@ class Heap(object):
         assert not self.discarded
         for i in range(self.i-1, -1, -1):
             v = self.trail_var[i]
+            assert v is not None
             v.binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
