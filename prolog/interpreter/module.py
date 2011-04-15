@@ -25,6 +25,7 @@ class ModuleWrapper(object):
         try:
             return self.modules[name]
         except KeyError:
+            assert isinstance(errorterm, Callable)
             error.throw_existence_error("procedure",
                 errorterm.get_prolog_signature())
         
