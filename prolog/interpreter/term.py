@@ -489,7 +489,10 @@ class Atom(Callable):
     def signature(self):
         return self._signature
 
-class Number(NonVar): #, UnboxedValue):
+class Numeric(NonVar):
+    pass
+
+class Number(Numeric): #, UnboxedValue):
     TYPE_STANDARD_ORDER = 3
     _immutable_ = True
     #__slots__ = ("num", )
@@ -537,7 +540,7 @@ class Number(NonVar): #, UnboxedValue):
         return isinstance(other, Number) and other.num == self.num
 
 
-class BigInt(NonVar):
+class BigInt(Numeric):
     TYPE_STANDARD_ORDER = 3
     # value is an instance of rbigint
     def __init__(self, value):
@@ -569,7 +572,7 @@ class BigInt(NonVar):
         assert 0
 
     
-class Float(NonVar):
+class Float(Numeric):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True
     def __init__(self, floatval):

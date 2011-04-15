@@ -55,7 +55,6 @@ def wrap_builtin_operation(name, num_args):
     result = miniglobals['prolog_' + name]
     return result
 
-
 # remove unneeded parts, use sane names for operations
 simple_functions = [
     ("+", 2, "add"),
@@ -85,6 +84,11 @@ for prolog_name, num_args, name in simple_functions:
     
     signature = Signature.getsignature(prolog_name, num_args)
     signature.set_extra("arithmetic", f)
+
+    for suffix in ["", "_number", "_bigint", "_float"]:
+        def not_implemented_func(*args):
+            raise NotImplementedError("abstract base class")
+        setattr(term.Numeric, "arith_%s%s" % (name, suffix), not_implemented_func)
 
 @jit.purefunction
 def get_arithmetic_function(signature):
