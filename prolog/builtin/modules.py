@@ -161,6 +161,7 @@ def impl_meta_predicate(engine, heap, predlist):
                 pred.signature(), args)
           
 def unwrap_meta_arguments(predicate):
+    assert isinstance(predicate, Callable)
     args = predicate.arguments()
     arglist = []
     for arg in args:
