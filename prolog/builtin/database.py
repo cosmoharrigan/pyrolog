@@ -15,7 +15,9 @@ def unpack_modname_and_predicate(rule):
         assert 0, "unreachable"
     mod = rule.argument_at(0)
     indicator = rule.argument_at(1)
-    assert isinstance(mod, term.Atom)
+    if not isinstance(mod, term.Atom):
+        raise error.UnificationFailed()
+        assert 0, "unreachable"
     return mod.name(), indicator
 
 @expose_builtin("abolish", unwrap_spec=["callable"], needs_module=True)
@@ -60,8 +62,8 @@ def impl_retract(engine, heap, module, pattern):
     modname = None
     if pattern.signature().eq(prefixsig):
         modname, pattern = unpack_modname_and_predicate(pattern)
+    assert isinstance(pattern, term.Callable)
     if helper.is_term(pattern) and pattern.signature().eq(implsig):
-        assert isinstance(pattern, term.Callable)
         head = helper.ensure_callable(pattern.argument_at(0))
         body = helper.ensure_callable(pattern.argument_at(1))
     else:
@@ -99,6 +101,3 @@ def impl_retract(engine, heap, module, pattern):
     else:
         raise error.UnificationFailed()
     # heap.discard(oldstate)
-
-
-
