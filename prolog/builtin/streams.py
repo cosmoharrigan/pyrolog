@@ -21,7 +21,9 @@ def make_option_dict(options):
         if isinstance(option, term.Numeric):
             error.throw_domain_error("stream_option", option)
         if isinstance(option, term.Callable) and option.argument_count() == 1:
-            opts[option.name()] = option.argument_at(0).name()
+            arg0 = option.argument_at(0)
+            if isinstance(arg0, term.Atom):
+                opts[option.name()] = arg0.name()
     return opts
 
 @expose_builtin("open", unwrap_spec=["atom", "atom", "obj", "list"])
