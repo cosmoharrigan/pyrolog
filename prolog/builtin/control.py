@@ -107,7 +107,7 @@ class NotSuccessContinuation(continuation.Continuation):
             raise error.UnificationFailed
         nextcont = self.nextcont
         assert isinstance(nextcont, continuation.FailureContinuation)
-        return self.nextcont.fail(self.undoheap)
+        return nextcont.fail(self.undoheap)
 
 class NotFailureContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap):
