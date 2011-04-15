@@ -148,6 +148,7 @@ def impl_this_module(engine, heap, module):
 def impl_meta_predicate(engine, heap, predlist):
     run = True
     while run:
+        assert isinstance(predlist, Callable)
         if predlist.signature().eq(andsig):
             pred = predlist.argument_at(0)
             predlist = predlist.argument_at(1)
@@ -156,6 +157,7 @@ def impl_meta_predicate(engine, heap, predlist):
         else:
             pred = predlist
             run = False
+        assert isinstance(pred, Callable)
         args = unwrap_meta_arguments(pred)
         engine.modulewrapper.current_module.add_meta_predicate(
                 pred.signature(), args)
