@@ -11,7 +11,11 @@ prefixsig = Signature.getsignature(":", 2)
 def unpack_modname_and_predicate(rule):
     if helper.is_numeric(rule.argument_at(0)):
         error.throw_domain_error("atom", rule.argument_at(0))
-    return rule.argument_at(0).name(), rule.argument_at(1)
+        assert 0, "unreachable"
+    mod = rule.argument_at(0)
+    indicator = rule.argument_at(1)
+    assert isinstance(mod, term.Atom)
+    return mod.name(), indicator
 
 @expose_builtin("abolish", unwrap_spec=["callable"], needs_module=True)
 def impl_abolish(engine, heap, module, predicate):
