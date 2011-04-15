@@ -139,7 +139,7 @@ class Function(object):
 
     def _prefix_argument(self, arg, meta_arg, module):
         if meta_arg in "0123456789:":
-            if not(is_callable(arg, None) and arg.signature().eq(prefixsig)):
+            if not (isinstance(arg, Callable) and arg.signature().eq(prefixsig)):
                 return Callable.build(":", [module, arg])
         return arg
 
