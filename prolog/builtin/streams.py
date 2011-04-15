@@ -16,7 +16,12 @@ seek_mode = {"bof": os.SEEK_SET, "current": os.SEEK_CUR, "eof": os.SEEK_END}
 def make_option_dict(options):
     opts = {}
     for option in options:
-        opts[option.name()] = option.argument_at(0).name()
+        if isinstance(option, term.Var):
+            error.throw_instantiation_error()
+        if isinstance(option, term.Numeric):
+            error.throw_domain_error("stream_option", option)
+        if isinstance(option, term.Callable) and option.argument_count() == 1:
+            opts[option.name()] = option.argument_at(0).name()
     return opts
 
 @expose_builtin("open", unwrap_spec=["atom", "atom", "obj", "list"])

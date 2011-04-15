@@ -709,3 +709,31 @@ def test_strip():
     assert _strip("") == ""
     assert _strip(" \n \r \t   abc  \n  \r  \t  ") == "abc"
     assert _strip("    \n    \t   \n   ") == ""
+
+def test_open_with_options():
+    m = "mod"
+    create_file(m, """
+    :- module(%s, []).
+    """ % s)
+    try:
+        prolog_raises("domain_error(stream_option, _)", "open(%s, read, _, [g, 1, a, f(a)])" % m)
+        prolog_raises("instantiation_error", "open(%s, read, _, [f(a), X])" % m)
+        assert_true("open(%s, read, _, [])." % m)
+        assert_true("open(%s, read, _, [a, f(a), []])." % m)
+        assert_true("open(%s, read, _, [a, f(a), g(X)])." % m)
+    finally:
+        delete_file(m)
+
+def test_open_with_options():
+    m = "mod"
+    create_file(m, """
+    :- module(%s, []).
+    """ % m)
+    try:
+        prolog_raises("domain_error(stream_option, _)", "open(%s, read, _, [g, 1, a, f(a)])" % m)
+        prolog_raises("instantiation_error", "open(%s, read, _, [f(a), X])" % m)
+        assert_true("open(%s, read, _, [])." % m)
+        assert_true("open(%s, read, _, [a, f(a), []])." % m)
+        assert_true("open(%s, read, _, [a, f(a), []])." % m)
+    finally:
+        delete_file(m)
