@@ -60,7 +60,10 @@ class Module(object):
         if imports is None:
             importlist = module.exports
         else:
-            importlist = imports
+            importlist = []
+            for pred in imports:
+                if pred in module.exports:
+                    importlist.append(pred)
         for sig in importlist:
             try:
                 self.functions[sig] = module.functions[sig]

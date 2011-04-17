@@ -1045,3 +1045,37 @@ def test_load_broken_module_twice():
 
 def test_retract_module_name_is_not_atom():
     assert_false("retract(f(x):f(y)).")
+
+def test_importlist_intersection():
+    e = get_engine("""
+    :- use_module(m, []).
+    """, 
+    m = """
+    :- module(m, [f/1]).
+    f(a).
+    g(a).
+    """)
+    prolog_raises("existence_error(procedure, '/'('f', 1))", "f(a)", e)
+    prolog_raises("existence_error(procedure, '/'('g', 1))", "g(a)", e)
+
+    e = get_engine("""
+    :- use_module(m, [g/1]).
+    """, 
+    m = """
+    :- module(m, [f/1]).
+    f(a).
+    g(a).
+    """)
+    prolog_raises("existence_error(procedure, '/'('f', 1))", "f(a)", e)
+    prolog_raises("existence_error(procedure, '/'('g', 1))", "g(a)", e)
+
+    e = get_engine("""
+    :- use_module(m, [f/1, g/1]).
+    """, 
+    m = """
+    :- module(m, [f/1]).
+    f(a).
+    g(a).
+    """)
+    assert_true("f(a).", e)
+    prolog_raises("existence_error(procedure, '/'('g', 1))", "g(a)", e)
