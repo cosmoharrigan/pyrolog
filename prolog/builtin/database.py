@@ -74,10 +74,10 @@ def impl_retract(engine, heap, module, pattern):
         error.throw_permission_error("modify", "static_procedure", 
                                      head.get_prolog_signature())
     if modname is None:
-        function = module.fetch_function(engine, head.signature())
+        function = module.fetch_function(head.signature())
     else:
         function = engine.modulewrapper.get_module(modname,
-                pattern).fetch_function(engine, head.signature())
+                pattern).fetch_function(head.signature())
     if function is None:
         raise error.UnificationFailed
     rulechain = function.rulechain

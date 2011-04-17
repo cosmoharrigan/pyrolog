@@ -37,7 +37,7 @@ class Module(object):
         self.functions = {}
         self.exports = []
 
-    def fetch_function(self, engine, signature):
+    def fetch_function(self, signature):
         try:
             return self.functions[signature]
         except KeyError:

@@ -91,11 +91,11 @@ def test_fetch_function():
     user = e.modulewrapper.modules["user"]
     m = e.modulewrapper.modules["m"]
 
-    assert user.fetch_function(e, g_sig) == m.functions[g_sig]
-    assert user.fetch_function(e, h_sig) is None
-    assert m.fetch_function(e, g_sig) == m.functions[g_sig]
-    assert m.fetch_function(e, f_sig) is None
-    assert m.fetch_function(e, h_sig) == m.functions[h_sig]
+    assert user.fetch_function(g_sig) == m.functions[g_sig]
+    assert user.fetch_function(h_sig) is None
+    assert m.fetch_function(g_sig) == m.functions[g_sig]
+    assert m.fetch_function(f_sig) is None
+    assert m.fetch_function(h_sig) == m.functions[h_sig]
 
 def test_modules_use_module():
     e = get_engine("""

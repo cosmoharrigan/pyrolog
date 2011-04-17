@@ -32,7 +32,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     for fact in facts:
         print fact
         e.add_rule(fact)
-    assert m.modules["user"].fetch_function(e, Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name() == "null"
+    assert m.modules["user"].fetch_function(Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name() == "null"
     four = Callable.build("succ", [Callable.build("succ", [Callable.build("succ",
                 [Callable.build("succ", [Callable.build("null")])])])])
     e.run(parse_query_term("numeral(succ(succ(null)))."), m.user_module)

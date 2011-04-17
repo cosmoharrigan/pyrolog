@@ -218,9 +218,9 @@ class Engine(object):
         return self.continue_(scont, fcont, heap)
 
     def _get_function(self, signature, module, query): 
-        function = module.fetch_function(self, signature)
+        function = module.fetch_function(signature)
         if function is None and self.modulewrapper.system is not None:
-            function = self.modulewrapper.system.fetch_function(self, signature)
+            function = self.modulewrapper.system.fetch_function(signature)
         if function is None:
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
