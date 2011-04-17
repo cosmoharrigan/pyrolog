@@ -44,7 +44,8 @@ def handle_use_module(engine, heap, module, path, imports=None):
         stop = len(modulename) - 3
         assert stop >= 0
         modulename = modulename[:stop]
-    if modulename not in m.modules: # prevent recursive imports
+    if modulename not in m.modules and modulename not in m.seen_modules: # prevent recursive imports
+        m.seen_modules[modulename] = None
         current_module = m.current_module
         file_content = get_source(path)
         engine.runstring(file_content)
@@ -54,8 +55,12 @@ def handle_use_module(engine, heap, module, path, imports=None):
                 error.throw_import_error(modulename, sig)
         module = m.current_module = current_module
         # XXX should use name argument of module here like SWI
-    imported_module = m.modules[modulename]
-    module.use_module(imported_module, imports)
+    try:
+        imported_module = m.modules[modulename]
+    except KeyError: # we did not parse a correctly defined module file
+        pass
+    else:
+        module.use_module(imported_module, imports)
 
 @expose_builtin("use_module", unwrap_spec=["callable"], needs_module=True)
 def impl_use_module(engine, heap, module, path):

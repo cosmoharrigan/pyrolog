@@ -10,6 +10,7 @@ class ModuleWrapper(object):
         self.engine = engine
         self.user_module = Module("user")
         self.modules = {"user": self.user_module} # all known modules
+        self.seen_modules = {}
         self.current_module = self.user_module
         self.libs = {}
         self.system = None

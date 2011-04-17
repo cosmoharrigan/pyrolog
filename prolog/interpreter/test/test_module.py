@@ -447,6 +447,7 @@ def test_impl_use_module():
 
     create_file("blub", filecontent)
     m.modules = {}
+    m.seen_modules = {}
     try:
         impl_use_module(e, m.user_module, h, term.Callable.build("blub"))
         assert "blub" in m.modules.keys()
@@ -1079,3 +1080,28 @@ def test_importlist_intersection():
     """)
     assert_true("f(a).", e)
     prolog_raises("existence_error(procedure, '/'('g', 1))", "g(a)", e)
+
+def test_modules_without_module_declaration():
+    m1 = "mod1"
+    m2 = "mod2"
+
+    create_file(m1, """
+    :- use_module(%s).
+    f(a).
+    """ % m2)
+
+    create_file(m2, """
+    :- use_module(%s).
+    g(a).
+    """ % m1)
+
+    e = Engine()
+    try:
+        assert_true("use_module(%s)." % m1, e)
+        assert_true("f(a).", e)
+        assert_true("g(a).", e)
+        assert len(e.modulewrapper.modules) == 1
+        assert "user" in e.modulewrapper.modules
+    finally:
+        delete_file(m1)
+        delete_file(m2)
