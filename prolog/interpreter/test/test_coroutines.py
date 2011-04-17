@@ -61,7 +61,9 @@ def test_when():
     assert_false("when(?=(X, Y), Z = a), Z == a.", e)
     assert_true("when(?=(X, Y), Z = a), Y = a, X = b, Z == a.", e)
     assert_true("when(?=(X, Y), Z = a), X = a, Y = b, Z == a.", e)
-    #assert_true("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
+    assert_true("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == 1.", e)
+    #assert_false("when(?=(f(1), f(2)), nl), fail.", e) # minimal example for cut bug
+    #assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
     assert_true("when(?=(f(X), f(X)), Z = a), Z == a.", e)
     assert_false("when(?=(f(X), f(Y)), Z = a), Z == a.", e)
     assert_false("when(?=(X, f(X)), Z = a), Z == a.", e)
