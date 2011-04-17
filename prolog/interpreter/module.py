@@ -56,7 +56,7 @@ class Module(object):
             self.functions[signature] = function
         return function
 
-    def use_module(self, engine, heap, module, imports=None):
+    def use_module(self, module, imports=None):
         if imports is None:
             importlist = module.exports
         else:
