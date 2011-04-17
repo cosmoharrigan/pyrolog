@@ -187,13 +187,14 @@ class CurrentModuleContinuation(continuation.ChoiceContinuation):
         self.modvar = modvar
         self.engine = engine
         self.modcount = 0
-        self.mods = self.engine.modulewrapper.modules.keys()
-        self.nummods = len(self.mods)
+        self.mods = [val.nameatom for val in 
+                self.engine.modulewrapper.modules.values()]
+        self.nummods = len(self.engine.modulewrapper.modules)
 
     def activate(self, fcont, heap):
         if self.modcount < self.nummods:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.modvar.unify(Callable.build(self.mods[self.modcount]), heap)
+            self.modvar.unify(self.mods[self.modcount], heap)
             self.modcount += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
