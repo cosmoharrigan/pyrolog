@@ -43,12 +43,12 @@ put_when_attributes([X|Rest], When_Goal) :-
 	;
 		put_attr(X, when, When_Goal)
 	),
-	put_when_attributes(Rest, When_Goal).
+	coroutines:put_when_attributes(Rest, When_Goal).
 
 when_impl(nonvar(X), Goal) :-
 	(var(X)
 	->
-		put_when_attributes([X], Goal)
+		coroutines:put_when_attributes([X], Goal)
 	;
 		Goal
 	).
@@ -60,11 +60,11 @@ when_impl(ground(X), Goal) :-
 		Goal
 	;
 		[Var|_] = Varlist,
-		put_when_attributes([Var], coroutines:when_impl(ground(Varlist), Goal))
+		coroutines:put_when_attributes([Var], coroutines:when_impl(ground(Varlist), Goal))
 	).
 
 when_impl((A, B), Goal) :-
-	when_impl(A, coroutines:when_impl(B, Goal)).
+	coroutines:when_impl(A, coroutines:when_impl(B, Goal)).
 
 call_when_disjoint(Var, Goal) :-
 	var(Var),
@@ -75,11 +75,11 @@ call_when_disjoint(Var, _) :-
 	nonvar(Var).
 
 when_impl((A; B), Goal) :-
-	when_impl(A, coroutines:call_when_disjoint(Z, Goal)),
-	when_impl(B, coroutines:call_when_disjoint(Z, Goal)).
+	coroutines:when_impl(A, coroutines:call_when_disjoint(Z, Goal)),
+	coroutines:when_impl(B, coroutines:call_when_disjoint(Z, Goal)).
 
 when_impl(?=(A, B), Goal) :-
-	when_decidable(A, B, Goal).
+	coroutines:when_decidable(A, B, Goal).
 
 when_impl(X, _) :-
 	nonvar(X),
@@ -89,11 +89,11 @@ when_impl(X, _) :-
 
 when_decidable(A, B, Goal) :-
 	var(A),
-	when_decidable_first_var(A, B, Goal).
+	coroutines:when_decidable_first_var(A, B, Goal).
 
 when_decidable(A, B, Goal) :-
 	nonvar(A),
-	when_decidable_first_nonvar(A, B, Goal).
+	coroutines:when_decidable_first_nonvar(A, B, Goal).
 
 when_decidable_first_var(A, B, Goal) :-
 	var(B),
@@ -101,16 +101,16 @@ when_decidable_first_var(A, B, Goal) :-
 	->
 		Goal
 	;
-		put_when_attributes([A], coroutines:when_decidable(A, B, Goal))
+		coroutines:put_when_attributes([A], coroutines:when_decidable(A, B, Goal))
 	).
 
 when_decidable_first_var(A, B, Goal) :-
 	nonvar(B),
-	put_when_attributes([A], coroutines:when_decidable(A, B, Goal)).
+	coroutines:put_when_attributes([A], coroutines:when_decidable(A, B, Goal)).
 
 when_decidable_first_nonvar(A, B, Goal) :-
 	var(B),
-	put_when_attributes([B], coroutines:when_decidable(A, B, Goal)).
+	coroutines:put_when_attributes([B], coroutines:when_decidable(A, B, Goal)).
 
 when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
@@ -122,38 +122,38 @@ when_decidable_first_nonvar(A, B, Goal) :-
 	;
 		A =.. [Functor|ArgsA],
 		B =.. [Functor|ArgsB],
-		when_decidable_list(ArgsA, ArgsB, coroutines:call_when_disjoint(_, Goal))
+		coroutines:when_decidable_list(ArgsA, ArgsB, coroutines:call_when_disjoint(_X, Goal))
 	).
 
 when_decidable_list([], [], _).
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal) :-
-	when_decidable(HeadA, HeadB, Goal),
-	when_decidable_list(RestA, RestB, Goal).
+	coroutines:when_decidable(HeadA, HeadB, Goal),
+	coroutines:when_decidable_list(RestA, RestB, Goal).
 
 when(Cond, Goal) :-
 	var(Cond), !,
 	throw(error(instantiation_error)).
 
 when(Cond, Goal) :-
-	when_impl(Cond, Goal).
+	coroutines:when_impl(Cond, Goal).
 
 % *****************************************************
 % *					   B L O C K                      *
 % *****************************************************
 
 block(Module:Term) :-
-	process_block_list(Term, Module).
+	coroutines:process_block_list(Term, Module).
 
 process_block_list(Term, Module) :-
 	Term \= (A, B),
-	process_block(Term, Module).
+	coroutines:process_block(Term, Module).
 process_block_list((Head, Rest), Module) :-
-	process_block(Head, Module),
-	process_block_list(Rest, Module).
+	coroutines:process_block(Head, Module),
+	coroutines:process_block_list(Rest, Module).
 
 process_block(Block, Module) :-
 	Block =.. [Functor|Args],
-	make_constraints(Args, Vars, Var_Constraints, When_Constraints),
+	coroutines:make_constraints(Args, Vars, Var_Constraints, When_Constraints),
 	Header =.. [Functor|Vars],
 	Rule = (Header :- (Var_Constraints, !, when(When_Constraints, Header))),
 	assert(Module:Rule).
@@ -162,11 +162,11 @@ make_constraints([], [], true, nonvar(_)).
 make_constraints([Head|Rest], [X|Vars], (var(X), Var_Constraints), ';'(nonvar(X), When_Constraints)) :-
 	nonvar(Head),
 	Head = '-', !,
-	make_constraints(Rest, Vars, Var_Constraints, When_Constraints).
+	coroutines:make_constraints(Rest, Vars, Var_Constraints, When_Constraints).
 make_constraints([X|Rest], [Var|Vars], Var_Constraints, When_Constraints) :-
 	nonvar(X),
 	\+ X = '-', !,
-	make_constraints(Rest, Vars, Var_Constraints, When_Constraints).
+	coroutines:make_constraints(Rest, Vars, Var_Constraints, When_Constraints).
 make_constraints([X|_], _, _, _) :-
 	var(X), !,
 	throw(error(domain_error(nonvar, X))).
