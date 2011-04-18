@@ -457,7 +457,7 @@ def test_impl_use_module():
 def test_add_library_dir():
     e = Engine()
     m = e.modulewrapper
-    assert m.libs == {}
+    assert m.libs == []
     prolog_raises("existence_error(X, Y)", "add_library_dir('does_not_exist')", e)
 
     lib1 = "__lib1__"
@@ -476,7 +476,7 @@ def test_add_library_dir():
 def test_library_directory():
     e = Engine()
     m = e.modulewrapper
-    assert m.libs == {}
+    assert m.libs == []
     libs = collect_all(e, "library_directory(X).")
     assert len(libs) == 0
 
@@ -503,32 +503,11 @@ def test_use_library_errors():
 def test_library_dir_single_query():
     e = Engine()
     tempdir = "__temp__"
-    create_dir(tempdir)
-    try:
-        assert_true("add_library_dir('%s')." % tempdir, e)
-        assert_true("library_directory('%s')." % tempdir, e)
-    finally:
-        delete_dir(tempdir)
-    
-
-def test_library_with_files():
     from os.path import abspath
-    e = Engine()
-    m = e.modulewrapper
-    tempdir = "__tempdir__"
-    mod1 = "m1"
-    mod2 = "m2.pl"
-
     create_dir(tempdir)
-    create_file("%s/%s" % (tempdir, mod1), "")
-    create_file("%s/%s" % (tempdir, mod2), "")
-
     try:
         assert_true("add_library_dir('%s')." % tempdir, e)
-        assert len(m.libs) == 1
-        path = abspath(tempdir)
-        assert "m1" in m.libs[path]
-        assert "m2" in m.libs[path]
+        assert_true("library_directory('%s')." % abspath(tempdir), e)
     finally:
         delete_dir(tempdir)
 
@@ -551,6 +530,33 @@ def test_library():
         prolog_raises("existence_error(X, Y)", "g", e)
     finally:
         delete_dir(tempdir)
+
+def test_library_load_priority():
+    tempdir = "__tempdir__"
+    mod = "m"
+
+    create_dir(tempdir)
+    create_file(tempdir + "/" + mod, """
+    :- module(m, [f/1]).
+    f(a).
+    g.
+    """)
+
+    create_file(mod, """
+    :- module(m, [f/1, g]).
+    f(b).
+    g.
+    """)
+
+    try:
+        e = get_engine(":- add_library_dir('%s')." % tempdir)
+        assert len(e.modulewrapper.libs) == 1
+        assert_true("use_module(library('%s'))." % mod, e)
+        assert_true("f(a).", e)
+        prolog_raises("existence_error(X, Y)", "g", e)
+    finally:
+        delete_dir(tempdir)
+        delete_file(mod)
 
 def test_import_list_simple():
     e = get_engine("""

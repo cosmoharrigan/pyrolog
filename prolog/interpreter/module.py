@@ -12,7 +12,7 @@ class ModuleWrapper(object):
         self.modules = {"user": self.user_module} # all known modules
         self.seen_modules = {}
         self.current_module = self.user_module
-        self.libs = {}
+        self.libs = []
         self.system = None
 
     def init_system_module(self):

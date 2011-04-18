@@ -16,19 +16,23 @@ def impl_module(engine, heap, name, exports):
     engine.add_module(name, exports)
 
 def handle_use_module_with_library(engine, heap, module, path, imports=None):
+    import os
+    import os.path
     newpath = None
     if path.signature().eq(libsig):
         arg = path.argument_at(0)
-        if isinstance(arg, Var) or not isinstance(arg, Atom):
+        if isinstance(arg, Var) or not isinstance(arg, Atom): # XXX throw different errors
             error.throw_instantiation_error()
         modulename = arg.name()
-        for libpath, modules in engine.modulewrapper.libs.iteritems():
+        for libpath in engine.modulewrapper.libs:
+            temppath = os.path.join(libpath, modulename)
             try:
-                modules[modulename]
+                os.open(temppath, os.O_RDONLY)
             except KeyError:
                 continue
-            newpath = Callable.build("%s/%s" % (libpath, modulename))
-            break
+            else:
+                newpath = Atom(temppath)
+                break
         if not newpath:
             error.throw_existence_error("source_sink", arg)
     else:
@@ -93,25 +97,11 @@ def impl_module_prefixing(engine, heap, modulename,
 
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
 def impl_add_library_dir(engine, heap, path):
-    from os import listdir
     from os.path import isdir, abspath, isabs
     if not isdir(path):
         error.throw_existence_error("source_sink", Callable.build(path))
-    if isabs(path):
-        basename = _basename(path)
-        abspath = path
-    else:
-        basename = path
-        abspath = abspath(path)
-    moduledict = {}
-    modules = listdir(abspath)
-    for module in modules:
-        if module.endswith('.pl'):
-            stop = len(module) - 3
-            assert stop >= 0
-            module = module[:stop]
-        moduledict[module] = True
-    engine.modulewrapper.libs[abspath] = moduledict
+    abspath = abspath(path)
+    engine.modulewrapper.libs.append(abspath)
 
 class LibraryDirContinuation(continuation.ChoiceContinuation):
     def __init__(self, engine, scont, fcont, heap, pathvar):
@@ -119,15 +109,14 @@ class LibraryDirContinuation(continuation.ChoiceContinuation):
         self.undoheap = heap
         self.orig_fcont = fcont
         self.pathvar = pathvar
-        self.libkeys = engine.modulewrapper.libs.keys()
         self.keycount = 0
         self.engine = engine
+        self.max = len(engine.modulewrapper.libs)
 
     def activate(self, fcont, heap):
-        if self.keycount < len(self.libkeys):
+        if self.keycount < self.max:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.pathvar.unify(Callable.build(_basename(
-                    self.libkeys[self.keycount])), heap)
+            self.pathvar.unify(Callable.build(_basename(self.engine.modulewrapper.libs[self.keycount])), heap)
             self.keycount += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
@@ -139,8 +128,8 @@ def impl_library_directory(engine, heap, directory, scont, fcont):
         libcont = LibraryDirContinuation(engine, scont, fcont, heap, directory)
         return libcont, fcont, heap
     elif isinstance(directory, Atom):
-        for key in engine.modulewrapper.libs.keys():
-            if _basename(key) == directory.name():
+        for lib in engine.modulewrapper.libs:
+            if lib == directory.name():
                 return scont, fcont, heap
     raise error.UnificationFailed()
 
