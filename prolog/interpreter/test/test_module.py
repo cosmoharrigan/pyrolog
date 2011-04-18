@@ -75,7 +75,7 @@ def test_module_uses():
     """)
     assert len(e.modulewrapper.modules) == 3
 
-def test_fetch_function():
+def test_lookup():
     e = get_engine("""
     :- use_module(m).
     f(a) :- g(a, b).
@@ -91,11 +91,11 @@ def test_fetch_function():
     user = e.modulewrapper.modules["user"]
     m = e.modulewrapper.modules["m"]
 
-    assert user.fetch_function(g_sig) == m.functions[g_sig]
-    assert user.fetch_function(h_sig) is None
-    assert m.fetch_function(g_sig) == m.functions[g_sig]
-    assert m.fetch_function(f_sig) is None
-    assert m.fetch_function(h_sig) == m.functions[h_sig]
+    assert user.lookup(g_sig) == m.functions[g_sig]
+    assert user.lookup(h_sig).rulechain is None
+    assert m.lookup(g_sig) == m.functions[g_sig]
+    assert m.lookup(f_sig).rulechain is None
+    assert m.lookup(h_sig) == m.functions[h_sig]
 
 def test_modules_use_module():
     e = get_engine("""
@@ -215,7 +215,7 @@ def test_abolish():
     assert_true("g(a).", e)
     assert_true("abolish(g/1).", e)
     prolog_raises("existence_error(A, B)", "g(a)", e)
-    assert len(e.modulewrapper.modules["user"].functions) == 0
+    assert len(e.modulewrapper.modules["user"].functions) == 2
     assert len(e.modulewrapper.modules["m"].functions) == 1
 
 def test_if():

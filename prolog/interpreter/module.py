@@ -38,12 +38,6 @@ class Module(object):
         self.functions = {}
         self.exports = []
 
-    def fetch_function(self, signature):
-        try:
-            return self.functions[signature]
-        except KeyError:
-            return None
-
     def add_meta_predicate(self, signature, arglist):
         func = self.lookup(signature)
         func.meta_args = arglist

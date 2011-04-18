@@ -74,6 +74,7 @@ def driver(scont, fcont, heap):
     if scont.failed:
         raise error.UnificationFailed
 
+@jit.unroll_safe
 def _process_hooks(scont, fcont, heap):
     if heap.hooks.last:
         e = scont.engine
@@ -208,9 +209,6 @@ class Engine(object):
         function = self._get_function(signature, module, query)
         query = function.add_meta_prefixes(query, module.nameatom)
         startrulechain = jit.hint(function.rulechain, promote=True)
-        if startrulechain is None:
-            return error.throw_existence_error(
-                "procedure", query.get_prolog_signature())
         rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             raise error.UnificationFailed
@@ -218,10 +216,10 @@ class Engine(object):
         return self.continue_(scont, fcont, heap)
 
     def _get_function(self, signature, module, query): 
-        function = module.fetch_function(signature)
-        if function is None and self.modulewrapper.system is not None:
-            function = self.modulewrapper.system.fetch_function(signature)
-        if function is None:
+        function = module.lookup(signature)
+        if function.rulechain is None and self.modulewrapper.system is not None:
+            function = self.modulewrapper.system.lookup(signature)
+        if function.rulechain is None:
             return error.throw_existence_error(
                     "procedure", query.get_prolog_signature())
         return function
