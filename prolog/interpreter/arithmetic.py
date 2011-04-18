@@ -257,11 +257,9 @@ class __extend__(term.Number):
 
     # ------------------ abs ------------------
     def arith_abs(self):
-        try:
-            val = rarithmetic.ovfcheck(abs(self.num))
-        except OverflowError:
-            return make_int(term.BigInt(rbigint.fromint(self.num).abs()))
-        return term.Number(val)
+        if self.num >= 0:
+            return self
+        return term.Number(0).arith_sub(self)
 
     # ------------------ max ------------------
     def arith_max(self, other):
