@@ -12,7 +12,7 @@ conssig = Signature.getsignature(".", 2)
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
-    if not isinstance(obj.getvalue(heap), AttVar) or not obj.atts:
+    if not isinstance(obj, AttVar) or not obj.atts:
         raise UnificationFailed()
 
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
@@ -60,6 +60,7 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
     for attvar in attvars:
         V = heap.newvar()
         memo.set(attvar, V)
+        assert isinstance(attvar, AttVar)
         for key, val in attvar.atts.iteritems():
             put_attr = Callable.build("put_attr", [V, Callable.build(key), val])
             gs.append(put_attr)

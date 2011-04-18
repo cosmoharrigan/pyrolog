@@ -18,7 +18,7 @@ def debug_print(*args):
 
 
 class PrologObject(object):
-    #__slots__ = ()
+    __slots__ = ()
     _immutable_ = True
     __metaclass__ = extendabletype
     
@@ -63,10 +63,11 @@ class PrologObject(object):
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
     
-    created_after_choice_point = None
+    __slots__ = ("binding", "created_after_choice_point")
     
     def __init__(self):
         self.binding = None
+        self.created_after_choice_point = None
     
     @specialize.arg(3)
     @jit.unroll_safe
@@ -160,6 +161,8 @@ class Var(PrologObject):
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
 class AttVar(Var):
+    __slots__ = ("binding", "atts", "created_after_choice_point")
+
     def __init__(self):
         Var.__init__(self)
         self.atts = {} # mapping from modules to values
@@ -229,7 +232,7 @@ class NumberedVar(PrologObject):
 
 
 class NonVar(PrologObject):
-    #__slots__ = ()
+    __slots__ = ()
     
     def dereference(self, heap):
         return self
@@ -275,7 +278,7 @@ class NonVar(PrologObject):
 
 class Callable(NonVar):
     _immutable_ = True
-    #__slots__ = ()
+    __slots__ = ()
     
     def name(self):
         return self.signature().name
@@ -442,7 +445,7 @@ class Callable(NonVar):
 
 class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
-    #__slots__ = ('_name', '_signature')
+    __slots__ = ('_name', '_signature')
     cache = {}
     _immutable_ = True
     
@@ -490,12 +493,12 @@ class Atom(Callable):
         return self._signature
 
 class Numeric(NonVar):
-    pass
+    __slots__ = ()
 
 class Number(Numeric): #, UnboxedValue):
     TYPE_STANDARD_ORDER = 3
     _immutable_ = True
-    #__slots__ = ("num", )
+    __slots__ = ("num", )
     
     def __init__(self, num):
         assert isinstance(num, int)
@@ -542,6 +545,7 @@ class Number(Numeric): #, UnboxedValue):
 
 class BigInt(Numeric):
     TYPE_STANDARD_ORDER = 3
+    __slots__ = ("value", )
     # value is an instance of rbigint
     def __init__(self, value):
         self.value = value
@@ -575,6 +579,7 @@ class BigInt(Numeric):
 class Float(Numeric):
     TYPE_STANDARD_ORDER = 2
     _immutable_ = True
+    __slots__ = ("floatval", )
     def __init__(self, floatval):
         self.floatval = floatval
     
@@ -635,7 +640,7 @@ class Term(Callable):
     TYPE_STANDARD_ORDER = 4
     _immutable_ = True
     _immutable_fields_ = ["_args[*]"]
-    #__slots__ = ('_name', '_signature', '_args')
+    __slots__ = ('_name', '_signature', '_args')
     
     def __init__(self, term_name, args, signature):
         assert signature.name == term_name
