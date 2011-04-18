@@ -19,7 +19,6 @@ def debug_print(*args):
 
 class PrologObject(object):
     __slots__ = ()
-    _immutable_ = True
     __metaclass__ = extendabletype
     
     def getvalue(self, heap):
@@ -202,7 +201,7 @@ class AttVar(Var):
 
 
 class NumberedVar(PrologObject):
-    _immutable_ = True
+    _immutable_fields_ = ["num"]
     def __init__(self, index):
         self.num = index
     
@@ -277,8 +276,10 @@ class NonVar(PrologObject):
         return self
 
 class Callable(NonVar):
-    _immutable_ = True
     __slots__ = ()
+
+    def __init__(self):
+        pass
     
     def name(self):
         return self.signature().name
@@ -447,11 +448,12 @@ class Atom(Callable):
     TYPE_STANDARD_ORDER = 1
     __slots__ = ('_name', '_signature')
     cache = {}
-    _immutable_ = True
+    _immutable_fields_ = ["_signature"]
     
     def __init__(self, name, signature=None):
         if signature is None:
             signature = Signature(name, 0)
+        Callable.__init__(self)
         self._signature = signature
     
     def __str__(self):
@@ -497,8 +499,8 @@ class Numeric(NonVar):
 
 class Number(Numeric): #, UnboxedValue):
     TYPE_STANDARD_ORDER = 3
-    _immutable_ = True
     __slots__ = ("num", )
+    _immutable_fields_ = ["num"]
     
     def __init__(self, num):
         assert isinstance(num, int)
@@ -546,6 +548,7 @@ class Number(Numeric): #, UnboxedValue):
 class BigInt(Numeric):
     TYPE_STANDARD_ORDER = 3
     __slots__ = ("value", )
+    _immutable_fields_ = ["value"] # ?correct?
     # value is an instance of rbigint
     def __init__(self, value):
         self.value = value
@@ -578,7 +581,7 @@ class BigInt(Numeric):
     
 class Float(Numeric):
     TYPE_STANDARD_ORDER = 2
-    _immutable_ = True
+    _immutable_fields_ = ["floatval"]
     __slots__ = ("floatval", )
     def __init__(self, floatval):
         self.floatval = floatval
@@ -638,14 +641,14 @@ def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
 
 class Term(Callable):
     TYPE_STANDARD_ORDER = 4
-    _immutable_ = True
-    _immutable_fields_ = ["_args[*]"]
+    _immutable_fields_ = ["_args[*]", "_name", "_signature"]
     __slots__ = ('_name', '_signature', '_args')
     
     def __init__(self, term_name, args, signature):
         assert signature.name == term_name
         self._args = make_sure_not_resized(args)
         self._signature = signature
+        Callable.__init__(self)
     
     def __repr__(self):
         return "Term(%r, %r)" % (self.name(), self.arguments())
@@ -722,6 +725,9 @@ def generate_abstract_class(n_args):
     arg_iter = unrolling_iterable(range(n_args))
     class abstract_callable(Callable):
         _immutable_ = True
+        def __init__(self, term_name, args, signature):
+            raise NotImplementedError
+
         def _init_values(self, args):
             if args is None:
                 return
@@ -813,6 +819,7 @@ def generate_generic_class(n_args):
     
     class generic_callable(parent):
         _immutable_ = True
+        _immutable_fields_ = ["signature"]
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
         
         def __init__(self, term_name, args, signature):
