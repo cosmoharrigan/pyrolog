@@ -27,7 +27,7 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
         for libpath in engine.modulewrapper.libs:
             temppath = os.path.join(libpath, modulename)
             try:
-                os.open(temppath, os.O_RDONLY)
+                os.open(temppath, os.O_RDONLY, 0777)
             except KeyError:
                 continue
             else:
