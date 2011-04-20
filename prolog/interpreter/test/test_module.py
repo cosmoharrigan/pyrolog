@@ -511,9 +511,10 @@ def test_library_dir_single_query():
     finally:
         delete_dir(tempdir)
 
-def test_library():
+def test_library_usage():
     tempdir = "__tempdir__"
     mod = "m"
+    mod2 = "m2"
 
     create_dir(tempdir)
     create_file(tempdir + "/" + mod, """
@@ -522,10 +523,22 @@ def test_library():
     g.
     """)
 
+    create_file(tempdir + "/" + (mod2 + ".pl"), """
+    :- module(m2, [f/1]).
+    f(a).
+    g.
+    """)
+
     try:
         e = get_engine(":- add_library_dir('%s')." % tempdir)
         assert len(e.modulewrapper.libs) == 1
         assert_true("use_module(library('%s'))." % mod, e)
+        assert_true("f(a).", e)
+        prolog_raises("existence_error(X, Y)", "g", e)
+
+        e = get_engine(":- add_library_dir('%s')." % tempdir)
+        assert len(e.modulewrapper.libs) == 1
+        assert_true("use_module(library('%s'))." % mod2, e)
         assert_true("f(a).", e)
         prolog_raises("existence_error(X, Y)", "g", e)
     finally:

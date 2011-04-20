@@ -18,6 +18,7 @@ def impl_module(engine, heap, name, exports):
 def handle_use_module_with_library(engine, heap, module, path, imports=None):
     import os
     import os.path
+    from prolog.builtin.sourcehelper import get_filehandle
     newpath = None
     if path.signature().eq(libsig):
         arg = path.argument_at(0)
@@ -27,10 +28,11 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
         for libpath in engine.modulewrapper.libs:
             temppath = os.path.join(libpath, modulename)
             try:
-                os.open(temppath, os.O_RDONLY, 0777)
-            except KeyError:
+                fd = get_filehandle(temppath)
+            except OSError:
                 continue
             else:
+                os.close(fd) # cleanup
                 newpath = Atom(temppath)
                 break
         if not newpath:
@@ -116,7 +118,7 @@ class LibraryDirContinuation(continuation.ChoiceContinuation):
     def activate(self, fcont, heap):
         if self.keycount < self.max:
             fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.pathvar.unify(Callable.build(_basename(self.engine.modulewrapper.libs[self.keycount])), heap)
+            self.pathvar.unify(Callable.build(self.engine.modulewrapper.libs[self.keycount]), heap)
             self.keycount += 1
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
