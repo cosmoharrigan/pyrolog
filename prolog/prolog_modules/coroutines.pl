@@ -68,8 +68,8 @@ when_impl((A, B), Goal) :-
 
 call_when_disjoint(Var, Goal) :-
 	var(Var),
-	Goal,
-	Var = a.
+	Var = a,
+	Goal.
 
 call_when_disjoint(Var, _) :-
 	nonvar(Var).
