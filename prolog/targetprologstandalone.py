@@ -11,7 +11,7 @@ from prolog.interpreter.continuation import Engine
 from prolog.interpreter import term
 from prolog.interpreter import arithmetic # for side effects
 from prolog import builtin # for side effects
-e = Engine(load_system=True)
+e = Engine(load_system=False)
 term.DEBUG = False
 
 def entry_point(argv):
@@ -36,7 +36,7 @@ def portal(driver):
     return get_portal(driver)
 
 def jitpolicy(self):
-    from pypy.jit.metainterp.policy import JitPolicy
+    from pypy.jit.codewriter.policy import JitPolicy
     return JitPolicy()
 
 if __name__ == '__main__':

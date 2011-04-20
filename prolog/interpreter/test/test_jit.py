@@ -1,5 +1,5 @@
 import sys
-from pypy.jit.metainterp.test.test_basic import LLJitMixin
+from pypy.jit.metainterp.test.test_ajit import LLJitMixin
 
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.parsing import get_query_and_vars
@@ -68,13 +68,10 @@ class TestLLtype(LLJitMixin):
                 t = t7
             else:
                 raise ValueError
-            e.run(t)
+            e.run(t, e.modulewrapper.user_module)
         # XXX
-        from pypy.conftest import option
         interp_w(1)
-        option.view = False
-        option.viewloops = True
-        self.meta_interp(interp_w, [6], listcomp=True, backendopt=True,
+        self.meta_interp(interp_w, [2], listcomp=True, backendopt=True,
                          listops=True)
         #self.meta_interp(interp_w, [3], listcomp=True,
         #                 listops=True)

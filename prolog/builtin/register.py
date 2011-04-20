@@ -5,10 +5,13 @@ from prolog.interpreter.signature import Signature
 from prolog.interpreter.arithmetic import eval_arithmetic
 
 from pypy.rlib.objectmodel import we_are_translated
+from pypy.rlib import jit
 
 import inspect
 
 Signature.register_extr_attr("builtin")
+
+jit_modules = ["control"]
 
 class Builtin(object):
     _immutable_ = True
@@ -110,6 +113,8 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         code.append("    return result")
     miniglobals = globals().copy()
     miniglobals[func.func_name] = func
+    #if func.__module__[len("prolog.builtin."):] not in jit_modules:
+    #    jit.dont_look_inside(func)
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
         l = len(unwrap_spec)
