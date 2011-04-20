@@ -568,7 +568,6 @@ class CutDelimiter(FailureContinuation):
                 assert not fcont.cutcell.activated
                 return nextcont, fcont
         scont = CutScopeNotifier(engine, nextcont)
-        # XXX not sure which module to take
         fcont = CutDelimiter(engine, fcont, scont.cutcell)
         return scont, fcont
 
