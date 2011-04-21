@@ -103,6 +103,10 @@ def impl_add_library_dir(engine, heap, path):
     if not isdir(path):
         error.throw_existence_error("source_sink", Callable.build(path))
     abspath = abspath(path)
+    libs = engine.modulewrapper.libs
+    for lib in libs:
+        if lib == abspath:  
+            return
     engine.modulewrapper.libs.append(abspath)
 
 class LibraryDirContinuation(continuation.ChoiceContinuation):

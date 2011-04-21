@@ -571,6 +571,23 @@ def test_library_load_priority():
         delete_dir(tempdir)
         delete_file(mod)
 
+def test_add_library_twice():
+    e = Engine()
+    lib1 = "__lib1__"
+    lib2 = "__lib2__"
+    create_dir(lib1)
+    create_dir(lib2)
+    try:
+        assert_true("add_library_dir('%s')." % lib1, e)
+        assert len(e.modulewrapper.libs) == 1
+        assert_true("add_library_dir('%s')." % lib1, e)
+        assert len(e.modulewrapper.libs) == 1
+        assert_true("add_library_dir('%s')." % lib2, e)
+        assert len(e.modulewrapper.libs) == 2
+    finally:
+        delete_dir(lib1)
+        delete_dir(lib2)
+
 def test_import_list_simple():
     e = get_engine("""
     :- use_module(m, [f/1, g/0]).
