@@ -61,7 +61,6 @@ class PrologObject(object):
 
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
-    
     __slots__ = ("binding", "created_after_choice_point")
     
     def __init__(self):
@@ -184,7 +183,7 @@ class AttVar(Var):
         attrs = []
         for key, val in self.atts.iteritems():
             attrs.append("%s=%s" % (key, val))
-        return "AttVar(%s)" % ("[" + ", ".join(attrs) + "]", )
+        return "AttVar(%s, %s)" % (self.binding, "[" + ", ".join(attrs) + "]")
 
     def copy(self, heap, memo):
         self = self.dereference(heap)
