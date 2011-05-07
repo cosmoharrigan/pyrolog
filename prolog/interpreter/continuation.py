@@ -196,6 +196,8 @@ class Engine(object):
     run = run_query
 
     def call(self, query, module, scont, fcont, heap):
+        if isinstance(query, Var):
+            query = query.dereference(heap)
         if not isinstance(query, Callable):
             if isinstance(query, Var):
                 raise error.throw_instantiation_error()

@@ -27,6 +27,9 @@ def test_freeze():
     assert_true("freeze(X, m:g(q)), X = 1.", e)
     assert_false("freeze(X, Y = 1), freeze(X, Y = 2), X = a.", e)
     assert_true("freeze(X, Y = 1), freeze(X, Z = 2), X = a, Y == 1, Z == 2.", e)
+    assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2).", e)
+    assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2), X = 1, Z1 == 1, Z2 == 2.", e)
+    assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2), Y = 1, Z1 == 1, Z2 == 2.", e)
 
 def test_frozen():
     assert_false("frozen(a, a).", e)
