@@ -25,6 +25,7 @@ def impl_does_not_unify(engine, heap, obj1, obj2):
     except error.UnificationFailed:
         new_heap.revert_upto(heap)
         return
+    new_heap.revert_upto(heap)
     raise error.UnificationFailed()
 
 
