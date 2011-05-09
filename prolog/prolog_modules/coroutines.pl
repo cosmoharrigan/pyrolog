@@ -115,8 +115,6 @@ when_decidable_first_nonvar(A, B, Goal) :-
 
 when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
-	functor(A, FunctorA, ArityA),
-	functor(B, FunctorB, ArityB),
 	(?=(A, B)
 	-> 
 		Goal
