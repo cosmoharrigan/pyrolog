@@ -85,6 +85,12 @@ def test_when():
     prolog_raises("domain_error(_, _)", "when((ground(1), (ground(1), var(1))), f(a))", e)
     prolog_raises("domain_error(_, _)", "when(((1; 2), (ground(1), nonvar(1))), f(a))", e)
 
+    assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, A = a, var(Q), Y = b, B = b, Q == 1.", e)
+    assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), Y = a, B = a, var(Q), X = b, A = b, Q == 1.", e)
+    assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), Y = a, B = 1, Q == 1.", e)
+    assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, A = 1, Q == 1.", e)
+    assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, B = 1, var(Q).", e)
+
 def test_hard_when():
     assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
     assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)
