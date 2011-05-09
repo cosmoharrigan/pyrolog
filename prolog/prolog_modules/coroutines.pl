@@ -112,20 +112,60 @@ when_decidable_first_var(A, B, Goal) :-
 when_decidable_first_nonvar(A, B, Goal) :-
 	var(B),
 	coroutines:put_when_attributes([B], coroutines:when_decidable(A, B, Goal)).
-
+	
 when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
-	(?=(A, B)
+	NewGoal = coroutines:call_when_disjoint(X, Goal),
+	when_decidable_collect_attributes(A, B, NewGoal, [], Candidates, Executed, true),
+	(var(Executed)
+	->
+		put_when_attributes(Candidates, coroutines:when_decidable(A, B, NewGoal))
+	;
+		true
+	).
+
+when_decidable_collect_attributes(A, B, Goal, Candidates, ReturnCandidates, Executed, TopLevel) :-
+	functor(A, FunctorA, ArityA),
+	functor(B, FunctorB, ArityB),
+	((FunctorA \= FunctorB; ArityA \= ArityB; (ground(A), ground(B), TopLevel == true))
 	-> 
+		Executed = true,
 		Goal
 	;
-		New_Goal = coroutines:call_when_disjoint(_X, Goal),
-		term_variables(A, VarsA),
-		term_variables(B, VarsB),
-		put_when_attributes(VarsA, coroutines:when_decidable(A, B, New_Goal)),
-		put_when_attributes(VarsB, coroutines:when_decidable(A, B, New_Goal))
+		A =.. [_|ArgsA],
+		B =.. [_|ArgsB],
+		when_decidable_list(ArgsA, ArgsB, Goal, Candidates, ReturnCandidates, Executed)
 	).
+
+when_decidable_list([], [], _, Candidates, Candidates, _).
+when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
+	var(HeadA),
+	nonvar(HeadB),
+	when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed).
+
+when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
+	var(HeadB),
+	nonvar(HeadA),
+	when_decidable_list(RestA, RestB, Goal, [HeadB|Candidates], ReturnCandidates, Executed).
+
 	
+when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
+	var(HeadA),
+	var(HeadB),
+	(HeadA == HeadB
+	->
+		Executed = true,
+		Goal
+	;
+		when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
+	).
+
+when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
+	nonvar(HeadA),
+	nonvar(HeadB),
+	when_decidable_collect_attributes(HeadA, HeadB, Goal, Candidates, TempCandidates, Executed, false),
+	when_decidable_list(RestA, RestB, Goal, TempCandidates, ReturnCandidates, Executed).
+
 when(Cond, Goal) :-
 	var(Cond), !,
 	throw(error(instantiation_error)).
