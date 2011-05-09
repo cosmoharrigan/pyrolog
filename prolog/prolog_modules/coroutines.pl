@@ -117,20 +117,17 @@ when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
 	functor(A, FunctorA, ArityA),
 	functor(B, FunctorB, ArityB),
-	((FunctorA \= FunctorB; ArityA \= ArityB; (atomic(A), atomic(B)))
+	(?=(A, B)
 	-> 
 		Goal
 	;
-		A =.. [Functor|ArgsA],
-		B =.. [Functor|ArgsB],
-		coroutines:when_decidable_list(ArgsA, ArgsB, coroutines:call_when_disjoint(_X, Goal))
+		New_Goal = coroutines:call_when_disjoint(_X, Goal),
+		term_variables(A, VarsA),
+		term_variables(B, VarsB),
+		put_when_attributes(VarsA, coroutines:when_decidable(A, B, New_Goal)),
+		put_when_attributes(VarsB, coroutines:when_decidable(A, B, New_Goal))
 	).
-
-when_decidable_list([], [], _).
-when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal) :-
-	coroutines:when_decidable(HeadA, HeadB, Goal),
-	coroutines:when_decidable_list(RestA, RestB, Goal).
-
+	
 when(Cond, Goal) :-
 	var(Cond), !,
 	throw(error(instantiation_error)).
