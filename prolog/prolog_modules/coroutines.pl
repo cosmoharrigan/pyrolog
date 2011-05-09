@@ -116,12 +116,17 @@ when_decidable_first_nonvar(A, B, Goal) :-
 when_decidable_first_nonvar(A, B, Goal) :-
 	nonvar(B),
 	NewGoal = coroutines:call_when_disjoint(X, Goal),
-	when_decidable_collect_attributes(A, B, NewGoal, [], Candidates, Executed, true),
-	(var(Executed)
+	coroutines:when_decidable_collect_attributes(A, B, NewGoal, [], Candidates, Executed, true),
+	(Candidates = []
 	->
-		put_when_attributes(Candidates, coroutines:when_decidable(A, B, NewGoal))
+		NewGoal
 	;
-		true
+		(var(Executed)
+		->
+			coroutines:put_when_attributes(Candidates, coroutines:when_decidable(A, B, NewGoal))
+		;
+			true
+		)
 	).
 
 when_decidable_collect_attributes(A, B, Goal, Candidates, ReturnCandidates, Executed, TopLevel) :-
@@ -154,10 +159,9 @@ when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandid
 	var(HeadB),
 	(HeadA == HeadB
 	->
-		Executed = true,
-		Goal
+		coroutines:when_decidable_list(RestA, RestB, Goal, Candidates, ReturnCandidates, Executed)
 	;
-		when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
+		coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
 	).
 
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-

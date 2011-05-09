@@ -70,6 +70,8 @@ def test_when():
     #assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
 
     assert_true("when(?=(f(X), f(X)), Z = a), Z == a.", e)
+    assert_true("when(?=(f(X, Y), f(X, Y)), Z = a), Z == a.", e)
+    assert_true("when(?=(f(X, Y), f(X, W)), Z = a), var(Z), Y = 1, var(Z), W = 1, Z == a.", e)
     assert_false("when(?=(f(X), f(Y)), Z = a), Z == a.", e)
     assert_false("when(?=(X, f(X)), Z = a), Z == a.", e)
     prolog_raises("instantiation_error", "when(X, X == 1)", e)
@@ -99,7 +101,7 @@ def test_hard_when():
     assert_true("findall(X, xyz(X), L), L == [b, a].", e)
     assert_true("abolish(xyz/1).", e)
 
-def test_when_with_meta_predicate():
+def test_meta_predicate_with_when():
     e = get_engine("""
     :- use_module(m).
     """,
