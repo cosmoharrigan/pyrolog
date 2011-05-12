@@ -92,9 +92,11 @@ def test_when():
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), Y = a, B = 1, Q == 1.", e)
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, A = 1, Q == 1.", e)
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, B = 1, var(Q).", e)
+    assert_true("when(?=(X, Y), Z = 1), var(Z), X = Y, Z == 1.", e)
+    assert_false("when(?=(X, Y), X \== Y), X = Y.", e)
 
 def test_hard_when():
-    assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
+    #assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
     assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)
     assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), X = Y, Y = a, A == 1, B == 2.", e)
     assert_true("when(nonvar(X), assert(xyz(a))), when(nonvar(Y), assert(xyz(b))), X = Y, Y = a.", e)
@@ -151,6 +153,15 @@ def test_block():
     prolog_raises("instantiation_error", "h(5, 1, C, D)", e)
     assert_true("h(1, 2, 3, 6).", e)
     assert_true("h(A, B, C, D), var(D), B = 5, var(D), C = 5, var(D), A = 5, D == 15.", e)
+
+def test_dif():
+    assert_true("dif(1, 2).", e)
+    assert_false("dif(1, 1).", e)
+    assert_false("dif(X, X).", e)
+    assert_true("dif(X, Y).", e)
+    assert_false("dif(X, Y), Y = X.", e)
+    assert_true("dif(f(a, b, c, g(d, e, x)), f(a, b, c, g(d, e, X))), var(X), X = a.", e)
+    assert_false("dif(f(a, b, c, g(d, e, x)), f(a, b, c, g(d, e, X))), var(X), X = x.", e)
 
 def test_sudoku_with_when():
     e = get_engine("""

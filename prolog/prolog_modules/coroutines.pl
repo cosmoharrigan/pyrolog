@@ -1,4 +1,4 @@
-:- module(coroutines, [freeze/2, when/2, frozen/2, block/1]).
+:- module(coroutines, [freeze/2, when/2, frozen/2, block/1, dif/2]).
 :- meta_predicate freeze('?', :), when('?', :), block(:).
 
 % *****************************************************
@@ -102,7 +102,7 @@ when_decidable_first_var(A, B, Goal) :-
 	->
 		Goal
 	;
-		coroutines:put_when_attributes([A], coroutines:when_decidable(A, B, Goal))
+		coroutines:put_when_attributes([A, B], coroutines:when_decidable(A, B, call_when_disjoint(Guard, Goal)))
 	).
 
 when_decidable_first_var(A, B, Goal) :-
@@ -152,7 +152,6 @@ when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandid
 	var(HeadB),
 	nonvar(HeadA),
 	when_decidable_list(RestA, RestB, Goal, [HeadB|Candidates], ReturnCandidates, Executed).
-
 	
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
 	var(HeadA),
@@ -161,7 +160,7 @@ when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandid
 	->
 		coroutines:when_decidable_list(RestA, RestB, Goal, Candidates, ReturnCandidates, Executed)
 	;
-		coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
+		coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA, HeadB|Candidates], ReturnCandidates, Executed)
 	).
 
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
@@ -176,6 +175,13 @@ when(Cond, Goal) :-
 
 when(Cond, Goal) :-
 	coroutines:when_impl(Cond, Goal).
+
+% *****************************************************
+% *					     D I F                        *
+% *****************************************************
+
+dif(X, Y) :-
+	when(?=(X, Y), X \== Y).
 
 % *****************************************************
 % *					   B L O C K                      *
