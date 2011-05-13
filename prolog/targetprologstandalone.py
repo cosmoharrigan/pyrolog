@@ -11,7 +11,7 @@ from prolog.interpreter.continuation import Engine
 from prolog.interpreter import term
 from prolog.interpreter import arithmetic # for side effects
 from prolog import builtin # for side effects
-e = Engine(load_system=False)
+e = Engine(load_system=True)
 term.DEBUG = False
 
 def entry_point(argv):
