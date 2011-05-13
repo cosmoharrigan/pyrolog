@@ -8,6 +8,7 @@ path = os.path.join(path, "..", "prolog_modules")
 
 def get_source(filename):
     try:
+        assert isinstance(filename, str)
         fd = get_filehandle(filename, True)
     except OSError:
         throw_existence_error("source_sink", Callable.build(filename))
@@ -25,15 +26,24 @@ def get_source(filename):
     return file_content
 
 def get_filehandle(filename, stdlib=False):
+    assert isinstance(filename, str)
     try:
         return os.open(filename, os.O_RDONLY, 0777)
     except OSError, e:
         try:
-            return os.open(filename + ".pl", os.O_RDONLY, 0777)
+            temppath = filename + ".pl"
+            assert isinstance(temppath, str)
+            return os.open(temppath, os.O_RDONLY, 0777)
         except OSError, e:
             if stdlib:
                 try:
-                    return os.open(os.path.join(path, filename), os.O_RDONLY, 0777)
+                    fname = os.path.join(path, filename)
+                    assert isinstance(fname, str)
+                    return os.open(fname, os.O_RDONLY, 0777)
                 except OSError, e:
-                    return os.open(os.path.join(path, filename + ".pl"), os.O_RDONLY, 0777)
+                    assert isinstance(temppath, str)
+                    fname = os.path.join(path, temppath)
+                    assert isinstance(fname, str)
+                    return os.open(fname, os.O_RDONLY, 0777)
             raise e
+            assert 0, "unreachable"

@@ -25,13 +25,17 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
         if isinstance(arg, Var) or not isinstance(arg, Atom): # XXX throw different errors
             error.throw_instantiation_error()
         modulename = arg.name()
+        assert modulename is not None
         for libpath in engine.modulewrapper.libs:
             temppath = os.path.join(libpath, modulename)
             try:
+                assert isinstance(temppath, str)
                 fd = get_filehandle(temppath)
             except OSError:
                 continue
+                assert 0, "unreachable"
             else:
+                assert isinstance(fd, int)
                 os.close(fd) # cleanup
                 newpath = Atom(temppath)
                 break
@@ -99,7 +103,8 @@ def impl_module_prefixing(engine, heap, modulename,
 
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
 def impl_add_library_dir(engine, heap, path):
-    from os.path import isdir, abspath, isabs
+    from os.path import isdir, abspath
+    assert path is not None
     if not isdir(path):
         error.throw_existence_error("source_sink", Callable.build(path))
     abspath = abspath(path)

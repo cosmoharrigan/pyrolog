@@ -56,6 +56,7 @@ class Signature(object):
     _immutable_fields_ = ["name", "numargs", "factory"]
 
     def __init__(self, name, numargs, cached=False, factory=None):
+        assert name is not None
         assert isinstance(name, str)
         self.name = name
         self.numargs = numargs
