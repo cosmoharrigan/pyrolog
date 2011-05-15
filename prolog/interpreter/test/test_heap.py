@@ -179,27 +179,25 @@ def test_discard_with_attvars():
     assert v2.atts == {"a": 3}
 
 def test_hookchain():
-    py.test.skip("")
     hc = HookChain()
     assert hc.last is None
     hc.add_hook(1)
     hc.add_hook(2)
     hc.add_hook(3)
-    assert hc.first.hook == 1
-    assert hc.first.next.hook == 2
-    assert hc.first.next.next.hook == 3
-    assert hc.first.next.next.next is None
+    assert hc.last.hook == 3
+    assert hc.last.next.hook == 2
+    assert hc.last.next.next.hook == 1
+    assert hc.last.next.next.next is None
 
 def test_simple_hooks():
-    py.test.skip("")
     hp = Heap()
     v = Var()
     a = AttVar()
     a.atts["m"] = 1
     v.unify(a, hp)
-    assert hp.hooks.first is None 
+    assert hp.hooks.last is None 
     v.unify(Number(1), hp)
-    assert hp.hooks.first.hook == a
+    assert hp.hooks.last.hook == a
 
     hp = Heap()
     v1 = Var()
@@ -207,11 +205,11 @@ def test_simple_hooks():
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
-    assert hp.hooks.first is None
+    assert hp.hooks.last is None
     v2.unify(a2, hp)
-    assert hp.hooks.first is None
+    assert hp.hooks.last is None
     v1.unify(v2, hp)
-    assert hp.hooks.first.hook == a1
+    assert hp.hooks.last.hook == a1
 
     hp = Heap()
     v1 = Var()
@@ -223,11 +221,12 @@ def test_simple_hooks():
     v1.unify(a1, hp)
     v2.unify(a2, hp)
     v3.unify(a3, hp)
+
     v1.unify(v2, hp)
     v2.unify(v3, hp)
-    assert hp.hooks.first.hook == a1
-    assert hp.hooks.first.next.hook == a2
-    assert hp.hooks.first.next.next is None
+    assert hp.hooks.last.hook == a2
+    assert hp.hooks.last.next.hook == a1
+    assert hp.hooks.last.next.next is None
 
     hp = Heap()
     v1 = Var()
@@ -236,13 +235,13 @@ def test_simple_hooks():
     a2 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
-    assert hp.hooks.first is None
+    assert hp.hooks.last is None
     v1.unify(v2, hp)
-    assert hp.hooks.first.hook == a1
+    assert hp.hooks.last.hook == a1
     v1.unify(Number(1), hp)
-    assert hp.hooks.first.hook == a1
-    assert hp.hooks.first.next.hook == a2
-    assert hp.hooks.first.next.next is None
+    assert hp.hooks.last.hook == a2
+    assert hp.hooks.last.next.hook == a1
+    assert hp.hooks.last.next.next is None
 
     hp = Heap()
     v1 = Var()
@@ -254,20 +253,18 @@ def test_simple_hooks():
     t1 = Callable.build("f", [v1, v2])
     t2 = Callable.build("f", [Atom("a"), Atom("b")])
     t1.unify(t2, hp)
-    assert hp.hooks.first.hook == a1
-    assert hp.hooks.first.next.hook == a2
-    assert hp.hooks.first.next.next is None
+    assert hp.hooks.last.hook == a2
+    assert hp.hooks.last.next.hook == a1
+    assert hp.hooks.last.next.next is None
 
-def test_number_of_hooks():
-    py.test.skip("")
     hp = Heap()
     v = Var()
     av = AttVar()
     v.unify(av, hp)
-    assert hp.hooks.first is None
+    assert hp.hooks.last is None
     a = Callable.build("a")
     v.unify(a, hp)
-    assert hp.hooks.first.hook == av
+    assert hp.hooks.last.hook == av
     v.unify(a, hp)
-    assert hp.hooks.first.hook == av
-    assert hp.hooks.first.next is None
+    assert hp.hooks.last.hook == av
+    assert hp.hooks.last.next is None
