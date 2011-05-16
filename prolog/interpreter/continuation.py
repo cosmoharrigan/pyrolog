@@ -97,7 +97,7 @@ def _process_hooks(scont, fcont, heap):
 
 class Engine(object):
     def __init__(self, load_system=False):
-        self.heap = Heap()
+        self.heap = Heap() # XXX can this be killed?
         self.parser = None
         self.operations = None
         self.modulewrapper = ModuleWrapper(self)
