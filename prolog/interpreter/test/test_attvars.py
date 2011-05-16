@@ -272,6 +272,22 @@ def test_put_attrs():
     assert_true("put_attr(X, m, 1), (put_attrs(X, att(m, 2, [])), fail; true), get_attr(X, m, 1).", e)
     assert_true("put_attr(X, m, 1), put_attrs(X, att(m, 2, [])), get_attr(X, m, 2).", e)
 
+def test_more_than_one_attr_unify_hook():
+    e = get_engine("",
+    m = """
+    :- module(m, []).
+
+    attr_unify_hook(Attribute, f(X)) :-
+        X = 1.
+    attr_unify_hook(Attribute, f(X)) :-
+        X = 2.
+    """)
+    assert_true("put_attr(X, m, a), X = f(1).", e)
+    assert_true("put_attr(X, m, a), X = f(2).", e)
+    assert_true("put_attr(X, m, a), X = f(Y), Y = 1.", e)
+    assert_true("put_attr(X, m, a), X = f(Y), Y = 2.", e)
+    assert_true("put_attr(X, m, a), X = f(Y), ((Y = 1, fail); Y = 2).", e)
+
 def test_integration_efficient_bools():
     e = get_engine("",
     swi_bool_pred = """
