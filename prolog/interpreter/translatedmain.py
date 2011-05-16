@@ -18,7 +18,7 @@ class ContinueContinuation(Continuation):
 
     def activate(self, fcont, heap):
         self.write("yes\n")
-        var_representation(self.var_to_pos, self.engine, self.write)
+        var_representation(self.var_to_pos, self.engine, self.write, heap)
         while 1:
             if isinstance(fcont, DoneContinuation):
                 self.write("\n")
@@ -32,17 +32,17 @@ class ContinueContinuation(Continuation):
             elif res in "h?":
                 self.write(helptext)
             elif res in "p":
-                var_representation(self.var_to_pos, self.engine, self.write)
+                var_representation(self.var_to_pos, self.engine, self.write, heap)
             else:
                 self.write('unknown action. press "h" for help\n')
                 
-def var_representation(var_to_pos, engine, write):
+def var_representation(var_to_pos, engine, write, heap):
     from prolog.builtin import formatting
     f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
     for var, real_var in var_to_pos.iteritems():
         if var.startswith("_"):
             continue
-        val = f.format(real_var.getvalue(engine.heap))
+        val = f.format(real_var.getvalue(heap))
         write("%s = %s\n" % (var, val))
         
 def getch():
