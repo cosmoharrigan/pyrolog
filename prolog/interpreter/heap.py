@@ -204,6 +204,16 @@ class HookChain(object):
     def clear(self):
         self.__init__()
 
+    def size(self):
+        if self.last is None:
+            return 0
+        current = self.last
+        size = 0
+        while current is not None:
+            current = current.next
+            size += 1
+        return size
+
 class HookCell(object):
     def __init__(self, hook):
         self.hook = hook
