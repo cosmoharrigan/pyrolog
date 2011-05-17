@@ -292,3 +292,59 @@ def test_sat_solver():
     assert_false("sat([[true-X], [true-Y], [true-Z], [false-Z]], [X, Y, Z]).", e)
     #assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
     assert_false("sat([[true-X], [false-X]], [X]).", e)
+
+def test_4_queens():
+    e = get_engine("""
+    queens(Vars) :-
+        Vars = [_A, _B, _C, _D],
+        safe(Vars),
+        perm([1,2,3,4], Vars).
+
+    safe([]).
+    safe([H|T]) :-
+        safe(T),
+        attack(H, 1, T).
+
+    attack(_, _, []).
+    attack(X, N, [H|T]) :-
+        when((nonvar(X), nonvar(H)), (not(X is H + N; X is H - N))),
+        N1 is N + 1,
+        attack(X, N1, T).
+
+    perm([1,2,3,4], [1,2,3,4]).
+    perm([1,2,3,4], [1,2,4,3]).
+    perm([1,2,3,4], [1,3,2,4]).
+    perm([1,2,3,4], [1,3,4,2]).
+    perm([1,2,3,4], [1,4,2,3]).
+    perm([1,2,3,4], [1,4,3,2]).
+
+    perm([1,2,3,4], [2,1,3,4]).
+    perm([1,2,3,4], [2,1,4,3]).
+    perm([1,2,3,4], [2,3,1,4]).
+    perm([1,2,3,4], [2,3,4,1]).
+    perm([1,2,3,4], [2,4,1,3]).
+    perm([1,2,3,4], [2,4,2,1]).
+
+    perm([1,2,3,4], [3,1,2,4]).
+    perm([1,2,3,4], [3,1,4,2]).
+    perm([1,2,3,4], [3,2,1,4]).
+    perm([1,2,3,4], [3,2,4,1]).
+    perm([1,2,3,4], [3,4,1,2]).
+    perm([1,2,3,4], [3,4,2,1]).
+
+    perm([1,2,3,4], [4,1,3,2]).
+    perm([1,2,3,4], [4,1,2,3]).
+    perm([1,2,3,4], [4,2,1,3]).
+    perm([1,2,3,4], [4,2,3,1]).
+    perm([1,2,3,4], [4,3,1,2]).
+    perm([1,2,3,4], [4,3,2,1]).
+    """,
+    load_system=True)
+
+    assert_true("queens([2, 4, 1, 3]).", e)
+    assert_true("queens([3, 1, 4, 2]).", e)
+    assert_false("queens([4, 2, 1, 3]).", e)
+    assert_true("queens(X), X == [2, 4, 1, 3].", e)
+    assert_true("queens(X), X == [3, 1, 4, 2].", e)
+    assert_false("queens(X), X == [4, 2, 1, 3].", e)
+    #assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)

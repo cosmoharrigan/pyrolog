@@ -147,7 +147,7 @@ class Var(PrologObject):
         return self is other
     
     def eval_arithmetic(self, engine):
-        self = self.dereference(engine.heap)
+        self = self.dereference(None)
         if isinstance(self, Var):
             error.throw_instantiation_error()
         
