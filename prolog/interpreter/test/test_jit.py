@@ -11,8 +11,10 @@ class TestLLtype(LLJitMixin):
         app([], X, X).
         app([H | T1], T2, [H | T3]) :-
             app(T1, T2, T3).
-        loop(0).
-        loop(X) :- X > 0, X0 is X - 1, call(loop(X0)).
+        loop(0, []).
+        loop(X, [H|T]) :- X > 0, X0 is X - 1, loop(X0, T).
+        loop1(0, []).
+        loop1(N, [H|T]) :- N > 0, N1 is N - 1, put_attr(H, m, 4), loop1(N1, T).
         nrev([],[]).
         nrev([X|Y],Z) :- nrev(Y,Z1),
                          app(Z1,[X],Z).
@@ -44,7 +46,8 @@ class TestLLtype(LLJitMixin):
         """)
 
         t1 = parse_query_term("app([1, 2, 3, 4, 5, 6], [8, 9], X), X == [1, 2, 3, 4, 5, 6, 8, 9].")
-        t2 = parse_query_term("loop(100).")
+        #t2 = parse_query_term("loop(100, H), loop1(100, H).")
+        t2 = parse_query_term("loop1(100, L).")
         t3 = parse_query_term("nrev([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], X), X == [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].")
         t4 = parse_query_term("run(app([1, 2, 3, 4, 5, 6, 7], [8, 9], X)), X == [1, 2, 3, 4, 5, 6, 7, 8, 9].")
         t5 = parse_query_term("map(add1, [1, 2, 3, 4, 5, 6, 7], X), X == [2, 3, 4, 5, 6, 7, 8].")
@@ -70,7 +73,7 @@ class TestLLtype(LLJitMixin):
                 raise ValueError
             e.run(t, e.modulewrapper.user_module)
         # XXX
-        interp_w(1)
+        #interp_w(2)
         self.meta_interp(interp_w, [2], listcomp=True, backendopt=True,
                          listops=True)
         #self.meta_interp(interp_w, [3], listcomp=True,

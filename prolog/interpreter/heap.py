@@ -28,7 +28,8 @@ class Heap(object):
         # trail it (variable shunting)
         if self._is_created_in_self(var):
             return
-        i = jit.hint(self.i, promote=True)
+        #i = jit.hint(self.i, promote=True)
+        i = self.i
         if i >= len(self.trail_var):
             self._double_size()
         self.trail_var[i] = var
