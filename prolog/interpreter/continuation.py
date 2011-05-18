@@ -71,7 +71,6 @@ def driver(scont, fcont, heap):
 
 class Engine(object):
     def __init__(self):
-        self.heap = Heap()
         self.parser = None
         self.operations = None
         from prolog.builtin.statistics import Clocks

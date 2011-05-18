@@ -117,10 +117,11 @@ def test_run():
     c2 = Callable.build(":-", [Callable.build("f", [X, Y]),
                            Callable.build("f", [Y, X])])
     e.add_rule(c2)
-    X = e.heap.newvar()
+    hp = Heap()
+    X = hp.newvar()
     c3 = Callable.build("f", [Callable.build("b"), X])
     e.run(c3)
-    assert X.dereference(e.heap).name()== "b"
+    assert X.dereference(hp).name()== "b"
     query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
     e.run(query)
 

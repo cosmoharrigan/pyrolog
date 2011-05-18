@@ -1,6 +1,7 @@
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.parsing import parse_file, TermBuilder, OrderTransformer
 from prolog.interpreter.parsing import parse_query_term
+from prolog.interpreter.heap import Heap
 
 
 def test_simple():
@@ -38,10 +39,10 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     term = parse_query_term(
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")
     e.run(term)
-    var = Var().getvalue(e.heap)
-    print var, e.heap
+    hp = Heap()
+    var = Var().getvalue(hp)
     # does not raise
-    var.unify(four, e.heap)
+    var.unify(four, hp)
     term = parse_query_term(
         """greater_than(succ(succ(succ(null))), succ(succ(null))).""")
     e.run(term)
