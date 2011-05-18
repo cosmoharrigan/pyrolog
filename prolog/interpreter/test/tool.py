@@ -11,7 +11,7 @@ def assert_true(query, e=None):
     terms, vars = e.parse(query)
     term, = terms
     e.run(term, e.modulewrapper.current_module)
-    return dict([(name, var.dereference(e.heap))
+    return dict([(name, var.dereference(None))
                      for name, var in vars.iteritems()])
 
 def assert_false(query, e=None):

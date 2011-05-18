@@ -167,7 +167,7 @@ def test_trivial():
     m = e.modulewrapper
     t, vars = get_query_and_vars("f(X).")
     e.run(t, m.user_module)
-    assert vars['X'].dereference(e.heap).name()== "a"
+    assert vars['X'].dereference(None).name()== "a"
 
 def test_and():
     e = get_engine("""
@@ -180,7 +180,7 @@ def test_and():
     e.run(parse_query_term("f(a, c)."), m.user_module)
     t, vars = get_query_and_vars("f(X, c).")
     e.run(t, m.user_module)
-    assert vars['X'].dereference(e.heap).name()== "a"
+    assert vars['X'].dereference(None).name()== "a"
 
 def test_and_long():
     e = get_engine("""
@@ -213,7 +213,7 @@ def test_numeral():
     e.run(parse_query_term("num(succ(0))."), m.user_module)
     t, vars = get_query_and_vars("num(X).")
     e.run(t, m.user_module)
-    assert vars['X'].dereference(e.heap).num == 0
+    assert vars['X'].dereference(None).num == 0
     e.run(parse_query_term("add(0, 0, 0)."), m.user_module)
     py.test.raises(UnificationFailed, e.run, parse_query_term("""
         add(0, 0, succ(0))."""), m.user_module)
@@ -235,7 +235,7 @@ def test_or_backtrack():
         """)
     t, vars = get_query_and_vars("f(a, b, Z).")
     e.run(t, e.modulewrapper.user_module)
-    assert vars['Z'].dereference(e.heap).name()== "a"
+    assert vars['Z'].dereference(None).name()== "a"
     f = collect_all(e, "X = 1; X = 2.")
     assert len(f) == 2
 
