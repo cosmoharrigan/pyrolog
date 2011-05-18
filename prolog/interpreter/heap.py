@@ -203,7 +203,7 @@ class HookChain(object):
     def clear(self):
         self.__init__()
 
-    def size(self):
+    def _size(self):
         if self.last is None:
             return 0
         current = self.last

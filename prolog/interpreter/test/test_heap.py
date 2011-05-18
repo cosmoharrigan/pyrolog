@@ -268,3 +268,15 @@ def test_simple_hooks():
     v.unify(a, hp)
     assert hp.hooks.last.hook == av
     assert hp.hooks.last.next is None
+
+def test_hookchain_size():
+    h = HookChain()
+    assert h._size() == 0
+    h.add_hook(1)
+    assert h._size() == 1
+    h.add_hook(2)
+    assert h._size() == 2
+    h.clear()
+    assert h._size() == 0
+
+
