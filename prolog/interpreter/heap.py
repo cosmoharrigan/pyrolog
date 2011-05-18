@@ -51,7 +51,6 @@ class Heap(object):
             var.created_after_choice_point = created_in
         return self is created_in
 
-    @jit.unroll_safe
     def _double_size(self):
         trail_var = [None] * (len(self.trail_var) * 2)
         l = len(trail_var)
