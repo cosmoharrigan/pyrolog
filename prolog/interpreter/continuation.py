@@ -60,8 +60,6 @@ def driver(scont, fcont, heap):
             if not we_are_translated():
                 if fcont.is_done():
                     raise
-            if scont.candiscard():
-                scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
@@ -187,8 +185,6 @@ class Engine(object):
                 scont = scont.nextcont
                 continue
             discard_heap = scont.heap
-            if discard_heap.discarded:
-                discard_heap = discard_heap._find_not_discarded() # XXX strange thing
             heap = heap.revert_upto(discard_heap)
             try:
                 scont.catcher.unify(exc, heap)
@@ -211,8 +207,6 @@ class Engine(object):
             if not we_are_translated():
                 if fcont.is_done():
                     raise
-            if scont.candiscard():
-                scont.discard()
             return fcont.fail(heap)
         except error.CatchableError, e:
             return scont.engine.throw(e.term, scont, fcont, heap)
@@ -232,13 +226,6 @@ class Continuation(object):
     def __init__(self, engine, nextcont):
         self.engine = engine
         self.nextcont = nextcont
-        if nextcont is not None:
-            self._candiscard = nextcont.candiscard()
-        else:
-            self._candiscard = False
-
-    def candiscard(self):
-        return self._candiscard
 
     def activate(self, fcont, heap):
         """ Follow the continuation. heap is the heap that should be used while
@@ -251,13 +238,6 @@ class Continuation(object):
 
     def is_done(self):
         return False
-
-    def discard(self):
-        """ Discard the information stored in a Continuation. This will be used
-        if a SuccessContinuation will no longer be activatable, since
-        backtracking occurred. """
-        if self.nextcont is not None:
-            self.nextcont.discard()
 
     def _dot(self, seen):
         if self in seen:
@@ -374,11 +354,6 @@ class ChoiceContinuation(FailureContinuation):
         heap = self.undoheap.discard(heap)
         return self.orig_fcont.cut(heap)
 
-    def discard(self):
-        # don't propagate the discarding, as a ChoiceContinuation can both be a
-        # success and a failure continuation at the same time
-        pass
-
     def _dot(self, seen):
         if self in seen:
             return
@@ -451,38 +426,25 @@ class CutScopeNotifier(Continuation):
         Continuation.__init__(self, engine, nextcont)
         self.cutcell = CutCell()
 
-    def candiscard(self):
-        return not self.cutcell.discarded
-
     def activate(self, fcont, heap):
         self.cutcell.activated = True
         return self.nextcont, fcont, heap
-
-    def discard(self):
-        assert not self.cutcell.activated
-        self.cutcell.discarded = True
 
 
 class CutCell(object):
     def __init__(self):
         self.activated = False
-        self.discarded = False
 
 class CutDelimiter(FailureContinuation):
     def __init__(self, engine, nextcont, cutcell):
         FailureContinuation.__init__(self, engine, nextcont)
         self.cutcell = cutcell
 
-    def candiscard(self):
-        return not self.cutcell.discarded
-
     @staticmethod
     def insert_cut_delimiter(engine, nextcont, fcont):
         if isinstance(fcont, CutDelimiter):
-            if fcont.cutcell.activated or fcont.cutcell.discarded:
+            if fcont.cutcell.activated:
                 fcont = fcont.nextcont
-                if isinstance(nextcont, CutScopeNotifier) and nextcont.cutcell.discarded:
-                    nextcont = nextcont.nextcont
             elif (isinstance(nextcont, CutScopeNotifier) and
                     nextcont.cutcell is fcont.cutcell):
                 assert not fcont.cutcell.activated
@@ -507,7 +469,7 @@ class CutDelimiter(FailureContinuation):
         return nextcont.cut(heap)
 
     def __repr__(self):
-        return "<CutDelimiter activated=%r, discarded=%r>" % (self.cutcell.activated, self.cutcell.discarded)
+        return "<CutDelimiter activated=%r>" % (self.cutcell.activated)
 
     def _dot(self, seen):
         if self in seen:

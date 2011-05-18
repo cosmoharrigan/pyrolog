@@ -9,7 +9,6 @@ class Heap(object):
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
         self.prev = prev
-        self.discarded = False
 
     # _____________________________________________________
     # interface that term.py uses
@@ -20,9 +19,6 @@ class Heap(object):
         # if the variable doesn't exist before the last choice point, don't
         # trail it (variable shunting)
         created_in = var.created_after_choice_point
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            var.created_after_choice_point = created_in
         if self is created_in:
             return
         # actually trail the variable
@@ -32,11 +28,6 @@ class Heap(object):
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
-
-    def _find_not_discarded(self):
-        while self is not None and self.discarded:
-            self = self.prev
-        return self
 
     @jit.unroll_safe
     def _double_size(self):
@@ -79,18 +70,15 @@ class Heap(object):
 
     @jit.unroll_safe
     def _revert(self):
-        assert not self.discarded
         for i in range(self.i-1, -1, -1):
             self.trail_var[i].binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
 
-    @jit.unroll_safe
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
         a chain of frames. """
-        self.discarded = True
         if current_heap.prev is self:
             targetpos = 0
             # check whether variables in the current heap no longer need to be
@@ -121,8 +109,7 @@ class Heap(object):
             self.trail_var = None
             self.trail_binding = None
             self.i = -1
-            # make self.prev point to the heap that replaced it
-            self.prev = current_heap
+            self.prev = None
         else:
             return self
         return current_heap
