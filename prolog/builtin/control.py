@@ -40,8 +40,10 @@ class RepeatContinuation(continuation.FailureContinuation):
         
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
+    end_fcont = scont.find_end_of_cut()
+    return scont, end_fcont, heap # XXX need to discard heaps, but later!
     if fcont:
-        fcont = fcont.cut(heap)
+        fcont = fcont.cut(heap, end_fcont)
     return scont, fcont, heap
 
 @expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)

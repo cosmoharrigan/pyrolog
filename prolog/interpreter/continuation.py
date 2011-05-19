@@ -239,6 +239,9 @@ class Continuation(object):
     def is_done(self):
         return False
 
+    def find_end_of_cut(self):
+        return self.nextcont.find_end_of_cut()
+
     def _dot(self, seen):
         if self in seen:
             return
@@ -295,6 +298,8 @@ class DoneContinuation(FailureContinuation):
     def is_done(self):
         return True
 
+    def find_end_of_cut(self):
+        return DoneContinuation(self.engine)
 
 class BodyContinuation(Continuation):
     """ Represents a bit of Prolog code that is still to be called. """
@@ -380,7 +385,7 @@ class UserCallContinuation(ChoiceContinuation):
         rule = rulechain
         nextcont = self.nextcont
         if rule.contains_cut:
-            nextcont, fcont = CutDelimiter.insert_cut_delimiter(
+            nextcont = CutScopeNotifier.insert_scope_notifier(
                     self.engine, nextcont, fcont)
         query = self.query
         restchain = rulechain.find_next_applicable_rule(query)
@@ -422,62 +427,29 @@ class RuleContinuation(Continuation):
         return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
 
 class CutScopeNotifier(Continuation):
-    def __init__(self, engine, nextcont):
+    def __init__(self, engine, nextcont, fcont_after_cut):
         Continuation.__init__(self, engine, nextcont)
-        self.cutcell = CutCell()
-
-    def activate(self, fcont, heap):
-        self.cutcell.activated = True
-        return self.nextcont, fcont, heap
-
-
-class CutCell(object):
-    def __init__(self):
-        self.activated = False
-
-class CutDelimiter(FailureContinuation):
-    def __init__(self, engine, nextcont, cutcell):
-        FailureContinuation.__init__(self, engine, nextcont)
-        self.cutcell = cutcell
+        self.fcont_after_cut = fcont_after_cut
 
     @staticmethod
-    def insert_cut_delimiter(engine, nextcont, fcont):
-        if isinstance(fcont, CutDelimiter):
-            if fcont.cutcell.activated:
-                fcont = fcont.nextcont
-            elif (isinstance(nextcont, CutScopeNotifier) and
-                    nextcont.cutcell is fcont.cutcell):
-                assert not fcont.cutcell.activated
-                return nextcont, fcont
-        scont = CutScopeNotifier(engine, nextcont)
-        fcont = CutDelimiter(engine, fcont, scont.cutcell)
-        return scont, fcont
+    def insert_scope_notifier(engine, nextcont, fcont):
+        if isinstance(nextcont, CutScopeNotifier) and nextcont.fcont_after_cut is fcont:
+            return nextcont
+        return CutScopeNotifier(engine, nextcont, fcont)
 
-    def activate(self, *args):
-        raise NotImplementedError("unreachable")
+    def find_end_of_cut(self):
+        return self.fcont_after_cut
 
-    def fail(self, heap):
-        nextcont = self.nextcont
-        assert isinstance(nextcont, FailureContinuation)
-        return nextcont.fail(heap)
-
-    def cut(self, heap):
-        if not self.cutcell.activated:
-            return self
-        nextcont = self.nextcont
-        assert isinstance(nextcont, FailureContinuation)
-        return nextcont.cut(heap)
-
-    def __repr__(self):
-        return "<CutDelimiter activated=%r>" % (self.cutcell.activated)
+    def activate(self, fcont, heap):
+        return self.nextcont, fcont, heap
 
     def _dot(self, seen):
         if self in seen:
             return
-        for line in FailureContinuation._dot(self, seen):
+        for line in Continuation._dot(self, seen):
             yield line
         seen.add(self)
-        yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
+        yield "%s -> %s [label=fcont_after_cut]" % (id(self), id(self.fcont_after_cut))
         for line in self.nextcont._dot(seen):
             yield line
 
