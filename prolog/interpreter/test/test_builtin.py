@@ -543,6 +543,14 @@ def test_ifthenelse():
     ).
     """)
 
+def test_cut_in_ifthenelse():
+    e = get_engine("""
+        f(X) :- ! -> fail.
+        f(0).
+    """)
+    assert_true("f(0).", e)
+
+
 def test_once():
     assert_true("once(repeat).")
 
