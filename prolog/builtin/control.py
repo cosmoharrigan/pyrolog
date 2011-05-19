@@ -77,6 +77,15 @@ class OrContinuation(continuation.FailureContinuation):
     def __repr__(self):
         return "<OrContinuation altcall=%s" % (self.altcall, )
 
+    def _dot(self, seen):
+        if self in seen:
+            return
+        for line in continuation.FailureContinuation._dot(self, seen):
+            yield line
+        seen.add(self)
+        yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
+        for line in self.orig_fcont._dot(seen):
+            yield line
             
 @expose_builtin(";", unwrap_spec=["callable", "callable"],
                 handles_continuation=True)
@@ -84,16 +93,47 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
     if call1.signature().eq(ifsig):
         assert helper.is_term(call1)
-        scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
-        fcont = OrContinuation(engine, scont, heap, fcont, call2)
+        #scont = continuation.CutScopeNotifier.insert_scope_notifier(engine, scont, fcont)
+        newfcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont, fcont, heap = impl_if(
                 engine, heap, helper.ensure_callable(call1.argument_at(0)),
-                call1.argument_at(1), scont, fcont, insert_cutdelimiter=False)
+                call1.argument_at(1), scont, newfcont, fcont)
         return engine.continue_(newscont, fcont, heap.branch())
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont = continuation.BodyContinuation(engine, scont, call1)
         return engine.continue_(newscont, fcont, heap.branch())
+
+@expose_builtin("->", unwrap_spec=["callable", "raw"],
+                handles_continuation=True)
+def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
+            fcont_after_condition=None):
+    if fcont_after_condition is None:
+        fcont_after_condition = fcont
+    scont = continuation.BodyContinuation(engine, scont, then_clause)
+    scont = IfScopeNotifier(engine, scont, fcont, fcont_after_condition)
+    # NB: careful here, must not use engine.continue_, because we could be
+    # called from impl_or! this subtlely sucks
+    newscont = continuation.BodyContinuation(engine, scont, if_clause)
+    return newscont, fcont, heap
+
+class IfScopeNotifier(continuation.CutScopeNotifier):
+    def __init__(self, engine, nextcont, fcont_after_cut, fcont_after_condition):
+        continuation.CutScopeNotifier.__init__(self, engine, nextcont, fcont_after_cut)
+        self.fcont_after_condition = fcont_after_condition
+
+    def activate(self, fcont, heap):
+        return self.nextcont, self.fcont_after_condition, heap
+
+    def _dot(self, seen):
+        if self in seen:
+            return
+        for line in continuation.CutScopeNotifier._dot(self, seen):
+            yield line
+        seen.add(self)
+        yield "%s -> %s [label=fcont_after_condition]" % (id(self), id(self.fcont_after_condition))
+        for line in self.fcont_after_condition._dot(seen):
+            yield line
 
 class NotSuccessContinuation(continuation.Continuation):
     def __init__(self, engine, nextcont, heap):
@@ -129,17 +169,7 @@ def impl_not(engine, heap, call, scont, fcont):
     notscont = NotSuccessContinuation(engine, fcont, heap)
     notfcont = NotFailureContinuation(engine, scont, fcont, heap)
     newscont = continuation.BodyContinuation(engine, notscont, call)
+    continuation.view(newscont, notfcont)
     return engine.continue_(newscont, notfcont, heap.branch())
 
 
-@expose_builtin("->", unwrap_spec=["callable", "raw"],
-                handles_continuation=True)
-def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
-            insert_cutdelimiter=True):
-    scont = continuation.BodyContinuation(engine, scont, then_clause)
-    if insert_cutdelimiter:
-        scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
-    body = term.Callable.build(",", [if_clause, CUTATOM])
-    # NB: careful here, must not use engine.continue_, because we could be
-    # called from impl_or! this subtlely sucks
-    return continuation.BodyContinuation(engine, scont, body), fcont, heap
