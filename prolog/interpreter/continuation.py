@@ -247,10 +247,11 @@ class Continuation(object):
             return
         seen.add(self)
         yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
-        if self.nextcont is not None:
-            yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
-            for line in self.nextcont._dot(seen):
-                yield line
+        for key, value in self.__dict__.iteritems():
+            if hasattr(value, "_dot"):
+                yield "%s -> %s [label=%s]" % (id(self), id(value), key)
+                for line in value._dot(seen):
+                    yield line
 
 def view(*objects):
     from dotviewer import graphclient
@@ -359,21 +360,6 @@ class ChoiceContinuation(FailureContinuation):
         heap = self.undoheap.discard(heap)
         return self.orig_fcont.cut(heap)
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in FailureContinuation._dot(self, seen):
-            yield line
-        seen.add(self)
-        if self.orig_fcont is not None:
-            yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
-            for line in self.orig_fcont._dot(seen):
-                yield line
-        if self.undoheap is not None:
-            yield "%s -> %s [label=heap]" % (id(self), id(self.undoheap))
-            for line in self.undoheap._dot(seen):
-                yield line
-
 class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, nextcont, query, rulechain):
         ChoiceContinuation.__init__(self, engine, nextcont)
@@ -443,16 +429,6 @@ class CutScopeNotifier(Continuation):
     def activate(self, fcont, heap):
         return self.nextcont, fcont, heap
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in Continuation._dot(self, seen):
-            yield line
-        seen.add(self)
-        yield "%s -> %s [label=fcont_after_cut]" % (id(self), id(self.fcont_after_cut))
-        for line in self.nextcont._dot(seen):
-            yield line
-
 
 class CatchingDelimiter(Continuation):
     def __init__(self, engine, nextcont, fcont, catcher, recover, heap):
@@ -464,13 +440,3 @@ class CatchingDelimiter(Continuation):
 
     def activate(self, fcont, heap):
         return self.nextcont, fcont, heap
-
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in Continuation._dot(self, seen):
-            yield line
-        if self.heap is not None:
-            yield "%s -> %s [label=heap]" % (id(self), id(self.heap))
-            for line in self.heap._dot(seen):
-                yield line

@@ -75,18 +75,9 @@ class OrContinuation(continuation.FailureContinuation):
         return self.engine.continue_(self, self.orig_fcont, heap)
 
     def __repr__(self):
-        return "<OrContinuation altcall=%s" % (self.altcall, )
+        return "<OrContinuation %r" % (self.altcall, )
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in continuation.FailureContinuation._dot(self, seen):
-            yield line
-        seen.add(self)
-        yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
-        for line in self.orig_fcont._dot(seen):
-            yield line
-            
+
 @expose_builtin(";", unwrap_spec=["callable", "callable"],
                 handles_continuation=True)
 def impl_or(engine, heap, call1, call2, scont, fcont):
@@ -124,16 +115,6 @@ class IfScopeNotifier(continuation.CutScopeNotifier):
 
     def activate(self, fcont, heap):
         return self.nextcont, self.fcont_after_condition, heap
-
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in continuation.CutScopeNotifier._dot(self, seen):
-            yield line
-        seen.add(self)
-        yield "%s -> %s [label=fcont_after_condition]" % (id(self), id(self.fcont_after_condition))
-        for line in self.fcont_after_condition._dot(seen):
-            yield line
 
 class NotSuccessContinuation(continuation.Continuation):
     def __init__(self, engine, nextcont, heap):
