@@ -298,6 +298,15 @@ def test_not_with_cut():
     assert_false("p1.", e)
     assert_true("p2.", e)
 
+def test_not_stops_cut():
+    e = get_engine("""
+        f(X) :- (X = a; X = b), not((!, fail)).
+        """)
+    assert_true("f(X), X = b.", e)
+    assert_true("not(((X = 1; X = 2), !, X=2)).", e)
+
+
+
 def test_two_cuts():
     e = get_engine("""
         f(>, X) :- X > 0, !.
