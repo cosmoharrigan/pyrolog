@@ -4,7 +4,8 @@ from prolog.interpreter.signature import Signature
 
 ifsig = Signature.getsignature("->", 2)
 cutsig = Signature.getsignature("!", 0)
-CUTATOM = term.Callable.build("!")
+FAILATOM = term.Callable.build("fail")
+TRUEATOM = term.Callable.build("true")
 
 # ___________________________________________________________________
 # control predicates
@@ -84,16 +85,20 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
     # sucks a bit to have to special-case A -> B ; C here :-(
     if call1.signature().eq(ifsig):
         assert helper.is_term(call1)
-        #scont = continuation.CutScopeNotifier.insert_scope_notifier(engine, scont, fcont)
-        newfcont = OrContinuation(engine, scont, heap, fcont, call2)
-        newscont, fcont, heap = impl_if(
-                engine, heap, helper.ensure_callable(call1.argument_at(0)),
-                call1.argument_at(1), scont, newfcont, fcont)
-        return engine.continue_(newscont, fcont, heap.branch())
+        return if_then_else(
+                engine, heap, scont, fcont,
+                call1.argument_at(0),
+                call1.argument_at(1), call2)
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont = continuation.BodyContinuation(engine, scont, call1)
         return engine.continue_(newscont, fcont, heap.branch())
+
+def if_then_else(engine, heap, scont, fcont, if_clause, then_clause, else_clause):
+    newfcont = OrContinuation(engine, scont, heap, fcont, else_clause)
+    newscont, fcont, heap = impl_if(
+            engine, heap, if_clause, then_clause, scont, newfcont, fcont)
+    return engine.continue_(newscont, fcont, heap.branch())
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
                 handles_continuation=True)
@@ -116,41 +121,7 @@ class IfScopeNotifier(continuation.CutScopeNotifier):
     def activate(self, fcont, heap):
         return self.nextcont, self.fcont_after_condition, heap
 
-class NotSuccessContinuation(continuation.Continuation):
-    def __init__(self, engine, nextcont, heap):
-        assert isinstance(nextcont, continuation.FailureContinuation)
-        continuation.Continuation.__init__(self, engine, nextcont)
-        self.undoheap = heap
-
-    def activate(self, fcont, heap):
-        heap.revert_upto(self.undoheap)
-        if self.nextcont is None:
-            raise error.UnificationFailed
-        nextcont = self.nextcont
-        assert isinstance(nextcont, continuation.FailureContinuation)
-        return self.nextcont.fail(self.undoheap)
-
-class NotFailureContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, nextcont, orig_fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, nextcont)
-        self.undoheap = heap
-        self.orig_fcont = orig_fcont
-
-    def activate(self, fcont, heap):
-        assert 0, "Unreachable"
-
-    def fail(self, heap):
-        heap.revert_upto(self.undoheap)
-        return self.nextcont, self.orig_fcont, self.undoheap
-
-
 @expose_builtin(["not", "\\+"], unwrap_spec=["callable"],
                 handles_continuation=True)
 def impl_not(engine, heap, call, scont, fcont):
-    notscont = NotSuccessContinuation(engine, fcont, heap)
-    notfcont = NotFailureContinuation(engine, scont, fcont, heap)
-    newscont = continuation.BodyContinuation(engine, notscont, call)
-    continuation.view(newscont, notfcont)
-    return engine.continue_(newscont, notfcont, heap.branch())
-
-
+    return if_then_else(engine, heap, scont, fcont, call, FAILATOM, TRUEATOM)
