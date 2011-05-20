@@ -76,7 +76,7 @@ class OrContinuation(continuation.FailureContinuation):
         assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         self.undoheap = None
-        return self.engine.continue_(self, self.orig_fcont, heap)
+        return self, self.orig_fcont, heap
 
     def __repr__(self):
         return "<OrContinuation %r" % (self.altcall, )
@@ -95,13 +95,13 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
     else:
         fcont = OrContinuation(engine, scont, heap, fcont, call2)
         newscont = continuation.BodyContinuation(engine, scont, call1)
-        return engine.continue_(newscont, fcont, heap.branch())
+        return newscont, fcont, heap.branch()
 
 def if_then_else(engine, heap, scont, fcont, if_clause, then_clause, else_clause):
     newfcont = OrContinuation(engine, scont, heap, fcont, else_clause)
     newscont, fcont, heap = impl_if(
             engine, heap, if_clause, then_clause, scont, newfcont, fcont)
-    return engine.continue_(newscont, fcont, heap.branch())
+    return newscont, fcont, heap.branch()
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
                 handles_continuation=True)
@@ -111,8 +111,6 @@ def impl_if(engine, heap, if_clause, then_clause, scont, fcont,
         fcont_after_condition = fcont
     scont = continuation.BodyContinuation(engine, scont, then_clause)
     scont = IfScopeNotifier(engine, scont, fcont, fcont_after_condition)
-    # NB: careful here, must not use engine.continue_, because we could be
-    # called from impl_or! this subtlely sucks
     newscont = continuation.BodyContinuation(engine, scont, if_clause)
     return newscont, fcont, heap
 

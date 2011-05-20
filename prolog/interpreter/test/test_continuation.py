@@ -79,9 +79,7 @@ def test_failure_continuation():
             return self.next, fcont, heap
 
     class FakeE(object):
-        @staticmethod
-        def continue_(*args):
-            return args
+        pass
 
     ca = FakeF(FakeC(FakeC(done, -1), 'c'), 10)
     driver(ca, FakeC(done, "done"), h)
