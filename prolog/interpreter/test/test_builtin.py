@@ -197,6 +197,12 @@ def test_cut_with_throw():
     """)
     assert_true("c(_, Y), Y == a.", e)
 
+def test_cut_with_throw_direct():
+    e = get_engine("""
+        c(X, Y) :- catch(((X = a; X = b), !, X = b, Y = b), E, Y = a); X = c.
+    """)
+    assert_true("c(X, Y), X == c.", e)
+
 def test_call_cut():
     py.test.skip("cuts don't work properly in the presence of calls right now")
     e = get_engine("""
