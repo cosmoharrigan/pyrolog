@@ -171,8 +171,7 @@ class Engine(object):
         rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             raise error.UnificationFailed
-        scont = UserCallContinuation(self, scont, query,
-                                     rulechain)
+        scont, fcont, heap = _make_rule_conts(self, scont, fcont, heap, query, rulechain)
         return scont, fcont, heap
 
     # _____________________________________________________
@@ -200,6 +199,19 @@ class Engine(object):
 
     def __freeze__(self):
         return True
+
+def _make_rule_conts(engine, scont, fcont, heap, query, rulechain):
+    rule = jit.hint(rulechain, promote=True)
+    if rule.contains_cut:
+        scont = CutScopeNotifier.insert_scope_notifier(
+                engine, scont, fcont)
+    restchain = rule.find_next_applicable_rule(query)
+    if restchain is not None:
+        fcont = UserCallContinuation(engine, scont, fcont, heap, query, restchain)
+        heap = heap.branch()
+
+    scont = RuleContinuation(engine, scont, rule, query)
+    return scont, fcont, heap
 
 # ___________________________________________________________________
 # Continuation classes
@@ -273,6 +285,22 @@ class FailureContinuation(Continuation):
             return
         raise NotImplementedError
 
+class NewFailureContinuation(object):
+    def __init__(self, engine, nextcont, orig_fcont, heap):
+        self.engine = engine
+        self.nextcont = nextcont
+        self.orig_fcont = orig_fcont
+        self.undoheap = heap
+
+    def cut(self, upto, heap):
+        if self is upto:
+            return
+        heap = self.undoheap.discard(heap)
+        self.orig_fcont.cut(upto, heap)
+
+    def is_done(self):
+        return False
+
 class DoneSuccessContinuation(Continuation):
     def __init__(self, engine):
         Continuation.__init__(self, engine, None)
@@ -281,9 +309,9 @@ class DoneSuccessContinuation(Continuation):
     def is_done(self):
         return True
 
-class DoneFailureContinuation(FailureContinuation):
+class DoneFailureContinuation(NewFailureContinuation):
     def __init__(self, engine):
-        FailureContinuation.__init__(self, engine, None)
+        NewFailureContinuation.__init__(self, engine, None, None, None)
 
     def fail(self, heap):
         scont = DoneSuccessContinuation(self.engine)
@@ -292,9 +320,6 @@ class DoneFailureContinuation(FailureContinuation):
 
     def is_done(self):
         return True
-
-    def find_end_of_cut(self):
-        return DoneFailureContinuation(self.engine)
 
 
 class BodyContinuation(Continuation):
@@ -357,27 +382,17 @@ class ChoiceContinuation(FailureContinuation):
         heap = self.undoheap.discard(heap)
         self.orig_fcont.cut(upto, heap)
 
-class UserCallContinuation(ChoiceContinuation):
-    def __init__(self, engine, nextcont, query, rulechain):
-        ChoiceContinuation.__init__(self, engine, nextcont)
+class UserCallContinuation(NewFailureContinuation):
+    def __init__(self, engine, nextcont, orig_fcont, heap, query, rulechain):
+        NewFailureContinuation.__init__(self, engine, nextcont, orig_fcont, heap)
         self.query = query
         self.rulechain = rulechain
 
-    def activate(self, fcont, heap):
-        rulechain = jit.hint(self.rulechain, promote=True)
-        rule = rulechain
-        nextcont = self.nextcont
-        if rule.contains_cut:
-            nextcont = CutScopeNotifier.insert_scope_notifier(
-                    self.engine, nextcont, fcont)
-        query = self.query
-        restchain = rulechain.find_next_applicable_rule(query)
-        if restchain is not None:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.rulechain = restchain
+    def fail(self, heap):
+        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
+        return _make_rule_conts(self.engine, self.nextcont, self.orig_fcont,
+                                heap, self.query, self.rulechain)
 
-        cont = RuleContinuation(self.engine, nextcont, rule, query)
-        return cont, fcont, heap
 
     def __repr__(self):
         return "<UserCallContinuation query=%r rule=%r>" % (
