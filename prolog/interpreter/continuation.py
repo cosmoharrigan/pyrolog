@@ -47,7 +47,7 @@ jitdriver = jit.JitDriver(
 def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
-        #view(scont, fcont, heap)
+        #view(scont=scont, fcont=fcont, heap=heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             rule = scont._rule
             jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
@@ -238,12 +238,14 @@ class Continuation(object):
                 for line in value._dot(seen):
                     yield line
 
-def view(*objects):
+def view(*objects, **names):
     from dotviewer import graphclient
     content = ["digraph G{"]
     seen = set()
-    for obj in objects:
+    for obj in list(objects) + names.values():
         content.extend(obj._dot(seen))
+    for key, value in names.items():
+        content.append("%s -> %s" % (key, id(value)))
     content.append("}")
     p = py.test.ensuretemp("prolog").join("temp.dot")
     p.write("\n".join(content))
