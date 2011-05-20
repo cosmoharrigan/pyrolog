@@ -29,9 +29,6 @@ class DoneWithFindallContinuation(continuation.FailureContinuation):
         self.undoheap = heap
         self.bag = bag
 
-    def activate(self, fcont, heap):
-        raise NotImplementedError
-
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
         result = term.Callable.build("[]")
