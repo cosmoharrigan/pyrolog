@@ -270,7 +270,7 @@ class Engine(object):
 
     @specialize.argtype(0)
     def continue_(scont, fcont, heap):
-        if scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+        if True: #scont.is_done() or isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             return scont, fcont, heap
         try:
             return scont.activate(fcont, heap)

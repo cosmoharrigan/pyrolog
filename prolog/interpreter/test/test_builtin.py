@@ -7,6 +7,16 @@ from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
 from prolog.interpreter.test.tool import prolog_raises
 
+def test_or():
+    assert_false("fail;fail.")
+    e = get_engine("""
+        f(X, Y) :-
+               ( fail
+               ; X \== Y
+               ).
+    """)
+    assert_false("f(X,X).", e)
+
 def test_fail():
     e = get_engine("""
         g(a).
