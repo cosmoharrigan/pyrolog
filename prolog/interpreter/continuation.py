@@ -148,9 +148,10 @@ class Engine(object):
     # Prolog execution
 
     def run_query(self, query, continuation=None):
+        fcont = DoneContinuation(self)
         if continuation is None:
-            continuation = DoneContinuation(self)
-        driver(*self.call(query, continuation, DoneContinuation(self), Heap()))
+            continuation = CutScopeNotifier(self, DoneContinuation(self), fcont)
+        driver(*self.call(query, continuation, fcont, Heap()))
     run = run_query
 
     def call(self, query, scont, fcont, heap):
