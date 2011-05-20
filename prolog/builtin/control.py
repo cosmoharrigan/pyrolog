@@ -55,28 +55,15 @@ def impl_and(engine, heap, call1, call2, scont, fcont):
     scont = continuation.BodyContinuation(engine, scont, call2)
     return engine.call(call1, scont, fcont, heap)
 
-class OrContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, nextcont, undoheap, orig_fcont, altcall):
-        continuation.FailureContinuation.__init__(self, engine, nextcont)
+class OrContinuation(continuation.NewFailureContinuation):
+    def __init__(self, engine, nextcont, orig_fcont, undoheap, altcall):
+        continuation.NewFailureContinuation.__init__(self, engine, nextcont, orig_fcont, undoheap)
         self.altcall = altcall
-        self.undoheap = undoheap
-        self.orig_fcont = orig_fcont
-
-    def activate(self, fcont, heap):
-        assert self.undoheap is None
-        return self.engine.call(self.altcall, self.nextcont, fcont, heap)
-
-    def cut(self, upto, heap):
-        if self is upto:
-            return
-        heap = self.undoheap.discard(heap)
-        return self.orig_fcont.cut(upto, heap)
 
     def fail(self, heap):
-        assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        self.undoheap = None
-        return self, self.orig_fcont, heap
+        scont = continuation.BodyContinuation(self.engine, self.nextcont, self.altcall)
+        return scont, self.orig_fcont, heap
 
     def __repr__(self):
         return "<OrContinuation %r" % (self.altcall, )
@@ -93,12 +80,12 @@ def impl_or(engine, heap, call1, call2, scont, fcont):
                 call1.argument_at(0),
                 call1.argument_at(1), call2)
     else:
-        fcont = OrContinuation(engine, scont, heap, fcont, call2)
+        fcont = OrContinuation(engine, scont, fcont, heap, call2)
         newscont = continuation.BodyContinuation(engine, scont, call1)
         return newscont, fcont, heap.branch()
 
 def if_then_else(engine, heap, scont, fcont, if_clause, then_clause, else_clause):
-    newfcont = OrContinuation(engine, scont, heap, fcont, else_clause)
+    newfcont = OrContinuation(engine, scont, fcont, heap, else_clause)
     newscont, fcont, heap = impl_if(
             engine, heap, if_clause, then_clause, scont, newfcont, fcont)
     return newscont, fcont, heap.branch()
