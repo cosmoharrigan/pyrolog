@@ -34,18 +34,19 @@ class RepeatContinuation(continuation.FailureContinuation):
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
         return self.nextcont, self, heap
-    
-    def cut(self, heap):
+
+    def cut(self, upto, heap):
+        if self is upto:
+            return
         heap = self.undoheap.discard(heap)
-        return self.fcont.cut(heap)
-        
+        self.fcont.cut(upto, heap)
+
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
     end_fcont = scont.find_end_of_cut()
-    return scont, end_fcont, heap # XXX need to discard heaps, but later!
-    if fcont:
-        fcont = fcont.cut(heap, end_fcont)
-    return scont, fcont, heap
+    #import pdb; pdb.set_trace()
+    fcont.cut(end_fcont, heap)
+    return scont, end_fcont, heap
 
 @expose_builtin(",", unwrap_spec=["callable", "raw"], handles_continuation=True)
 def impl_and(engine, heap, call1, call2, scont, fcont):
@@ -65,9 +66,11 @@ class OrContinuation(continuation.FailureContinuation):
         assert self.undoheap is None
         return self.engine.call(self.altcall, self.nextcont, fcont, heap)
 
-    def cut(self, heap):
-        assert self.undoheap is not None
-        return self.orig_fcont.cut(heap)
+    def cut(self, upto, heap):
+        if self is upto:
+            return
+        heap = self.undoheap.discard(heap)
+        return self.orig_fcont.cut(upto, heap)
 
     def fail(self, heap):
         assert self.undoheap is not None

@@ -280,10 +280,12 @@ class FailureContinuation(Continuation):
         # returns (next cont, failure cont, heap)
         raise NotImplementedError("abstract base class")
 
-    def cut(self, heap):
+    def cut(self, upto, heap):
         """ Cut away choice points till the next correct cut delimiter.
         Slightly subtle. """
-        return self
+        if self is upto:
+            return
+        raise NotImplementedError
 
 class DoneContinuation(FailureContinuation):
     def __init__(self, engine):
@@ -357,9 +359,11 @@ class ChoiceContinuation(FailureContinuation):
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         return self.engine.continue_(self, self.orig_fcont, heap)
 
-    def cut(self, heap):
+    def cut(self, upto, heap):
+        if self is upto:
+            return
         heap = self.undoheap.discard(heap)
-        return self.orig_fcont.cut(heap)
+        self.orig_fcont.cut(upto, heap)
 
 class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, nextcont, query, rulechain):
@@ -441,3 +445,6 @@ class CatchingDelimiter(Continuation):
 
     def activate(self, fcont, heap):
         return self.nextcont, fcont, heap
+
+    def __repr__(self):
+        return "<CatchingDelimiter catcher=%s recover=%s>" % (self.catcher, self.recover)

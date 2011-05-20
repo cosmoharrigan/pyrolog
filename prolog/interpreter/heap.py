@@ -9,9 +9,14 @@ class Heap(object):
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
         self.prev = prev
+        self.discarded = False
 
     # _____________________________________________________
     # interface that term.py uses
+    def _find_not_discarded(self):
+        while self is not None and self.discarded:
+            self = self.prev
+        return self
 
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
@@ -19,6 +24,9 @@ class Heap(object):
         # if the variable doesn't exist before the last choice point, don't
         # trail it (variable shunting)
         created_in = var.created_after_choice_point
+        if created_in is not None and created_in.discarded:
+            created_in = created_in._find_not_discarded()
+            var.created_after_choice_point = created_in
         if self is created_in:
             return
         # actually trail the variable
@@ -79,6 +87,7 @@ class Heap(object):
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
         a chain of frames. """
+        self.discarded = True
         if current_heap.prev is self:
             targetpos = 0
             # check whether variables in the current heap no longer need to be
@@ -109,7 +118,7 @@ class Heap(object):
             self.trail_var = None
             self.trail_binding = None
             self.i = -1
-            self.prev = None
+            self.prev = current_heap
         else:
             return self
         return current_heap
