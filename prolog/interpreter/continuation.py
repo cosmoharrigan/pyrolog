@@ -63,7 +63,7 @@ def driver(scont, fcont, heap):
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
-    assert isinstance(scont, DoneContinuation)
+    assert isinstance(scont, DoneSuccessContinuation)
     if scont.failed:
         raise error.UnificationFailed
 
@@ -148,9 +148,9 @@ class Engine(object):
     # Prolog execution
 
     def run_query(self, query, continuation=None):
-        fcont = DoneContinuation(self)
+        fcont = DoneFailureContinuation(self)
         if continuation is None:
-            continuation = CutScopeNotifier(self, DoneContinuation(self), fcont)
+            continuation = CutScopeNotifier(self, DoneSuccessContinuation(self), fcont)
         driver(*self.call(query, continuation, fcont, Heap()))
     run = run_query
 
@@ -271,23 +271,29 @@ class FailureContinuation(Continuation):
             return
         raise NotImplementedError
 
-class DoneContinuation(FailureContinuation):
+class DoneSuccessContinuation(Continuation):
     def __init__(self, engine):
         Continuation.__init__(self, engine, None)
         self.failed = False
 
-    def activate(self, fcont, heap):
-        assert 0, "unreachable"
+    def is_done(self):
+        return True
+
+class DoneFailureContinuation(FailureContinuation):
+    def __init__(self, engine):
+        FailureContinuation.__init__(self, engine, None)
 
     def fail(self, heap):
-        self.failed = True
+        scont = DoneSuccessContinuation(self.engine)
+        scont.failed = True
         return self, self, heap
 
     def is_done(self):
         return True
 
     def find_end_of_cut(self):
-        return DoneContinuation(self.engine)
+        return DoneFailureContinuation(self.engine)
+
 
 class BodyContinuation(Continuation):
     """ Represents a bit of Prolog code that is still to be called. """
