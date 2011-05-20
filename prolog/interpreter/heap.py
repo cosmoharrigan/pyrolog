@@ -13,6 +13,10 @@ class Heap(object):
 
     # _____________________________________________________
     # interface that term.py uses
+    def _find_not_discarded(self):
+        while self is not None and self.discarded:
+            self = self.prev
+        return self
 
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
@@ -32,11 +36,6 @@ class Heap(object):
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
-
-    def _find_not_discarded(self):
-        while self is not None and self.discarded:
-            self = self.prev
-        return self
 
     @jit.unroll_safe
     def _double_size(self):
@@ -79,14 +78,12 @@ class Heap(object):
 
     @jit.unroll_safe
     def _revert(self):
-        assert not self.discarded
         for i in range(self.i-1, -1, -1):
             self.trail_var[i].binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
 
-    @jit.unroll_safe
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
         a chain of frames. """
@@ -121,7 +118,6 @@ class Heap(object):
             self.trail_var = None
             self.trail_binding = None
             self.i = -1
-            # make self.prev point to the heap that replaced it
             self.prev = current_heap
         else:
             return self

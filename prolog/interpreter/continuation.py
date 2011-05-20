@@ -60,8 +60,6 @@ def driver(scont, fcont, heap):
             if not we_are_translated():
                 if fcont.is_done():
                     raise
-            if scont.candiscard():
-                scont.discard()
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
@@ -150,9 +148,10 @@ class Engine(object):
     # Prolog execution
 
     def run_query(self, query, continuation=None):
+        fcont = DoneContinuation(self)
         if continuation is None:
-            continuation = DoneContinuation(self)
-        driver(*self.call(query, continuation, DoneContinuation(self), Heap()))
+            continuation = CutScopeNotifier(self, DoneContinuation(self), fcont)
+        driver(*self.call(query, continuation, fcont, Heap()))
     run = run_query
 
     def call(self, query, scont, fcont, heap):
@@ -187,8 +186,6 @@ class Engine(object):
                 scont = scont.nextcont
                 continue
             discard_heap = scont.heap
-            if discard_heap.discarded:
-                discard_heap = discard_heap._find_not_discarded() # XXX strange thing
             heap = heap.revert_upto(discard_heap)
             try:
                 scont.catcher.unify(exc, heap)
@@ -211,8 +208,6 @@ class Engine(object):
             if not we_are_translated():
                 if fcont.is_done():
                     raise
-            if scont.candiscard():
-                scont.discard()
             return fcont.fail(heap)
         except error.CatchableError, e:
             return scont.engine.throw(e.term, scont, fcont, heap)
@@ -232,13 +227,6 @@ class Continuation(object):
     def __init__(self, engine, nextcont):
         self.engine = engine
         self.nextcont = nextcont
-        if nextcont is not None:
-            self._candiscard = nextcont.candiscard()
-        else:
-            self._candiscard = False
-
-    def candiscard(self):
-        return self._candiscard
 
     def activate(self, fcont, heap):
         """ Follow the continuation. heap is the heap that should be used while
@@ -252,22 +240,19 @@ class Continuation(object):
     def is_done(self):
         return False
 
-    def discard(self):
-        """ Discard the information stored in a Continuation. This will be used
-        if a SuccessContinuation will no longer be activatable, since
-        backtracking occurred. """
-        if self.nextcont is not None:
-            self.nextcont.discard()
+    def find_end_of_cut(self):
+        return self.nextcont.find_end_of_cut()
 
     def _dot(self, seen):
         if self in seen:
             return
         seen.add(self)
         yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
-        if self.nextcont is not None:
-            yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
-            for line in self.nextcont._dot(seen):
-                yield line
+        for key, value in self.__dict__.iteritems():
+            if hasattr(value, "_dot"):
+                yield "%s -> %s [label=%s]" % (id(self), id(value), key)
+                for line in value._dot(seen):
+                    yield line
 
 def view(*objects):
     from dotviewer import graphclient
@@ -295,10 +280,12 @@ class FailureContinuation(Continuation):
         # returns (next cont, failure cont, heap)
         raise NotImplementedError("abstract base class")
 
-    def cut(self, heap):
+    def cut(self, upto, heap):
         """ Cut away choice points till the next correct cut delimiter.
         Slightly subtle. """
-        return self
+        if self is upto:
+            return
+        raise NotImplementedError
 
 class DoneContinuation(FailureContinuation):
     def __init__(self, engine):
@@ -315,6 +302,8 @@ class DoneContinuation(FailureContinuation):
     def is_done(self):
         return True
 
+    def find_end_of_cut(self):
+        return DoneContinuation(self.engine)
 
 class BodyContinuation(Continuation):
     """ Represents a bit of Prolog code that is still to be called. """
@@ -370,29 +359,11 @@ class ChoiceContinuation(FailureContinuation):
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
         return self.engine.continue_(self, self.orig_fcont, heap)
 
-    def cut(self, heap):
-        heap = self.undoheap.discard(heap)
-        return self.orig_fcont.cut(heap)
-
-    def discard(self):
-        # don't propagate the discarding, as a ChoiceContinuation can both be a
-        # success and a failure continuation at the same time
-        pass
-
-    def _dot(self, seen):
-        if self in seen:
+    def cut(self, upto, heap):
+        if self is upto:
             return
-        for line in FailureContinuation._dot(self, seen):
-            yield line
-        seen.add(self)
-        if self.orig_fcont is not None:
-            yield "%s -> %s [label=orig_fcont]" % (id(self), id(self.orig_fcont))
-            for line in self.orig_fcont._dot(seen):
-                yield line
-        if self.undoheap is not None:
-            yield "%s -> %s [label=heap]" % (id(self), id(self.undoheap))
-            for line in self.undoheap._dot(seen):
-                yield line
+        heap = self.undoheap.discard(heap)
+        self.orig_fcont.cut(upto, heap)
 
 class UserCallContinuation(ChoiceContinuation):
     def __init__(self, engine, nextcont, query, rulechain):
@@ -405,7 +376,7 @@ class UserCallContinuation(ChoiceContinuation):
         rule = rulechain
         nextcont = self.nextcont
         if rule.contains_cut:
-            nextcont, fcont = CutDelimiter.insert_cut_delimiter(
+            nextcont = CutScopeNotifier.insert_scope_notifier(
                     self.engine, nextcont, fcont)
         query = self.query
         restchain = rulechain.find_next_applicable_rule(query)
@@ -447,77 +418,21 @@ class RuleContinuation(Continuation):
         return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
 
 class CutScopeNotifier(Continuation):
-    def __init__(self, engine, nextcont):
+    def __init__(self, engine, nextcont, fcont_after_cut):
         Continuation.__init__(self, engine, nextcont)
-        self.cutcell = CutCell()
-
-    def candiscard(self):
-        return not self.cutcell.discarded
-
-    def activate(self, fcont, heap):
-        self.cutcell.activated = True
-        return self.nextcont, fcont, heap
-
-    def discard(self):
-        assert not self.cutcell.activated
-        self.cutcell.discarded = True
-
-
-class CutCell(object):
-    def __init__(self):
-        self.activated = False
-        self.discarded = False
-
-class CutDelimiter(FailureContinuation):
-    def __init__(self, engine, nextcont, cutcell):
-        FailureContinuation.__init__(self, engine, nextcont)
-        self.cutcell = cutcell
-
-    def candiscard(self):
-        return not self.cutcell.discarded
+        self.fcont_after_cut = fcont_after_cut
 
     @staticmethod
-    def insert_cut_delimiter(engine, nextcont, fcont):
-        if isinstance(fcont, CutDelimiter):
-            if fcont.cutcell.activated or fcont.cutcell.discarded:
-                fcont = fcont.nextcont
-                if isinstance(nextcont, CutScopeNotifier) and nextcont.cutcell.discarded:
-                    nextcont = nextcont.nextcont
-            elif (isinstance(nextcont, CutScopeNotifier) and
-                    nextcont.cutcell is fcont.cutcell):
-                assert not fcont.cutcell.activated
-                return nextcont, fcont
-        scont = CutScopeNotifier(engine, nextcont)
-        fcont = CutDelimiter(engine, fcont, scont.cutcell)
-        return scont, fcont
+    def insert_scope_notifier(engine, nextcont, fcont):
+        if isinstance(nextcont, CutScopeNotifier) and nextcont.fcont_after_cut is fcont:
+            return nextcont
+        return CutScopeNotifier(engine, nextcont, fcont)
 
-    def activate(self, *args):
-        raise NotImplementedError("unreachable")
+    def find_end_of_cut(self):
+        return self.fcont_after_cut
 
-    def fail(self, heap):
-        nextcont = self.nextcont
-        assert isinstance(nextcont, FailureContinuation)
-        return nextcont.fail(heap)
-
-    def cut(self, heap):
-        if not self.cutcell.activated:
-            return self
-        nextcont = self.nextcont
-        assert isinstance(nextcont, FailureContinuation)
-        return nextcont.cut(heap)
-
-    def __repr__(self):
-        return "<CutDelimiter activated=%r, discarded=%r>" % (self.cutcell.activated, self.cutcell.discarded)
-
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in FailureContinuation._dot(self, seen):
-            yield line
-        seen.add(self)
-        yield "%s -> %s [label=nextcont]" % (id(self), id(self.nextcont))
-        for line in self.nextcont._dot(seen):
-            yield line
+    def activate(self, fcont, heap):
+        return self.nextcont, fcont, heap
 
 
 class CatchingDelimiter(Continuation):
@@ -531,12 +446,5 @@ class CatchingDelimiter(Continuation):
     def activate(self, fcont, heap):
         return self.nextcont, fcont, heap
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        for line in Continuation._dot(self, seen):
-            yield line
-        if self.heap is not None:
-            yield "%s -> %s [label=heap]" % (id(self), id(self.heap))
-            for line in self.heap._dot(seen):
-                yield line
+    def __repr__(self):
+        return "<CatchingDelimiter catcher=%s recover=%s>" % (self.catcher, self.recover)
