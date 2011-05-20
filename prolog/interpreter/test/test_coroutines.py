@@ -66,8 +66,8 @@ def test_when():
     assert_true("when(?=(X, Y), Z = a), X = a, Y = b, Z == a.", e)
     assert_true("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == 1.", e)
 
-    #assert_false("when(?=(f(1), f(2)), nl), fail.", e) # minimal example for cut bug
-    #assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
+    assert_false("when(?=(f(1), f(2)), nl), fail.", e) # minimal example for cut bug
+    assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
 
     assert_true("when(?=(f(X), f(X)), Z = a), Z == a.", e)
     assert_true("when(?=(f(X, Y), f(X, Y)), Z = a), Z == a.", e)
@@ -96,7 +96,7 @@ def test_when():
     assert_false("when(?=(X, Y), X \== Y), X = Y.", e)
 
 def test_hard_when():
-    #assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
+    assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
     assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)
     assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), X = Y, Y = a, A == 1, B == 2.", e)
     assert_true("when(nonvar(X), assert(xyz(a))), when(nonvar(Y), assert(xyz(b))), X = Y, Y = a.", e)
@@ -143,7 +143,7 @@ def test_block():
     assert_true("f(a, b, Z), Z == 10.", e)
     assert_true("f(a, X, Z), \+ Z == 10, X = 5, Z == 10.", e)
     assert_true("f(A, B, Z), \+ Z == 10, A = a, \+ Z == 10, B = b, Z == 10.", e)
-    #assert_true("f(a, X, Z), (X = 1, fail; true), var(Z).", e)
+    assert_true("f(a, X, Z), (X = 1, fail; true), var(Z).", e)
 
     prolog_raises("existence_error(_, _)", "g(5), gg(1)", e)
     prolog_raises("existence_error(_, _)", "g(X), gg(1)", e)
@@ -290,7 +290,7 @@ def test_sat_solver():
     assert_true("sat([[true-X], [false-Y]], [X, Y]), X == true, Y == false.", e)
     #assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
     assert_false("sat([[true-X], [true-Y], [true-Z], [false-Z]], [X, Y, Z]).", e)
-    #assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
+    assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
     assert_false("sat([[true-X], [false-X]], [X]).", e)
 
 def test_4_queens():
