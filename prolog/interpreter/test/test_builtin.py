@@ -204,13 +204,14 @@ def test_cut_with_throw_direct():
     assert_true("c(X, Y), X == c.", e)
 
 def test_call_cut():
-    py.test.skip("cuts don't work properly in the presence of calls right now")
     e = get_engine("""
         f(X) :- call(X).
         f(!).
     """)
     heaps = collect_all(e, "f(!).")
-    assert len(heaps) == 1
+    assert len(heaps) == 2
+    assert_true("call(((X = a; X = b), !, X = b)); X = c.")
+    assert_false("(((X = a; X = b), !, X = b)); X = c.")
 
 def test_bug_or_exposing_problem_of_cyclic_term_support():
     e = get_engine("""
