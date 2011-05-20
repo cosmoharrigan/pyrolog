@@ -46,8 +46,9 @@ class TestLLtype(LLJitMixin):
         """)
 
         t1 = parse_query_term("app([1, 2, 3, 4, 5, 6], [8, 9], X), X == [1, 2, 3, 4, 5, 6, 8, 9].")
-        #t2 = parse_query_term("loop(100, H), loop1(100, H).")
-        t2 = parse_query_term("loop1(100, L).")
+        t2 = parse_query_term("loop(100, H), statistics(walltime, [T1, _]), loop1(100, H), statistics(walltime, [T2, _]).")
+        #t2 = parse_query_term("loop(100, H), loop1(100, H1).")
+        #t2 = parse_query_term("loop1(100, L).")
         t3 = parse_query_term("nrev([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], X), X == [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].")
         t4 = parse_query_term("run(app([1, 2, 3, 4, 5, 6, 7], [8, 9], X)), X == [1, 2, 3, 4, 5, 6, 7, 8, 9].")
         t5 = parse_query_term("map(add1, [1, 2, 3, 4, 5, 6, 7], X), X == [2, 3, 4, 5, 6, 7, 8].")
