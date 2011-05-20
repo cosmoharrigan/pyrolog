@@ -7,6 +7,16 @@ from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
 from prolog.interpreter.test.tool import prolog_raises
 
+def test_or():
+    assert_false("fail;fail.")
+    e = get_engine("""
+        f(X, Y) :-
+               ( fail
+               ; X \== Y
+               ).
+    """)
+    assert_false("f(X,X).", e)
+
 def test_fail():
     e = get_engine("""
         g(a).
@@ -219,14 +229,21 @@ def test_cut_with_throw():
     """)
     assert_true("c(_, Y), Y == a.", e)
 
+def test_cut_with_throw_direct():
+    e = get_engine("""
+        c(X, Y) :- catch(((X = a; X = b), !, X = b, Y = b), E, Y = a); X = c.
+    """)
+    assert_true("c(X, Y), X == c.", e)
+
 def test_call_cut():
-    py.test.skip("cuts don't work properly in the presence of calls right now")
     e = get_engine("""
         f(X) :- call(X).
         f(!).
     """)
     heaps = collect_all(e, "f(!).")
-    assert len(heaps) == 1
+    assert len(heaps) == 2
+    assert_true("call(((X = a; X = b), !, X = b)); X = c.")
+    assert_false("(((X = a; X = b), !, X = b)); X = c.")
 
 def test_bug_or_exposing_problem_of_cyclic_term_support():
     e = get_engine("""
@@ -319,6 +336,15 @@ def test_not_with_cut():
     """)
     assert_false("p1.", e)
     assert_true("p2.", e)
+
+def test_not_stops_cut():
+    e = get_engine("""
+        f(X) :- (X = a; X = b), not((!, fail)).
+        """)
+    assert_true("f(X), X = b.", e)
+    assert_true("not(((X = 1; X = 2), !, X=2)).", e)
+
+
 
 def test_two_cuts():
     e = get_engine("""
@@ -613,6 +639,14 @@ def test_ifthenelse():
         [Head|Tail] = L
     ).
     """)
+
+def test_cut_in_ifthenelse():
+    e = get_engine("""
+        f(X) :- ! -> fail.
+        f(0).
+    """)
+    assert_true("f(0).", e)
+
 
 def test_once():
     assert_true("once(repeat).")

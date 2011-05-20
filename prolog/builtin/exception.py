@@ -10,7 +10,10 @@ from prolog.builtin.type import impl_ground
                 handles_continuation=True, needs_module=True)
 def impl_catch(engine, heap, module, goal, catcher, recover, scont, fcont):
     scont = continuation.CatchingDelimiter(engine, module, scont, fcont, catcher, recover, heap)
-    return continuation.BodyContinuation(engine, module, scont, goal), fcont, heap
+    scont = continuation.CutScopeNotifier(engine, scont, fcont)
+    scont = continuation.BodyContinuation(engine, module, scont, goal)
+    #continuation.view(scont, fcont, heap)
+    return scont, fcont, heap.branch()
 
 @expose_builtin("throw", unwrap_spec=["obj"], handles_continuation=True)
 def impl_throw(engine, heap, exc, scont, fcont):

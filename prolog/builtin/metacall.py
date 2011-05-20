@@ -8,7 +8,7 @@ from prolog.builtin.register import expose_builtin
 @expose_builtin("call", unwrap_spec=["callable"],
                 handles_continuation=True, needs_module=True)
 def impl_call(engine, heap, module, call, scont, fcont):
-    scont, fcont = continuation.CutDelimiter.insert_cut_delimiter(engine, scont, fcont)
+    scont = continuation.CutScopeNotifier.insert_scope_notifier(engine, scont, fcont)
     return engine.call(call, module, scont, fcont, heap)
 
 class OnceContinuation(continuation.Continuation):

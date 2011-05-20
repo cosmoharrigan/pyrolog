@@ -15,6 +15,10 @@ class Heap(object):
 
     # _____________________________________________________
     # interface that term.py uses
+    def _find_not_discarded(self):
+        while self is not None and self.discarded:
+            self = self.prev
+        return self
 
     def add_trail_atts(self, attvar, attr_name):
         if self._is_created_in_self(attvar):
@@ -38,11 +42,6 @@ class Heap(object):
 
     def add_hook(self, attvar):
         self.hooks.add_hook(attvar)
-
-    def _find_not_discarded(self):
-        while self is not None and self.discarded:
-            self = self.prev
-        return self
 
     def _is_created_in_self(self, var):
         created_in = var.created_after_choice_point
@@ -99,7 +98,6 @@ class Heap(object):
 
     @jit.unroll_safe
     def _revert(self):
-        assert not self.discarded
         for i in range(self.i-1, -1, -1):
             v = self.trail_var[i]
             assert v is not None
@@ -116,7 +114,6 @@ class Heap(object):
         self.trail_attrs = []
         self.hooks.clear()
 
-    @jit.unroll_safe
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
         a chain of frames. """
@@ -168,7 +165,6 @@ class Heap(object):
             self.trail_var = None
             self.trail_binding = None
             self.i = -1
-            # make self.prev point to the heap that replaced it
             self.prev = current_heap
         else:
             return self
