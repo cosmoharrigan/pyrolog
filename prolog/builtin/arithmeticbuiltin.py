@@ -4,24 +4,13 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # arithmetic
 
-def _make_between(engine, scont, fcont, heap, lower, upper, var):
+@continuation.make_failure_continuation
+def continue_between(Choice, engine, scont, fcont, heap, lower, upper, var):
     if lower < upper:
-        fcont = BetweenContinuation(engine, scont, fcont, heap, lower + 1, upper, var)
+        fcont = Choice(engine, scont, fcont, heap, lower + 1, upper, var)
         heap = heap.branch()
     var.unify(term.Number(lower), heap)
     return scont, fcont, heap
-
-class BetweenContinuation(continuation.NewFailureContinuation):
-    def __init__(self, engine, scont, fcont, heap, lower, upper, var):
-        continuation.NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
-        self.lower = lower
-        self.upper = upper
-        self.var = var
-
-    def fail(self, heap):
-        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return _make_between(self.engine, self.nextcont, self.orig_fcont,
-                                heap, self.lower, self.upper, self.var)
 
 @expose_builtin("between", unwrap_spec=["int", "int", "obj"],
                handles_continuation=True)
@@ -29,8 +18,8 @@ def impl_between(engine, heap, lower, upper, varorint, scont, fcont):
     if isinstance(varorint, term.Var):
         if lower > upper:
             raise error.UnificationFailed
-        return _make_between(engine, scont, fcont, heap,
-                             lower, upper, varorint)
+        return continue_between(engine, scont, fcont, heap,
+                                lower, upper, varorint)
     else:
         integer = helper.unwrap_int(varorint)
         if not (lower <= integer <= upper):

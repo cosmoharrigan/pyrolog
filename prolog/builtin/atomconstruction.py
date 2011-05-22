@@ -6,33 +6,21 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # analysing and construction atoms
 
-def _make_atomconcat(engine, scont, fcont, heap, var1, var2, result, i):
+@continuation.make_failure_continuation
+def continue_atom_concat(Choice, engine, scont, fcont, heap, var1, var2, result, i):
     if i < len(result):
-        fcont = AtomConcatContinuation(engine, scont, fcont, heap, var1, var2, result, i + 1)
+        fcont = Choice(engine, scont, fcont, heap, var1, var2, result, i + 1)
         heap = heap.branch()
     var1.unify(term.Callable.build(result[:i], cache=False), heap)
     var2.unify(term.Callable.build(result[i:], cache=False), heap)
     return scont, fcont, heap
-
-class AtomConcatContinuation(continuation.NewFailureContinuation):
-    def __init__(self, engine, scont, fcont, heap, var1, var2, result, i):
-        continuation.NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
-        self.var1 = var1
-        self.var2 = var2
-        self.result = result
-        self.i = i
-
-    def fail(self, heap):
-        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return _make_atomconcat(self.engine, self.nextcont, self.orig_fcont,
-                                heap, self.var1, self.var2, self.result, self.i)
 
 @expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"], handles_continuation=True)
 def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
     if isinstance(a1, term.Var):
         r = helper.convert_to_str(result)
         if isinstance(a2, term.Var):
-            return _make_atomconcat(engine, scont, fcont, heap, a1, a2, r, 0)
+            return continue_atom_concat(engine, scont, fcont, heap, a1, a2, r, 0)
         else:
             s2 = helper.convert_to_str(a2)
             if r.endswith(s2):

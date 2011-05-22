@@ -30,9 +30,10 @@ def impl_functor(engine, heap, t, functor, arity):
                     term.Callable.build(name, [term.Var() for i in range(a)]),
                     heap)
 
-def _make_arg_cont(engine, scont, fcont, heap, varnum, num, temarg, vararg):
+@continuation.make_failure_continuation
+def continue_arg(Choice, engine, scont, fcont, heap, varnum, num, temarg, vararg):
     if num < temarg.argument_count() - 1:
-        fcont = ArgContinuation(engine, scont, fcont, heap, varnum, num + 1, temarg, vararg)
+        fcont = Choice(engine, scont, fcont, heap, varnum, num + 1, temarg, vararg)
         heap = heap.branch()
     scont = continuation.BodyContinuation(
             engine, scont, term.Callable.build("=", [vararg, temarg.argument_at(num)]))
@@ -40,31 +41,18 @@ def _make_arg_cont(engine, scont, fcont, heap, varnum, num, temarg, vararg):
             engine, scont, term.Callable.build("=", [varnum, term.Number(num + 1)]))
     return scont, fcont, heap
 
-class ArgContinuation(continuation.NewFailureContinuation):
-    def __init__(self, engine, scont, fcont, heap, varnum, num, termarg, vararg):
-        continuation.NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
-        self.varnum = varnum
-        self.num = num
-        self.termarg = termarg
-        self.vararg = vararg
-
-    def fail(self, heap):
-        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return _make_arg_cont(self.engine, self.nextcont, self.orig_fcont,
-                              heap, self.varnum, self.num, self.termarg, self.vararg)
-
 @expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
 handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, scont, fcont):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
+    if isinstance(second, term.Atom):
+        raise error.UnificationFailed()
     if not helper.is_term(second):
         error.throw_type_error("compound", second)
-    if helper.is_atomic(second):
-        raise error.UnificationFailed()
     assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
-        return _make_arg_cont(engine, scont, fcont, heap, first, 0, second, third)
+        return continue_arg(engine, scont, fcont, heap, first, 0, second, third)
     elif isinstance(first, term.Number):
         num = first.num
         if num == 0:

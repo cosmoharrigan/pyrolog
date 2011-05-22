@@ -301,6 +301,22 @@ class NewFailureContinuation(object):
     def is_done(self):
         return False
 
+def make_failure_continuation(make_func):
+    class C(NewFailureContinuation):
+        def __init__(self, engine, scont, fcont, heap, *state):
+            NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
+            self.state = state
+
+        def fail(self, heap):
+            heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
+            return make_func(C, self.engine, self.nextcont, self.orig_fcont,
+                             heap, *self.state)
+    C.__name__ = make_func.__name__ + "FailureContinuation"
+    def make_func_wrapper(*args):
+        return make_func(C, *args)
+    make_func_wrapper.__name__ = make_func.__name__ + "_wrapper"
+    return make_func_wrapper
+
 class DoneSuccessContinuation(Continuation):
     def __init__(self, engine):
         Continuation.__init__(self, engine, None)
