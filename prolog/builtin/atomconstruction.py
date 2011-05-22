@@ -173,8 +173,8 @@ class SubAtomElseContinuation(SubAtomContinuation):
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
 
-@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
-                                                    handles_continuation=True)
+#@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
+#                                                    handles_continuation=True)
 def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
     if not isinstance(sub, term.Var):
         cls = SubAtomNonVarSubContinuation
