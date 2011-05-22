@@ -216,6 +216,18 @@ def _make_rule_conts(engine, scont, fcont, heap, query, rulechain):
 # ___________________________________________________________________
 # Continuation classes
 
+def _dot(self, seen):
+    if self in seen:
+        return
+    seen.add(self)
+    yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
+    for key, value in self.__dict__.iteritems():
+        if hasattr(value, "_dot"):
+            yield "%s -> %s [label=%s]" % (id(self), id(value), key)
+            for line in value._dot(seen):
+                yield line
+
+
 class Continuation(object):
     """ Represents a continuation of the Prolog computation. This can be seen
     as an RPython-compatible way to express closures. """
@@ -239,16 +251,7 @@ class Continuation(object):
     def find_end_of_cut(self):
         return self.nextcont.find_end_of_cut()
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        seen.add(self)
-        yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
-        for key, value in self.__dict__.iteritems():
-            if hasattr(value, "_dot"):
-                yield "%s -> %s [label=%s]" % (id(self), id(value), key)
-                for line in value._dot(seen):
-                    yield line
+    _dot = _dot
 
 def view(*objects, **names):
     from dotviewer import graphclient
@@ -300,6 +303,8 @@ class NewFailureContinuation(object):
 
     def is_done(self):
         return False
+
+    _dot = _dot
 
 def make_failure_continuation(make_func):
     class C(NewFailureContinuation):
