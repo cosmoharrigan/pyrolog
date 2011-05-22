@@ -326,7 +326,7 @@ class DoneFailureContinuation(NewFailureContinuation):
     def fail(self, heap):
         scont = DoneSuccessContinuation(self.engine)
         scont.failed = True
-        return self, self, heap
+        return scont, self, heap
 
     def is_done(self):
         return True
