@@ -95,6 +95,8 @@ def test_when():
     assert_true("when(?=(X, Y), Z = 1), var(Z), X = Y, Z == 1.", e)
     assert_false("when(?=(X, Y), X \== Y), X = Y.", e)
 
+    assert_true("when(?=([1, 2, 3], X), C = 1), X = [1|Y], var(C), Y = [2|Z], var(C), Z = [3], C == 1.", e)
+
 def test_hard_when():
     assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
     assert_true("when(nonvar(X), Y = 1), when(nonvar(A), G = 1), X = A, var(Y), var(G).", e)

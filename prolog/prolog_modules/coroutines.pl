@@ -142,7 +142,7 @@ when_decidable_first_nonvar(A, B, Goal) :-
         ->
             Goal
         ;
-            true
+            coroutines:put_when_attributes(Candidates, coroutines:when_decidable(A, B, Goal))
         )
     ;
         true
