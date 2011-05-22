@@ -9,7 +9,7 @@ from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
 
 def test_driver():
     order = []
-    done = DoneContinuation(None)
+    done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -31,7 +31,7 @@ def test_driver():
         def discard(self):
             pass
 
-    c5 = FakeC(FakeC(FakeC(FakeC(FakeC(done, 1), 2), 3), 4), 5)
+    c5 = FakeC(FakeC(FakeC(FakeC(FakeC(DoneSuccessContinuation(None), 1), 2), 3), 4), 5)
     driver(c5, done, Heap())
     assert order == [5, 4, 3, 2, 1]
 
@@ -43,50 +43,45 @@ def test_driver():
 def test_failure_continuation():
     order = []
     h = Heap()
-    done = DoneContinuation(None)
+    done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
             self.next = next
             self.val = val
-        
+
         def is_done(self):
             return False
-        def discard(self):
-            pass
         def activate(self, fcont, heap):
             if self.val == -1:
                 raise error.UnificationFailed
             order.append(self.val)
             return self.next, fcont, heap
 
-        def fail(self, heap):
-            order.append("fail")
-            return self, None, heap
-
-    class FakeF(ChoiceContinuation):
+    class FakeF(FailureContinuation):
         def __init__(self, next, count):
             self.next = next
             self.count = count
             self.engine = FakeE()
 
-        def activate(self, fcont, heap):
+        def fail(self, heap):
             if self.count:
-                fcont, heap = self.prepare_more_solutions(fcont, heap)
+                fcont = FakeF(self.next, self.count - 1)
+                heap = heap.branch()
+            else:
+                fcont = DoneFailureContinuation(None)
             res = self.count
             order.append(res)
             self.count -= 1
             return self.next, fcont, heap
 
     class FakeE(object):
-        @staticmethod
-        def continue_(*args):
-            return args
+        pass
 
-    ca = FakeF(FakeC(FakeC(done, -1), 'c'), 10)
-    driver(ca, FakeC(done, "done"), h)
+    ca = FakeF(FakeC(FakeC(DoneSuccessContinuation(None), -1), 'c'), 10)
+    py.test.raises(UnificationFailed, driver, FakeC(DoneSuccessContinuation(None), -1), ca, h)
     assert order == [10, 'c', 9, 'c', 8, 'c', 7, 'c', 6, 'c', 5, 'c', 4, 'c',
-                     3, 'c', 2, 'c', 1, 'c', 0, 'c', "fail", "done"]
+                     3, 'c', 2, 'c', 1, 'c', 0, 'c']
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
@@ -129,7 +124,7 @@ def test_cut_not_reached():
             return False
         def activate(self, fcont, heap):
             assert fcont.is_done()
-            return DoneContinuation(e), DoneContinuation(e), heap
+            return DoneSuccessContinuation(e), DoneFailureContinuation(e), heap
     e = get_engine("""
         g(X, Y) :- X > 0, !, Y = a.
         g(_, b).

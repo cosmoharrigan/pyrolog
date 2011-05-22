@@ -4,36 +4,22 @@ from prolog.builtin.register import expose_builtin
 # ___________________________________________________________________
 # arithmetic
 
+@continuation.make_failure_continuation
+def continue_between(Choice, engine, scont, fcont, heap, lower, upper, var):
+    if lower < upper:
+        fcont = Choice(engine, scont, fcont, heap, lower + 1, upper, var)
+        heap = heap.branch()
+    var.unify(term.Number(lower), heap)
+    return scont, fcont, heap
 
-class BetweenContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, scont, fcont, heap, lower, upper, varorint):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
-        self.undoheap = heap
-        self.orig_fcont = fcont
-        self.lower = lower
-        self.upper = upper
-        self.varorint = varorint
-        self.i = lower
-        
-    def activate(self, fcont, heap):
-        if self.i <= self.upper:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            try:
-                self.varorint.unify(term.Number(self.i), heap)
-            except error.UnificationFailed, e:
-                return fcont, self.orig_fcont, heap
-            finally:
-                self.i +=1
-            return self.nextcont, fcont, heap
-        raise error.UnificationFailed()
-        
 @expose_builtin("between", unwrap_spec=["int", "int", "obj"],
                handles_continuation=True)
 def impl_between(engine, heap, lower, upper, varorint, scont, fcont):
     if isinstance(varorint, term.Var):
-        bc = BetweenContinuation(engine, scont, fcont, heap, 
-                                                        lower, upper, varorint)
-        return bc, fcont, heap
+        if lower > upper:
+            raise error.UnificationFailed
+        return continue_between(engine, scont, fcont, heap,
+                                lower, upper, varorint)
     else:
         integer = helper.unwrap_int(varorint)
         if not (lower <= integer <= upper):

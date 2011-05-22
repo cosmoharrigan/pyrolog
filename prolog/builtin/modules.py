@@ -114,30 +114,21 @@ def impl_add_library_dir(engine, heap, path):
             return
     engine.modulewrapper.libs.append(abspath)
 
-class LibraryDirContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, scont, fcont, heap, pathvar):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
-        self.undoheap = heap
-        self.orig_fcont = fcont
-        self.pathvar = pathvar
-        self.keycount = 0
-        self.engine = engine
-        self.max = len(engine.modulewrapper.libs)
-
-    def activate(self, fcont, heap):
-        if self.keycount < self.max:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.pathvar.unify(Callable.build(self.engine.modulewrapper.libs[self.keycount]), heap)
-            self.keycount += 1
-            return self.nextcont, fcont, heap
-        raise error.UnificationFailed()
+@continuation.make_failure_continuation
+def continue_librarydir(Choice, engine, scont, fcont, heap, pathvar, keycount):
+    if keycount < len(engine.modulewrapper.libs) - 1:
+        fcont = Choice(engine, scont, fcont, heap, pathvar, keycount + 1)
+        heap = heap.branch()
+    pathvar.unify(Callable.build(engine.modulewrapper.libs[keycount]), heap)
+    return scont, fcont, heap
 
 @expose_builtin("library_directory", unwrap_spec=["obj"],
         handles_continuation=True)
 def impl_library_directory(engine, heap, directory, scont, fcont):
     if isinstance(directory, Var):
-        libcont = LibraryDirContinuation(engine, scont, fcont, heap, directory)
-        return libcont, fcont, heap
+        if not engine.modulewrapper.libs:
+            raise error.UnificationFailed
+        return continue_librarydir(engine, scont, fcont, heap, directory, 0)
     elif isinstance(directory, Atom):
         for lib in engine.modulewrapper.libs:
             if lib == directory.name():
@@ -184,25 +175,13 @@ def unwrap_meta_arguments(predicate):
             error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
     return arglist
 
-class CurrentModuleContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, scont, fcont, heap, modvar):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
-        self.undoheap = heap
-        self.orig_fcont = fcont
-        self.modvar = modvar
-        self.engine = engine
-        self.modcount = 0
-        self.mods = [val.nameatom for val in 
-                self.engine.modulewrapper.modules.values()]
-        self.nummods = len(self.engine.modulewrapper.modules)
-
-    def activate(self, fcont, heap):
-        if self.modcount < self.nummods:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.modvar.unify(self.mods[self.modcount], heap)
-            self.modcount += 1
-            return self.nextcont, fcont, heap
-        raise error.UnificationFailed()
+@continuation.make_failure_continuation
+def continue_current_module(Choice, engine, scont, fcont, heap, allmods, i, modvar):
+    if i < len(allmods) - 1:
+        fcont = Choice(engine, scont, fcont, heap, allmods, i + 1, modvar)
+        heap = heap.branch()
+    modvar.unify(allmods[i], heap)
+    return scont, fcont, heap
 
 @expose_builtin("current_module", unwrap_spec=["obj"],
         handles_continuation=True)
@@ -213,7 +192,9 @@ def impl_current_module(engine, heap, module, scont, fcont):
         except KeyError:
             raise error.UnificationFailed()
     elif isinstance(module, Var):
-        scont = CurrentModuleContinuation(engine, scont, fcont, heap, module)
+        mods = [val.nameatom for val in
+                    engine.modulewrapper.modules.values()]
+        return continue_current_module(engine, scont, fcont, heap, mods, 0, module)
     else:
         raise error.UnificationFailed()
     return scont, fcont, heap
