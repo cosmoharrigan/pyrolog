@@ -21,9 +21,9 @@ class FindallContinuation(continuation.Continuation):
         self.resultvar = newresultvar
         raise error.UnificationFailed()
 
-class DoneWithFindallContinuation(continuation.NewFailureContinuation):
+class DoneWithFindallContinuation(continuation.FailureContinuation):
     def __init__(self, engine, scont, fcont, heap, collector, bag):
-        continuation.NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
+        continuation.FailureContinuation.__init__(self, engine, scont, fcont, heap)
         self.collector = collector
         self.bag = bag
 

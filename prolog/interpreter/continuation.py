@@ -267,7 +267,7 @@ def view(*objects, **names):
     graphclient.display_dot_file(str(p))
 
 
-class NewFailureContinuation(object):
+class FailureContinuation(object):
     """ A continuation that can represent failures. It has a .fail method that
     is called to figure out what should happen on a failure.
     """
@@ -296,9 +296,9 @@ class NewFailureContinuation(object):
     _dot = _dot
 
 def make_failure_continuation(make_func):
-    class C(NewFailureContinuation):
+    class C(FailureContinuation):
         def __init__(self, engine, scont, fcont, heap, *state):
-            NewFailureContinuation.__init__(self, engine, scont, fcont, heap)
+            FailureContinuation.__init__(self, engine, scont, fcont, heap)
             self.state = state
 
         def fail(self, heap):
@@ -319,9 +319,9 @@ class DoneSuccessContinuation(Continuation):
     def is_done(self):
         return True
 
-class DoneFailureContinuation(NewFailureContinuation):
+class DoneFailureContinuation(FailureContinuation):
     def __init__(self, engine):
-        NewFailureContinuation.__init__(self, engine, None, None, None)
+        FailureContinuation.__init__(self, engine, None, None, None)
 
     def fail(self, heap):
         scont = DoneSuccessContinuation(self.engine)
@@ -358,9 +358,9 @@ class BuiltinContinuation(Continuation):
         return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
 
 
-class UserCallContinuation(NewFailureContinuation):
+class UserCallContinuation(FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap, query, rulechain):
-        NewFailureContinuation.__init__(self, engine, nextcont, orig_fcont, heap)
+        FailureContinuation.__init__(self, engine, nextcont, orig_fcont, heap)
         self.query = query
         self.rulechain = rulechain
 

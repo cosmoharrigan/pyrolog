@@ -58,7 +58,7 @@ def test_failure_continuation():
             order.append(self.val)
             return self.next, fcont, heap
 
-    class FakeF(NewFailureContinuation):
+    class FakeF(FailureContinuation):
         def __init__(self, next, count):
             self.next = next
             self.count = count

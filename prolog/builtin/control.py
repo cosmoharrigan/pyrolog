@@ -22,7 +22,7 @@ def impl_true(engine, heap):
 def impl_repeat(engine, heap, scont, fcont):
     return scont, RepeatContinuation(engine, scont, fcont, heap), heap.branch()
 
-class RepeatContinuation(continuation.NewFailureContinuation):
+class RepeatContinuation(continuation.FailureContinuation):
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
         return self.nextcont, self, heap
@@ -41,9 +41,9 @@ def impl_and(engine, heap, call1, call2, scont, fcont):
     scont = continuation.BodyContinuation(engine, scont, call2)
     return engine.call(call1, scont, fcont, heap)
 
-class OrContinuation(continuation.NewFailureContinuation):
+class OrContinuation(continuation.FailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, undoheap, altcall):
-        continuation.NewFailureContinuation.__init__(self, engine, nextcont, orig_fcont, undoheap)
+        continuation.FailureContinuation.__init__(self, engine, nextcont, orig_fcont, undoheap)
         self.altcall = altcall
 
     def fail(self, heap):
