@@ -51,14 +51,8 @@ class Heap(object):
         return self is created_in
 
     def _double_size(self):
-        trail_var = [None] * (len(self.trail_var) * 2)
-        l = len(trail_var)
-        trail_binding = [None] * l
-        for i in range(self.i):
-            trail_var[i] = self.trail_var[i]
-            trail_binding[i] = self.trail_binding[i]
-        self.trail_var = trail_var
-        self.trail_binding = trail_binding
+        self.trail_var = self.trail_var + [None] * len(self.trail_var)
+        self.trail_binding = self.trail_binding + [None] * len(self.trail_var)
 
     def newvar(self):
         """ Make a new variable. Should return a Var instance, possibly with
