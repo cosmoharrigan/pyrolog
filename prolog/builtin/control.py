@@ -22,24 +22,10 @@ def impl_true(engine, heap):
 def impl_repeat(engine, heap, scont, fcont):
     return scont, RepeatContinuation(engine, scont, fcont, heap), heap.branch()
 
-class RepeatContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, scont, fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, scont)
-        self.fcont = fcont
-        self.undoheap = heap
-        
-    def activate(self, fcont, heap):
-        assert 0, "Unreachable"
-        
+class RepeatContinuation(continuation.NewFailureContinuation):
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
         return self.nextcont, self, heap
-
-    def cut(self, upto, heap):
-        if self is upto:
-            return
-        heap = self.undoheap.discard(heap)
-        self.fcont.cut(upto, heap)
 
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
