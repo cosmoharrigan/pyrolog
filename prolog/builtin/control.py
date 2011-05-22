@@ -23,23 +23,9 @@ def impl_repeat(engine, heap, scont, fcont):
     return scont, RepeatContinuation(engine, scont, fcont, heap), heap.branch()
 
 class RepeatContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, scont, fcont, heap):
-        continuation.FailureContinuation.__init__(self, engine, scont)
-        self.fcont = fcont
-        self.undoheap = heap
-        
-    def activate(self, fcont, heap):
-        assert 0, "Unreachable"
-        
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
         return self.nextcont, self, heap
-
-    def cut(self, upto, heap):
-        if self is upto:
-            return
-        heap = self.undoheap.discard(heap)
-        self.fcont.cut(upto, heap)
 
 @expose_builtin("!", unwrap_spec=[], handles_continuation=True)
 def impl_cut(engine, heap, scont, fcont):
@@ -57,30 +43,16 @@ def impl_and(engine, heap, module, call1, call2, scont, fcont):
     return engine.call(call1, module, scont, fcont, heap)
 
 class OrContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, module, nextcont, undoheap, orig_fcont, altcall):
-        continuation.FailureContinuation.__init__(self, engine, nextcont)
+    def __init__(self, engine, module, nextcont, orig_fcont, undoheap, altcall):
+        continuation.FailureContinuation.__init__(self, engine, nextcont, orig_fcont, undoheap)
         self.altcall = altcall
         assert undoheap is not None
-        self.undoheap = undoheap
-        self.orig_fcont = orig_fcont
         self.module = module
 
-    def activate(self, fcont, heap):
-        assert self.undoheap is None
-        return self.engine.call(self.altcall, self.module, self.nextcont, fcont, heap)
-
-    def cut(self, upto, heap):
-        if self is upto:
-            return
-        heap = self.undoheap.discard(heap)
-        return self.orig_fcont.cut(upto, heap)
-
     def fail(self, heap):
-        assert self.undoheap is not None
         heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        assert heap is not None
-        self.undoheap = None
-        return self.engine.continue_(self, self.orig_fcont, heap)
+        scont = continuation.BodyContinuation(self.engine, self.module, self.nextcont, self.altcall)
+        return scont, self.orig_fcont, heap
 
     def __repr__(self):
         return "<OrContinuation %r" % (self.altcall, )
@@ -97,15 +69,15 @@ def impl_or(engine, heap, module, call1, call2, scont, fcont):
                 call1.argument_at(0),
                 call1.argument_at(1), call2)
     else:
-        fcont = OrContinuation(engine, module, scont, heap, fcont, call2)
+        fcont = OrContinuation(engine, module, scont, fcont, heap, call2)
         newscont = continuation.BodyContinuation(engine, module, scont, call1)
-        return engine.continue_(newscont, fcont, heap.branch())
+        return newscont, fcont, heap.branch()
 
 def if_then_else(engine, heap, module, scont, fcont, if_clause, then_clause, else_clause):
-    newfcont = OrContinuation(engine, module, scont, heap, fcont, else_clause)
+    newfcont = OrContinuation(engine, module, scont, fcont, heap, else_clause)
     newscont, fcont, heap = impl_if(
             engine, heap, module, if_clause, then_clause, scont, newfcont, fcont)
-    return engine.continue_(newscont, fcont, heap.branch())
+    return newscont, fcont, heap.branch()
 
 @expose_builtin("->", unwrap_spec=["callable", "raw"],
                 handles_continuation=True, needs_module=True)
@@ -115,8 +87,6 @@ def impl_if(engine, heap, module, if_clause, then_clause, scont, fcont,
         fcont_after_condition = fcont
     scont = continuation.BodyContinuation(engine, module, scont, then_clause)
     scont = IfScopeNotifier(engine, scont, fcont, fcont_after_condition)
-    # NB: careful here, must not use engine.continue_, because we could be
-    # called from impl_or! this subtlely sucks
     newscont = continuation.BodyContinuation(engine, module, scont, if_clause)
     return newscont, fcont, heap
 

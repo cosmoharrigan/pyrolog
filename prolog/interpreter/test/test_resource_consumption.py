@@ -36,7 +36,7 @@ class CheckContinuation(Continuation):
             heap = heap.prev
         assert depth < self.seen
         assert numvars < self.seen
-        return DoneContinuation(self.engine), DoneContinuation(self.engine), original_heap
+        return DoneSuccessContinuation(self.engine), DoneFailureContinuation(self.engine), original_heap
 
 def test_cut():
     e = get_engine("""

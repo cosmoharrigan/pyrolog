@@ -1,4 +1,9 @@
 import sys
+from pypy import conftest
+class o:
+    view = False
+    viewloops = True
+conftest.option = o
 from pypy.jit.metainterp.test.test_ajit import LLJitMixin
 
 from prolog.interpreter.parsing import parse_query_term, get_engine
@@ -14,7 +19,8 @@ class TestLLtype(LLJitMixin):
         loop(0, []).
         loop(X, [H|T]) :- X > 0, X0 is X - 1, loop(X0, T).
         loop1(0, []).
-        loop1(N, [H|T]) :- N > 0, N1 is N - 1, put_attr(H, m, 4), loop1(N1, T).
+        loop1(N, [H|T]) :- N > 0, N1 is N - 1, !, loop1(N1, T).
+        loop1(N, [H|T]) :- N > 0, N1 is N - 1, loop1(N1, T).
         nrev([],[]).
         nrev([X|Y],Z) :- nrev(Y,Z1),
                          app(Z1,[X],Z).
@@ -74,6 +80,7 @@ class TestLLtype(LLJitMixin):
             e.run(t, e.modulewrapper.user_module)
         # XXX
         #interp_w(2)
+
         self.meta_interp(interp_w, [2], listcomp=True, backendopt=True,
                          listops=True)
         #self.meta_interp(interp_w, [3], listcomp=True,
