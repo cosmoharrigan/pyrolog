@@ -49,30 +49,27 @@ def test_failure_continuation():
         def __init__(self, next, val):
             self.next = next
             self.val = val
-        
+
         def is_done(self):
             return False
-        def discard(self):
-            pass
         def activate(self, fcont, heap):
             if self.val == -1:
                 raise error.UnificationFailed
             order.append(self.val)
             return self.next, fcont, heap
 
-        def fail(self, heap):
-            order.append("fail")
-            return self, None, heap
-
-    class FakeF(ChoiceContinuation):
+    class FakeF(NewFailureContinuation):
         def __init__(self, next, count):
             self.next = next
             self.count = count
             self.engine = FakeE()
 
-        def activate(self, fcont, heap):
+        def fail(self, heap):
             if self.count:
-                fcont, heap = self.prepare_more_solutions(fcont, heap)
+                fcont = FakeF(self.next, self.count - 1)
+                heap = heap.branch()
+            else:
+                fcont = DoneFailureContinuation(None)
             res = self.count
             order.append(res)
             self.count -= 1
@@ -82,9 +79,9 @@ def test_failure_continuation():
         pass
 
     ca = FakeF(FakeC(FakeC(DoneSuccessContinuation(None), -1), 'c'), 10)
-    driver(ca, FakeC(DoneSuccessContinuation(None), "done"), h)
+    py.test.raises(UnificationFailed, driver, FakeC(DoneSuccessContinuation(None), -1), ca, h)
     assert order == [10, 'c', 9, 'c', 8, 'c', 7, 'c', 6, 'c', 5, 'c', 4, 'c',
-                     3, 'c', 2, 'c', 1, 'c', 0, 'c', "fail", "done"]
+                     3, 'c', 2, 'c', 1, 'c', 0, 'c']
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term

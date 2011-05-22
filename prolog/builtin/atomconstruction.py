@@ -50,7 +50,7 @@ def impl_atom_length(engine, heap, s, length):
 
 
 
-class SubAtomContinuation(continuation.ChoiceContinuation):
+class SubAtomContinuation(object):
     def __init__(self, engine, scont, fcont, heap, atom, before, length, after, sub):
         continuation.ChoiceContinuation.__init__(self, engine, scont)
         self.undoheap = heap

@@ -266,36 +266,25 @@ def view(*objects, **names):
     p.write("\n".join(content))
     graphclient.display_dot_file(str(p))
 
-class FailureContinuation(Continuation):
-    """ A continuation that can represent failures. It has a .fail method that
-    is called to prepare it for being used as a failure continuation.
-    
-    NB: a Continuation can be used both as a failure continuation and as a
-    success continuation."""
-
-    def fail(self, heap):
-        """ Needs to be called to prepare the object as being used as a failure
-        continuation. After fail has been called, the continuation will usually
-        be activated. Particularly useful for objects that are both a regular
-        and a failure continuation, to distinguish the two cases. """
-        # returns (next cont, failure cont, heap)
-        raise NotImplementedError("abstract base class")
-
-    def cut(self, upto, heap):
-        """ Cut away choice points till the next correct cut delimiter.
-        Slightly subtle. """
-        if self is upto:
-            return
-        raise NotImplementedError
 
 class NewFailureContinuation(object):
+    """ A continuation that can represent failures. It has a .fail method that
+    is called to figure out what should happen on a failure.
+    """
     def __init__(self, engine, nextcont, orig_fcont, heap):
         self.engine = engine
         self.nextcont = nextcont
         self.orig_fcont = orig_fcont
         self.undoheap = heap
 
+    def fail(self, heap):
+        """ Needs to be called to get the new success continuation.
+        Returns a tuple (next cont, failure cont, heap)
+        """
+        raise NotImplementedError("abstract base class")
+
     def cut(self, upto, heap):
+        """ Cut away choice points till upto. """
         if self is upto:
             return
         heap = self.undoheap.discard(heap)
@@ -368,40 +357,6 @@ class BuiltinContinuation(Continuation):
     def __repr__(self):
         return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
 
-class ChoiceContinuation(FailureContinuation):
-    """ An abstract base class for Continuations that represent a choice point,
-    i.e. a point to which the execution can backtrack to."""
-
-    def __init__(self, *args):
-        FailureContinuation.__init__(self, *args)
-        self.undoheap = None
-        self.orig_fcont = None
-
-    #def activate(self, fcont, heap):
-    #    this method needs to be structured as follows:
-    #    <some code>
-    #    if <has more solutions>:
-    #        fcont, heap = self.prepare_more_solutions(fcont, heap)
-    #    <construct cont> # must not raise UnificationFailed!
-    #    return cont, fcont, heap
-
-    def prepare_more_solutions(self, fcont, heap):
-        self.undoheap = heap
-        heap = heap.branch()
-        self.orig_fcont = fcont
-        fcont = self
-        return fcont, heap
-    
-    def fail(self, heap):
-        assert self.undoheap is not None
-        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return self, self.orig_fcont, heap
-
-    def cut(self, upto, heap):
-        if self is upto:
-            return
-        heap = self.undoheap.discard(heap)
-        self.orig_fcont.cut(upto, heap)
 
 class UserCallContinuation(NewFailureContinuation):
     def __init__(self, engine, nextcont, orig_fcont, heap, query, rulechain):
