@@ -369,12 +369,15 @@ def test_arg():
     assert len(heaps) == 3
     assert_true("arg(X, h(a, b, c), b), X = 2.")
     assert_true("arg(X, h(a, b, g(X, b)), g(3, B)), X = 3, B = b.")
+    assert_false("arg(X, a, Y).")
+    prolog_raises("_", "arg(X, 1, Y)")
 
 def test_copy_term():
     assert_true("copy_term(X, Y), X = 1, Y = 2.")
     assert_true("copy_term(a, a).")
     assert_false("copy_term(f(X), g(X)).")
     assert_true("copy_term(f(X), f(a)), X = b.")
+
 
 def test_type_checks():
     assert_true("integer(123).")

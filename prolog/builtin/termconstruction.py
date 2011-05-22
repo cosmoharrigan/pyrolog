@@ -58,10 +58,10 @@ handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, scont, fcont):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
-    if helper.is_atomic(second):
-        raise error.UnificationFailed()
     if not helper.is_term(second):
         error.throw_type_error("compound", second)
+    if helper.is_atomic(second):
+        raise error.UnificationFailed()
     assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
         return _make_arg_cont(engine, scont, fcont, heap, first, 0, second, third)
