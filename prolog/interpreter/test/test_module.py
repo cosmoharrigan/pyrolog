@@ -14,7 +14,7 @@ def test_set_currently_parsed_module():
     """)
     m = e.modulewrapper
     assert m.current_module == m.user_module
-    e.add_module("m1", [])
+    m.add_module("m1", [])
     assert "m1" in m.modules
     mod1 = m.modules["m1"]
     assert mod1.exports == []

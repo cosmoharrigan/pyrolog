@@ -119,6 +119,7 @@ class Rule(object):
 
 
 class Function(object):
+    _immutable_fields_ = ["rulechain?", "meta_args?"]
     def __init__(self):
         self.meta_args = None
         self.rulechain = self.last = None

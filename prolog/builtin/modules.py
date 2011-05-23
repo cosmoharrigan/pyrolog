@@ -7,13 +7,13 @@ from prolog.interpreter import continuation
 from prolog.interpreter.helper import is_term, unwrap_predicate_indicator
 from prolog.interpreter.signature import Signature
 
-meta_args = "0123456789:?+-"
+meta_args = list("0123456789:?+-")
 libsig = Signature.getsignature("library", 1)
 andsig = Signature.getsignature(",", 2)
 
 @expose_builtin("module", unwrap_spec=["atom", "list"])
 def impl_module(engine, heap, name, exports):
-    engine.add_module(name, exports)
+    engine.modulewrapper.add_module(name, exports)
 
 def handle_use_module_with_library(engine, heap, module, path, imports=None):
     import os
@@ -165,15 +165,16 @@ def unwrap_meta_arguments(predicate):
     for arg in args:
         if isinstance(arg, Var):
             error.throw_instantiation_error()
+            assert 0
         elif isinstance(arg, Atom) and arg.name() in meta_args:
             val = arg.name()
-            arglist.append(val)
         elif isinstance(arg, Number) and 0 <= arg.num <= 9:
             val = str(arg.num)
-            arglist.append(val)
         else:
             error.throw_domain_error("expected one of 0..9, :, ?, +, -", arg)
-    return arglist
+            assert 0
+        arglist.append(val[0])
+    return "".join(arglist)
 
 @continuation.make_failure_continuation
 def continue_current_module(Choice, engine, scont, fcont, heap, allmods, i, modvar):

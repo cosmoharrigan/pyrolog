@@ -136,7 +136,7 @@ class Engine(object):
         if old_modname is not None:
             self.switch_module(old_modname)
 
-    @jit.purefunction_promote("0")
+    @jit.purefunction_promote('all')
     def get_builtin(self, signature):
         from prolog import builtin # for the side-effects
         return signature.get_extra("builtin")
@@ -229,15 +229,6 @@ class Engine(object):
 
     # _____________________________________________________
     # module handling
-
-    def add_module(self, name, exports = []):
-        m = self.modulewrapper
-        mod = Module(name)
-        for export in exports:
-            mod.exports.append(Signature.getsignature(
-                    *unwrap_predicate_indicator(export)))
-        m.current_module = mod
-        m.modules[name] = mod
 
     def switch_module(self, modulename):
         m = self.modulewrapper

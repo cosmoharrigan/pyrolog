@@ -4,8 +4,14 @@ from prolog.interpreter.signature import Signature
 from prolog.interpreter import error
 from prolog.interpreter.term import Callable, Atom
 from prolog.interpreter.function import Function
+from prolog.interpreter.helper import unwrap_predicate_indicator
+
+class VersionTag(object):
+    pass
 
 class ModuleWrapper(object):
+    _immutable_fields_ = ["version?"]
+
     def __init__(self, engine):
         self.engine = engine
         self.user_module = Module("user")
@@ -14,6 +20,7 @@ class ModuleWrapper(object):
         self.current_module = self.user_module
         self.libs = []
         self.system = None
+        self.version = VersionTag()
 
     def init_system_module(self):
         from prolog.builtin.sourcehelper import get_source
@@ -23,13 +30,26 @@ class ModuleWrapper(object):
         self.current_module = self.user_module
 
     def get_module(self, name, errorterm):
-        try:
-            return self.modules[name]
-        except KeyError:
-            assert isinstance(errorterm, Callable)
-            error.throw_existence_error("procedure",
-                errorterm.get_prolog_signature())
+        module = self._get_module(name, self.version)
+        if module is not None:
+            return module
+        assert isinstance(errorterm, Callable)
+        error.throw_existence_error("procedure",
+            errorterm.get_prolog_signature())
+
+    @jit.purefunction
+    def _get_module(self, name, version):
+        return self.modules.get(name, None)
         
+    def add_module(self, name, exports = []):
+        mod = Module(name)
+        for export in exports:
+            mod.exports.append(Signature.getsignature(
+                    *unwrap_predicate_indicator(export)))
+        self.current_module = mod
+        self.modules[name] = mod
+        self.version = VersionTag()
+
 
 class Module(object):
     def __init__(self, name):
