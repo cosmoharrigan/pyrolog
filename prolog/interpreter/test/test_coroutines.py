@@ -156,6 +156,44 @@ def test_block():
     assert_true("h(1, 2, 3, 6).", e)
     assert_true("h(A, B, C, D), var(D), B = 5, var(D), C = 5, var(D), A = 5, D == 15.", e)
 
+def test_block_sort():
+    e = get_engine("""
+    sorted2([]).
+    sorted2([H|T]) :- s2(T,H).
+
+    :- block s2('-','?').
+    s2([],_).
+    s2([H|T],P) :- lt(P,H), s2(T,H).
+
+    :- block lt('-','?'), lt('?','-').
+    lt(X,Y) :- X<Y.
+
+    pp([],[]).
+    pp([H|T],[X|RT]) :-
+        sel(X,[H|T],R), pp(R,RT).
+        
+
+    dosort(List, Ret) :-
+        sorted2(Ret),
+        pp(List, Ret).
+
+    mem(X, [X|_]).
+    mem(X, [_|T]) :-
+        mem(X, T).
+
+    rem(_, [], []).
+    rem(X, [X|R], R).
+    rem(X, [H|T], [H|R]) :-
+        X \= H,
+        rem(X, T, R).
+
+    sel(X, List, R) :-
+        mem(X, List),
+        rem(X, List, R). 
+    """, load_system=True)
+    assert_true("dosort([5,4,3,2,1], X), X == [1,2,3,4,5].", e)
+    assert_false("dosort([5,4,3,2,1], X), X == [1,3,2,4,5].", e)
+
 def test_dif():
     assert_true("dif(1, 2).", e)
     assert_false("dif(1, 1).", e)
