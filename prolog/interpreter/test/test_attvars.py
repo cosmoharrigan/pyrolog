@@ -3,6 +3,7 @@ from prolog.interpreter.test.tool import prolog_raises, \
 assert_true, assert_false
 from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.term import AttMap, Callable, AttVar
 
 
 def test_not_attvar():
@@ -11,12 +12,12 @@ def test_not_attvar():
     assert_false("attvar(a).")
     assert_false("attvar((a --> b)).")
 
-def test_put_attr():
+def test_put_attr_and_get_attr():
     assert_true("put_attr(X, m, 1).")
     assert_true("put_attr(X, m, abc).")
     assert_true("put_attr(X, m, Y).")
     prolog_raises("type_error(A, B)", "put_attr(X, 1, 1)")
-    assert_true("put_attr(X, m1, 1), put_attr(X, m2, 1), put_attr(X, m1, 2).")
+    assert_true("put_attr(X, m1, 1), put_attr(X, m2, 1), put_attr(X, m1, 2), get_attr(X, m1, 2), get_attr(X, m2, 1).")
     assert_true("put_attr(X, b, 1), (put_attr(X, b, 1), fail; get_attr(X, b, 1)).")
     assert_true("put_attr(X, a, 1), Y = X, attvar(Y), attvar(X).")
     assert_true("put_attr(X, a, 1), X = Y, attvar(Y), attvar(X).")
@@ -41,7 +42,7 @@ def test_backtracking():
     assert_true("(put_attr(X, b, 1), fail); \+ get_attr(X, b, 1).")
     assert_true("put_attr(X, a, 2),  ((put_attr(X, b, 1), fail); get_attr(X, a, 2)), \+ get_attr(X, b, 1).")
 
-def test_del_attr():
+def test_del_attributes():
     assert_true("del_attr(X, m).")
     assert_true("del_attr(a, m).")
     prolog_raises("instantiation_error", "del_attr(X, Y)")
@@ -287,6 +288,112 @@ def test_more_than_one_attr_unify_hook():
     assert_true("put_attr(X, m, a), X = f(Y), Y = 1.", e)
     assert_true("put_attr(X, m, a), X = f(Y), Y = 2.", e)
     assert_true("put_attr(X, m, a), X = f(Y), ((Y = 1, fail); Y = 2).", e)
+
+"""
+* tests regarding map support
+"""
+
+def test_basic_maps():
+    m = AttMap()
+    assert m.indexes == {}
+    assert m.other_maps == {}
+    assert m.get_index("not available") == -1
+
+    map1 = m.with_extra_attribute("x")
+    assert m.indexes == {}
+    assert m.other_maps == {"x": map1}
+    assert map1.indexes == {"x": 0}
+
+    map2 = m.with_extra_attribute("x")
+    assert m.indexes == {}
+    assert map2.indexes == {"x": 0}
+    assert map2 is map1 
+    assert m.other_maps == {"x": map1}
+
+    map3 = m.with_extra_attribute("y")
+    assert m.indexes == {}
+    assert m.other_maps == {"x": map1, "y": map3}
+    assert m.other_maps["x"].indexes == {"x": 0}
+    assert m.other_maps["y"].indexes == {"y": 0}
+
+    map4 = map3.with_extra_attribute("z")
+    assert map3.indexes == {"y": 0}
+    assert map3.other_maps == {"z": map4}
+    assert map4.indexes == {"z": 1, "y": 0}
+    assert map4.other_maps == {}
+
+def test_attvars_with_maps():
+    a = AttVar()
+    assert a.attmap is AttVar.attmap
+    assert a.attmap.indexes == {}
+    assert a.value_list == []
+
+    val1 = Callable.build("1")
+    a.add_attribute("x", val1)
+    assert a.attmap is not AttVar.attmap
+    assert a.attmap.indexes == {"x": 0}
+    assert a.value_list == [val1]
+
+    m1 = a.attmap
+    a.del_attribute("x")
+    assert m1 is a.attmap
+    assert a.value_list == [None]
+
+    a.add_attribute("x", val1)
+    assert a.attmap is m1
+    assert a.value_list == [val1]
+
+    val2 = Callable.build("2")
+    a.add_attribute("y", val2)
+    m2 = a.attmap
+    assert m2.indexes == {"x": 0, "y": 1}
+    assert a.value_list == [val1, val2]
+
+    a.del_attribute("x")
+    assert a.attmap is m2
+    assert a.value_list == [None, val2]
+
+    a.del_attribute("y")
+    assert a.attmap is m2
+    assert a.value_list == [None, None]
+
+    val3 = Callable.build("3")
+    a.add_attribute("z", val3)
+    m3 = a.attmap
+    assert m3.indexes == {"x": 0, "y": 1, "z": 2}
+    assert a.value_list == [None, None, val3]
+
+    a.add_attribute("x", val1)
+    assert a.attmap is m3
+    assert a.value_list == [val1, None, val3]
+
+def test_attvars_get():
+    a = AttVar()
+    assert a.get_attribute("x") is None
+
+    val1 = Callable.build("1")
+    a.add_attribute("x", val1)
+    assert a.get_attribute("x") == val1
+
+def test_several_attvars_same_map():
+    a = AttVar()
+    b = AttVar()
+    assert a.attmap is b.attmap
+
+    val1 = Callable.build("1")
+    val2 = Callable.build("2")
+    a.add_attribute("x", val1)
+    assert a.attmap is not b.attmap
+    b.add_attribute("x", val2)
+    assert a.attmap is b.attmap
+
+    a.add_attribute("y", val1)
+    a.add_attribute("z", val2)
+    assert a.attmap is not b.attmap
+
+"""
+* end tests regarding map support
+"""
 
 def test_integration_efficient_bools():
     e = get_engine("",

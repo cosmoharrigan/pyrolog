@@ -158,12 +158,29 @@ class Var(PrologObject):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
+class AttMap(object):
+    def __init__(self):
+        self.indexes = {}
+        self.other_maps = {}
+
+    def get_index(self, attname):
+        return self.indexes.get(attname, -1)
+
+    def with_extra_attribute(self, attname):
+        if attname not in self.other_maps:
+            new_map = AttMap()
+            new_map.last_name = attname
+            new_map.indexes.update(self.indexes)
+            new_map.indexes[attname] = len(self.indexes)
+            self.other_maps[attname] = new_map
+        return self.other_maps[attname]
+
 class AttVar(Var):
-    __slots__ = ("binding", "atts", "created_after_choice_point")
+    attmap = AttMap()
 
     def __init__(self):
         Var.__init__(self)
-        self.atts = {} # mapping from modules to values
+        self.value_list = []
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
@@ -181,8 +198,11 @@ class AttVar(Var):
 
     def __repr__(self):
         attrs = []
-        for key, val in self.atts.iteritems():
-            attrs.append("%s=%s" % (key, val))
+        if self.value_list is not None:
+            for key, index in self.attmap.indexes.iteritems():
+                value = self.value_list[index]
+                if value is not None:
+                    attrs.append("%s=%s" % (key, value))
         return "AttVar(%s, %s)" % (self.binding, "[" + ", ".join(attrs) + "]")
 
     def copy(self, heap, memo):
@@ -192,12 +212,66 @@ class AttVar(Var):
             if res is not None:
                 return res
             newvar = heap.new_attvar()
-            for key, val in self.atts.iteritems():
-                newvar.atts[key] = val.copy(heap, memo)
+            own_list = self.value_list
+            newvar.attmap = self.attmap
+            if own_list is None:
+                newvar.value_list = None
+            else:
+                length = len(own_list)
+                new_values = [None] * length
+                for i in range(length):
+                    if own_list[i] is None:
+                        new_values[i] = None
+                    else:
+                        new_values[i] = own_list[i].copy(heap, memo)
+                newvar.value_list = new_values
+
             memo.set(self, newvar)
             return newvar
         return self.copy(heap, memo)
 
+    def add_attribute(self, attname, attribute):
+        attmap = self.attmap
+        index = attmap.get_index(attname)
+        if index != -1:
+            self.value_list[index] = attribute
+            return
+        self.attmap = attmap.with_extra_attribute(attname)
+        self.value_list.append(attribute)
+
+    def del_attribute(self, attname):
+        index = self.attmap.get_index(attname)
+        if self.value_list is not None:
+            self.value_list[index] = None
+
+    def get_attribute(self, attname):
+        if self.value_list is None:
+            return None
+        index = self.attmap.get_index(attname)
+        if index == -1:
+            return None
+        return self.value_list[index]
+
+    def reset_field(self, index, value):
+        if self.value_list is None:
+            self.value_list = [None] * (index + 1)
+        while len(self.value_list) <= index:
+            self.value_list.append(None)
+        self.value_list[index] = value
+
+    def invalidate_field(self, index):
+        self.value_list[index] = None
+
+    def get_attribute_index(self, attname):
+        return self.attmap.get_index(attname)
+
+    def is_empty(self):
+        if self.value_list is None:
+            return True
+        for elem in self.value_list:
+            if elem is not None:
+                return False
+        return True
 
 class NumberedVar(PrologObject):
     _immutable_fields_ = ["num"]
@@ -332,7 +406,7 @@ class Callable(NonVar):
     
     def getvalue(self, heap):
         return self._copy_term(_term_getvalue, heap)
-    
+
     @specialize.arg(1)
     @jit.unroll_safe
     def _copy_term(self, copy_individual, heap, *extraargs):

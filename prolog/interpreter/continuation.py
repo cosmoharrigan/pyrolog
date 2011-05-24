@@ -83,7 +83,11 @@ def _process_hooks(scont, fcont, heap):
         heap.hooks.clear()
         while hookcell:
             hook = hookcell.hook
-            for module, val in hook.atts.iteritems():
+            #for module, val in hook.atts.iteritems():
+            for module, i in hook.attmap.indexes.iteritems():
+                val = hook.value_list[i]
+                if val is None:
+                    continue
                 query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
                 try:
                     mod = e.modulewrapper.get_module(module, query)
@@ -93,7 +97,7 @@ def _process_hooks(scont, fcont, heap):
                 scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(hook, module)
             hookcell = hookcell.next
-            hook.atts.clear() # remove attributes from unified attvar
+            hook.value_list = None
     return scont, fcont, heap
 
 class Engine(object):
