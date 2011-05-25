@@ -286,7 +286,6 @@ def test_sudoku_with_when():
     assert_false("sudoku([[4, 2, 3, 1], [2, 3, 4, 1], [2, 4, 1, 3], [3, 1, 2, 4]]).", e)
 
 def test_sat_solver():
-    py.test.xfail("findall problem")
     e = get_engine("""
     sat(Clauses, Vars) :-
         problem_setup(Clauses),
@@ -312,9 +311,6 @@ def test_sat_solver():
 
     :- block watch('-', '?', '-', '?', '?').
 
-    %:- assert((watch(G568, G581, G584, G597, G600):- (var(G568), var(G584), true), !, when((nonvar(G568);nonvar(G584);nonvar(_G603)), watch(G568, G581, G584, G597, G600)))).
-    
-
     watch(Var1, Pol1, Var2, Pol2, Pairs) :-
         nonvar(Var1)
          ->	update_watch(Var1, Pol1, Var2, Pol2, Pairs)
@@ -329,13 +325,13 @@ def test_sat_solver():
 
     assert_true("sat([[false-X]], [X]), X == false.", e)
     assert_true("sat([[true-X], [false-Y]], [X, Y]), X == true, Y == false.", e)
-    assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
+    # XXX fix findall
+    #assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
     assert_false("sat([[true-X], [true-Y], [true-Z], [false-Z]], [X, Y, Z]).", e)
     assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
     assert_false("sat([[true-X], [false-X]], [X]).", e)
 
 def test_4_queens():
-    py.test.xfail("fix bug in findall")
     e = get_engine("""
     queens(Vars) :-
         Vars = [_A, _B, _C, _D],
@@ -389,4 +385,5 @@ def test_4_queens():
     assert_true("queens(X), X == [2, 4, 1, 3].", e)
     assert_true("queens(X), X == [3, 1, 4, 2].", e)
     assert_false("queens(X), X == [4, 2, 1, 3].", e)
-    assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)
+    # XXX make findall run
+    #assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)

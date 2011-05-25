@@ -201,7 +201,8 @@ class AttVar(Var):
         return self.setvalue(other, heap)
 
     def setvalue(self, value, heap):
-        heap.add_hook(self)
+        if self.value_list is not None:
+            heap.add_hook(self)
         Var.setvalue(self, value, heap)
 
     def __repr__(self):
