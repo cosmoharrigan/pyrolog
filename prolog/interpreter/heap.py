@@ -23,8 +23,8 @@ class Heap(object):
     def add_trail_atts(self, attvar, attr_name, old_map=None):
         if self._is_created_in_self(attvar):
             return
-        value = attvar.get_attribute(attr_name) # can be None
-        self.trail_attrs.append((attvar, attr_name, value, old_map))
+        value, index = attvar.get_attribute(attr_name)
+        self.trail_attrs.append((attvar, index, value, old_map))
 
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
@@ -101,13 +101,12 @@ class Heap(object):
             self.trail_binding[i] = None
         self.i = 0
 
-        for attvar, name, value, old_map in self.trail_attrs:
+        for attvar, index, value, old_map in self.trail_attrs:
             # reset the old map
             if old_map is not None:
                 # set old value to None
                 attvar.attmap = old_map
             # reset the old value
-            index = attvar.get_attribute_index(name)
             attvar.reset_field(index, value)
 
         self.trail_attrs = []

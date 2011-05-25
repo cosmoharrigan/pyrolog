@@ -26,7 +26,6 @@ def impl_put_attr(engine, heap, var, attr, value):
         # 2) The attribute has been added before.
         #    This means that the used map will not change.
 
-        index = var.get_attribute_index(attr)
         # case (1)
         if attr == -1:
             heap.add_trail_atts(var, attr, attr.attmap)
@@ -49,7 +48,7 @@ def impl_get_attr(engine, heap, var, attr, value):
         throw_instantiation_error(var)
     if not isinstance(var, AttVar):
         raise UnificationFailed()
-    attribute_value = var.get_attribute(attr)
+    attribute_value, _ = var.get_attribute(attr)
     if attribute_value is not None:
         value.unify(attribute_value, heap)
     else:

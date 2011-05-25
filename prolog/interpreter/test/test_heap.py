@@ -131,7 +131,7 @@ def test_add_trail_atts():
     assert hp.trail_attrs == []
     hp2 = hp.branch()
     hp2.add_trail_atts(a, "a", ma)
-    assert hp2.trail_attrs == [(a, "a", 10, ma)]
+    assert hp2.trail_attrs == [(a, 0, 10, ma)]
     a.add_attribute("a", 20)
     assert a.value_list == [20]
     hp2._revert()
@@ -141,7 +141,7 @@ def test_add_trail_atts():
     hp3.add_trail_atts(a, "b", ma)
     a.add_attribute("b", 30)
     assert a.value_list == [10, 30]
-    assert a.attmap.indexes == {"a":0, "b": 1}
+    assert a.attmap.indexes == {"a": 0, "b": 1}
     assert a.attmap is not ma
     hp3._revert()
     assert a.value_list == [10, None]
@@ -160,8 +160,12 @@ def test_heap_dont_trail_new_attvars():
     v2.add_attribute("m", 3)
 
     h3 = h2.revert_upto(h1)
-    assert v1.get_attribute("m") == 1
-    assert v2.get_attribute("m") == 3 # wasn't undone, because v2 dies
+    t1 = v1.get_attribute("m")
+    assert t1[0] == 1
+    assert t1[1] == 0
+    t2 = v2.get_attribute("m") # wasn't undone, because v2 dies
+    assert t2[0] == 3
+    assert t2[1] == 0
     assert h3 is h2
     
 def test_discard_with_attvars():

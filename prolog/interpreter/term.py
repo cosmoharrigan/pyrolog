@@ -246,11 +246,11 @@ class AttVar(Var):
 
     def get_attribute(self, attname):
         if self.value_list is None:
-            return None
+            return None, -1
         index = self.attmap.get_index(attname)
         if index == -1:
-            return None
-        return self.value_list[index]
+            return None, -1
+        return self.value_list[index], index
 
     def reset_field(self, index, value):
         if self.value_list is None:

@@ -369,11 +369,15 @@ def test_attvars_with_maps():
 
 def test_attvars_get():
     a = AttVar()
-    assert a.get_attribute("x") is None
+    t1 = a.get_attribute("x")
+    assert t1[0] is None
+    assert t1[1] == -1
 
     val1 = Callable.build("1")
     a.add_attribute("x", val1)
-    assert a.get_attribute("x") == val1
+    t2 = a.get_attribute("x")
+    assert t2[0] is val1
+    assert t2[1] == 0
 
 def test_several_attvars_same_map():
     a = AttVar()
