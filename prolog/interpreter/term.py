@@ -271,9 +271,6 @@ class AttVar(Var):
                     index - len(self.value_list) + 1)
         self.value_list[index] = value
 
-    def invalidate_field(self, index):
-        self.value_list[index] = None
-
     def get_attribute_index(self, attname):
         attmap = jit.hint(self.attmap, promote=True)
         return attmap.get_index(attname)
