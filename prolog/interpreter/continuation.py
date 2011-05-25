@@ -83,11 +83,12 @@ def _process_hooks(scont, fcont, heap):
         heap.hooks.clear()
         while hookcell:
             hook = hookcell.hook
-            #for module, val in hook.atts.iteritems():
-            for module, i in hook.attmap.indexes.iteritems():
+            attmap = jit.hint(hook.attmap, promote=True)
+            for i in range(len(hook.value_list)):
                 val = hook.value_list[i]
                 if val is None:
                     continue
+                module = attmap.get_attname_at_index(i)
                 query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
                 try:
                     mod = e.modulewrapper.get_module(module, query)

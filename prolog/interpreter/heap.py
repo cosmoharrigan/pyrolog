@@ -149,14 +149,8 @@ class Heap(object):
                 current_heap.add_trail(var)
                 var.binding = currbinding
 
-            # XXX no logic for attributed variables yet
-            """
-            for attvar, name, value in self.trail_attrs:
-                current_val = attvar.atts[name]
-                attvar.atts[name] = value
-                current_heap.add_trail_atts(attvar, name)
-                attvar.atts[name] = current_val
-            """
+            for tup in self.trail_attrs:
+                current_heap.trail_attrs.append(tup)
 
             current_heap.prev = self.prev
             self.trail_var = None

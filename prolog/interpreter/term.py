@@ -6,7 +6,7 @@ from pypy.rlib.objectmodel import we_are_translated, UnboxedValue
 from pypy.rlib.objectmodel import compute_unique_id
 from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
-from pypy.rlib import jit
+from pypy.rlib import jit, debug
 from pypy.tool.pairtype import extendabletype
 from pypy.rlib.rbigint import rbigint
 
@@ -161,26 +161,34 @@ class Var(PrologObject):
 class AttMap(object):
     def __init__(self):
         self.indexes = {}
+        self.attnames_in_order = []
         self.other_maps = {}
 
+    @jit.purefunction
     def get_index(self, attname):
         return self.indexes.get(attname, -1)
 
+    @jit.purefunction
     def with_extra_attribute(self, attname):
         if attname not in self.other_maps:
             new_map = AttMap()
             new_map.last_name = attname
             new_map.indexes.update(self.indexes)
             new_map.indexes[attname] = len(self.indexes)
+            new_map.attnames_in_order = self.attnames_in_order + [attname]
             self.other_maps[attname] = new_map
         return self.other_maps[attname]
+
+    @jit.purefunction
+    def get_attname_at_index(self, index):
+        return self.attnames_in_order[index]
 
 class AttVar(Var):
     attmap = AttMap()
 
     def __init__(self):
         Var.__init__(self)
-        self.value_list = []
+        self.value_list = debug.make_sure_not_resized([])
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
@@ -198,8 +206,9 @@ class AttVar(Var):
 
     def __repr__(self):
         attrs = []
+        attmap = jit.hint(self.attmap, promote=True)
         if self.value_list is not None:
-            for key, index in self.attmap.indexes.iteritems():
+            for key, index in attmap.indexes.iteritems():
                 value = self.value_list[index]
                 if value is not None:
                     attrs.append("%s=%s" % (key, value))
@@ -231,23 +240,25 @@ class AttVar(Var):
         return self.copy(heap, memo)
 
     def add_attribute(self, attname, attribute):
-        attmap = self.attmap
+        attmap = jit.hint(self.attmap, promote=True)
         index = attmap.get_index(attname)
         if index != -1:
             self.value_list[index] = attribute
             return
         self.attmap = attmap.with_extra_attribute(attname)
-        self.value_list.append(attribute)
+        self.value_list = self.value_list + [attribute]
 
     def del_attribute(self, attname):
-        index = self.attmap.get_index(attname)
+        attmap = jit.hint(self.attmap, promote=True)
+        index = attmap.get_index(attname)
         if self.value_list is not None:
             self.value_list[index] = None
 
     def get_attribute(self, attname):
         if self.value_list is None:
             return None, -1
-        index = self.attmap.get_index(attname)
+        attmap = jit.hint(self.attmap, promote=True)
+        index = attmap.get_index(attname)
         if index == -1:
             return None, -1
         return self.value_list[index], index
@@ -255,15 +266,17 @@ class AttVar(Var):
     def reset_field(self, index, value):
         if self.value_list is None:
             self.value_list = [None] * (index + 1)
-        while len(self.value_list) <= index:
-            self.value_list.append(None)
+        else:
+            self.value_list = self.value_list + [None] * (
+                    index - len(self.value_list) + 1)
         self.value_list[index] = value
 
     def invalidate_field(self, index):
         self.value_list[index] = None
 
     def get_attribute_index(self, attname):
-        return self.attmap.get_index(attname)
+        attmap = jit.hint(self.attmap, promote=True)
+        return attmap.get_index(attname)
 
     def is_empty(self):
         if self.value_list is None:
@@ -385,6 +398,7 @@ class Callable(NonVar):
         else:
             raise UnificationFailed
     
+    @jit.unroll_safe
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Callable) and
             self.signature().eq(other.signature())):
