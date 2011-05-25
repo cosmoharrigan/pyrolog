@@ -81,7 +81,10 @@ when_impl((A; B), Goal) :- !,
 when_impl(?=(A, B), Goal) :- !,
     coroutines:when_decidable(A, B, Goal).
 
-when_impl(X) :-
+when_impl(X, _) :-
+    nonvar(X),
+    functor(X, F, _),
+    \+ (F == ','; F == ';'; F == 'ground'; F == 'nonvar'; F == '?='),
     throw(error(domain_error(when_condition, X))).
 
 when_decidable(A, B, Goal) :-
