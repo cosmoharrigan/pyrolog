@@ -68,11 +68,11 @@ when_impl((A, B), Goal) :- !,
     coroutines:when_impl(A, coroutines:when_impl(B, Goal)).
 
 call_when_disjoint(Var, Goal) :-
-    var(Var) ->
+    (var(Var) ->
         Var = a,
         Goal
     ;
-        true.
+        true).
 
 when_impl((A; B), Goal) :- !,
     coroutines:when_impl(A, coroutines:call_when_disjoint(Z, Goal)),
