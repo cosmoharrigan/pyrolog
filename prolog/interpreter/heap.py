@@ -102,11 +102,6 @@ class Heap(object):
         self.i = 0
 
         for attvar, index, value, old_map in self.trail_attrs:
-            # reset the old map
-            if old_map is not None:
-                # set old value to None
-                attvar.attmap = old_map
-            # reset the old value
             attvar.reset_field(index, value)
 
         self.trail_attrs = []

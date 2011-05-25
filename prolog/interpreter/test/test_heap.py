@@ -145,7 +145,6 @@ def test_add_trail_atts():
     assert a.attmap is not ma
     hp3._revert()
     assert a.value_list == [10, None]
-    assert a.attmap is ma
 
 def test_heap_dont_trail_new_attvars():
     h1 = Heap()

@@ -19,20 +19,7 @@ def impl_attvar(engine, heap, obj):
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
-        # Two cases can be distinguished here:
-        # 1) The attribute has never been added before.
-        #    This means that another map will be used.
-        #
-        # 2) The attribute has been added before.
-        #    This means that the used map will not change.
-
-        # case (1)
-        if attr == -1:
-            heap.add_trail_atts(var, attr, attr.attmap)
-        # case (2)
-        else:
-            heap.add_trail_atts(var, attr)
-
+        heap.add_trail_atts(var, attr)
         var.add_attribute(attr, value)
     elif isinstance(var, Var):
         attvar = heap.new_attvar()
