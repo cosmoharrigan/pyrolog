@@ -46,7 +46,7 @@ put_when_attributes([X|Rest], When_Goal) :-
     ),
     coroutines:put_when_attributes(Rest, When_Goal).
 
-when_impl(nonvar(X), Goal) :-
+when_impl(nonvar(X), Goal) :- !,
     (var(X)
     ->
         coroutines:put_when_attributes([X], Goal)
@@ -82,9 +82,6 @@ when_impl(?=(A, B), Goal) :- !,
     coroutines:when_decidable(A, B, Goal).
 
 when_impl(X, _) :-
-    nonvar(X),
-    functor(X, F, _),
-    \+ (F == ','; F == ';'; F == 'ground'; F == 'nonvar'; F == '?='),
     throw(error(domain_error(when_condition, X))).
 
 when_decidable(A, B, Goal) :-
