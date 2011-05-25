@@ -93,9 +93,12 @@ class TermFormatter(object):
 
     def format_attvar(self, attvar):
         l = []
-        for name, val in attvar.atts.iteritems():
-            l.append("put_attr(%s, %s, %s)" % (self.format_var(attvar),
-                    name, self.format(val)))
+        if attvar.value_list is not None:
+            for name, index in attvar.attmap.indexes.iteritems():
+                value = attvar.value_list[index]
+                if value is not None:
+                    l.append("put_attr(%s, %s, %s)" % (self.format_var(attvar),
+                            name, self.format(value)))
         return "\n".join(l)
 
     def format_var(self, var):
