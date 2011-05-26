@@ -5,24 +5,25 @@ from prolog.interpreter.error import UnificationFailed,\
 throw_representation_error, throw_instantiation_error
 from prolog.interpreter.helper import wrap_list, is_term, unwrap_list
 from prolog.interpreter.signature import Signature
-
 from prolog.builtin.term_variables import term_variables
 
 conssig = Signature.getsignature(".", 2)
 
 @expose_builtin("attvar", unwrap_spec=["obj"])
 def impl_attvar(engine, heap, obj):
-    if not isinstance(obj, AttVar) or not obj.atts:
+    if not isinstance(obj, AttVar):
         raise UnificationFailed()
-
+    if obj.is_empty():
+        raise UnificationFailed()
+        
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
         heap.add_trail_atts(var, attr)
-        var.atts[attr] = value
+        var.add_attribute(attr, value)
     elif isinstance(var, Var):
         attvar = heap.new_attvar()
-        attvar.atts[attr] = value
+        attvar.add_attribute(attr, value)
         var.unify(attvar, heap)
     else:
         throw_representation_error("put_attr/3",
@@ -34,16 +35,17 @@ def impl_get_attr(engine, heap, var, attr, value):
         throw_instantiation_error(var)
     if not isinstance(var, AttVar):
         raise UnificationFailed()
-    try:
-        value.unify(var.atts[attr], heap)
-    except KeyError:
+    attribute_value, _ = var.get_attribute(attr)
+    if attribute_value is not None:
+        value.unify(attribute_value, heap)
+    else:
         raise UnificationFailed()
  
 @expose_builtin("del_attr", unwrap_spec=["obj", "atom"])
 def impl_del_attr(engine, heap, var, attr):
     if isinstance(var, AttVar):
         heap.add_trail_atts(var, attr)
-        del var.atts[attr]
+        var.del_attribute(attr)
 
 @expose_builtin("term_attvars", unwrap_spec=["obj", "obj"])
 def impl_term_attvars(engine, heap, prolog_term, variables):
@@ -61,8 +63,9 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
         V = heap.newvar()
         memo.set(attvar, V)
         assert isinstance(attvar, AttVar)
-        for key, val in attvar.atts.iteritems():
-            put_attr = Callable.build("put_attr", [V, Callable.build(key), val])
+        for module, index in attvar.attmap.indexes.iteritems():
+            val = attvar.value_list[index]
+            put_attr = Callable.build("put_attr", [V, Callable.build(module), val])
             gs.append(put_attr)
     prolog_term.copy(heap, memo).unify(copy, heap)
     goals.unify(wrap_list(gs), heap)
@@ -70,6 +73,7 @@ def impl_copy_term_3(engine, heap, prolog_term, copy, goals):
 @expose_builtin("del_attrs", unwrap_spec=["obj"])
 def impl_del_attrs(engine, heap, attvar):
     if isinstance(attvar, AttVar):
-        for attr in attvar.atts:
-            heap.add_trail_atts(attvar, attr)
-        attvar.atts.clear()
+        if attvar.value_list is not None:
+            for name, index in attvar.attmap.indexes.iteritems():
+                heap.add_trail_atts(attvar, name)
+            attvar.value_list = None

@@ -83,7 +83,12 @@ def _process_hooks(scont, fcont, heap):
         heap.hooks.clear()
         while hookcell:
             hook = hookcell.hook
-            for module, val in hook.atts.iteritems():
+            attmap = jit.hint(hook.attmap, promote=True)
+            for i in range(len(hook.value_list)):
+                val = hook.value_list[i]
+                if val is None:
+                    continue
+                module = attmap.get_attname_at_index(i)
                 query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
                 try:
                     mod = e.modulewrapper.get_module(module, query)
@@ -93,7 +98,7 @@ def _process_hooks(scont, fcont, heap):
                 scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(hook, module)
             hookcell = hookcell.next
-            hook.atts.clear() # remove attributes from unified attvar
+            hook.value_list = None
     return scont, fcont, heap
 
 class Engine(object):
@@ -136,7 +141,7 @@ class Engine(object):
         if old_modname is not None:
             self.switch_module(old_modname)
 
-    @jit.purefunction_promote("0")
+    @jit.purefunction_promote('all')
     def get_builtin(self, signature):
         from prolog import builtin # for the side-effects
         return signature.get_extra("builtin")
@@ -229,15 +234,6 @@ class Engine(object):
 
     # _____________________________________________________
     # module handling
-
-    def add_module(self, name, exports = []):
-        m = self.modulewrapper
-        mod = Module(name)
-        for export in exports:
-            mod.exports.append(Signature.getsignature(
-                    *unwrap_predicate_indicator(export)))
-        m.current_module = mod
-        m.modules[name] = mod
 
     def switch_module(self, modulename):
         m = self.modulewrapper

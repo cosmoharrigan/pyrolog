@@ -24,7 +24,7 @@ def term_variables(engine, heap, prolog_term, variables, consider_attributes=Fal
         t = todo.pop()
         value = t.dereference(heap)
         if isinstance(value, cls):
-            if consider_attributes and not value.atts:
+            if consider_attributes and value.is_empty():
                 continue
             if value not in seen:
                 varlist.append(value)

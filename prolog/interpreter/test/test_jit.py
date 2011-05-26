@@ -13,6 +13,8 @@ from prolog.interpreter.continuation import jitdriver
 class TestLLtype(LLJitMixin):
     def test_append(self):
         e = get_engine("""
+        :- use_module(mod1).
+
         app([], X, X).
         app([H | T1], T2, [H | T3]) :-
             app(T1, T2, T3).
@@ -49,10 +51,36 @@ class TestLLtype(LLJitMixin):
             partition(L,Y,L1,L2).
         partition([X|L],Y,L1,[X|L2]) :-
             partition(L,Y,L1,L2).
-        """)
+
+        loop_mod(0).
+        loop_mod(N) :-
+            N > 0,
+            f(N, N1),
+            loop_mod(N1).
+
+        loop_when(0).
+        loop_when(N) :-
+            N > 0,
+            when(nonvar(X), loop_when(X)),
+            X is N - 1.
+        """, load_system=True,
+        mod1 = """
+        :- module(mod1, [f/2]).
+
+        f(N, N1) :-
+            mod2:g(N, N1).
+        """, 
+        mod2 = """
+        :- module(mod2, [g/2]).
+
+        g(N, N1) :-
+            N1 is N - 1.
+        """
+        )
 
         t1 = parse_query_term("app([1, 2, 3, 4, 5, 6], [8, 9], X), X == [1, 2, 3, 4, 5, 6, 8, 9].")
-        t2 = parse_query_term("loop(100, H), statistics(walltime, [T1, _]), loop1(100, H), statistics(walltime, [T2, _]).")
+        #t2 = parse_query_term("loop(100, H), statistics(walltime, [T1, _]), loop1(100, H), statistics(walltime, [T2, _]).")
+        t2 = parse_query_term("loop_when(100).")
         #t2 = parse_query_term("loop(100, H), loop1(100, H1).")
         #t2 = parse_query_term("loop1(100, L).")
         t3 = parse_query_term("nrev([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], X), X == [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].")

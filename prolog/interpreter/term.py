@@ -6,7 +6,7 @@ from pypy.rlib.objectmodel import we_are_translated, UnboxedValue
 from pypy.rlib.objectmodel import compute_unique_id
 from pypy.rlib.objectmodel import specialize
 from pypy.rlib.debug import make_sure_not_resized
-from pypy.rlib import jit
+from pypy.rlib import jit, debug
 from pypy.tool.pairtype import extendabletype
 from pypy.rlib.rbigint import rbigint
 
@@ -158,12 +158,37 @@ class Var(PrologObject):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))
 
+class AttMap(object):
+    def __init__(self):
+        self.indexes = {}
+        self.attnames_in_order = []
+        self.other_maps = {}
+
+    @jit.purefunction
+    def get_index(self, attname):
+        return self.indexes.get(attname, -1)
+
+    @jit.purefunction
+    def with_extra_attribute(self, attname):
+        if attname not in self.other_maps:
+            new_map = AttMap()
+            new_map.last_name = attname
+            new_map.indexes.update(self.indexes)
+            new_map.indexes[attname] = len(self.indexes)
+            new_map.attnames_in_order = self.attnames_in_order + [attname]
+            self.other_maps[attname] = new_map
+        return self.other_maps[attname]
+
+    @jit.purefunction
+    def get_attname_at_index(self, index):
+        return self.attnames_in_order[index]
+
 class AttVar(Var):
-    __slots__ = ("binding", "atts", "created_after_choice_point")
+    attmap = AttMap()
 
     def __init__(self):
         Var.__init__(self)
-        self.atts = {} # mapping from modules to values
+        self.value_list = debug.make_sure_not_resized([])
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
@@ -176,13 +201,18 @@ class AttVar(Var):
         return self.setvalue(other, heap)
 
     def setvalue(self, value, heap):
-        heap.add_hook(self)
+        if self.value_list is not None:
+            heap.add_hook(self)
         Var.setvalue(self, value, heap)
 
     def __repr__(self):
         attrs = []
-        for key, val in self.atts.iteritems():
-            attrs.append("%s=%s" % (key, val))
+        attmap = jit.hint(self.attmap, promote=True)
+        if self.value_list is not None:
+            for key, index in attmap.indexes.iteritems():
+                value = self.value_list[index]
+                if value is not None:
+                    attrs.append("%s=%s" % (key, value))
         return "AttVar(%s, %s)" % (self.binding, "[" + ", ".join(attrs) + "]")
 
     def copy(self, heap, memo):
@@ -192,12 +222,67 @@ class AttVar(Var):
             if res is not None:
                 return res
             newvar = heap.new_attvar()
-            for key, val in self.atts.iteritems():
-                newvar.atts[key] = val.copy(heap, memo)
+            own_list = self.value_list
+            newvar.attmap = self.attmap
+            if own_list is None:
+                newvar.value_list = None
+            else:
+                length = len(own_list)
+                new_values = [None] * length
+                for i in range(length):
+                    if own_list[i] is None:
+                        new_values[i] = None
+                    else:
+                        new_values[i] = own_list[i].copy(heap, memo)
+                newvar.value_list = new_values
+
             memo.set(self, newvar)
             return newvar
         return self.copy(heap, memo)
 
+    def add_attribute(self, attname, attribute):
+        attmap = jit.hint(self.attmap, promote=True)
+        index = attmap.get_index(attname)
+        if index != -1:
+            self.value_list[index] = attribute
+            return
+        self.attmap = attmap.with_extra_attribute(attname)
+        self.value_list = self.value_list + [attribute]
+
+    def del_attribute(self, attname):
+        attmap = jit.hint(self.attmap, promote=True)
+        index = attmap.get_index(attname)
+        if self.value_list is not None:
+            self.value_list[index] = None
+
+    def get_attribute(self, attname):
+        if self.value_list is None:
+            return None, -1
+        attmap = jit.hint(self.attmap, promote=True)
+        index = attmap.get_index(attname)
+        if index == -1:
+            return None, -1
+        return self.value_list[index], index
+
+    def reset_field(self, index, value):
+        if self.value_list is None:
+            self.value_list = [None] * (index + 1)
+        else:
+            self.value_list = self.value_list + [None] * (
+                    index - len(self.value_list) + 1)
+        self.value_list[index] = value
+
+    def get_attribute_index(self, attname):
+        attmap = jit.hint(self.attmap, promote=True)
+        return attmap.get_index(attname)
+
+    def is_empty(self):
+        if self.value_list is None:
+            return True
+        for elem in self.value_list:
+            if elem is not None:
+                return False
+        return True
 
 class NumberedVar(PrologObject):
     _immutable_fields_ = ["num"]
@@ -311,6 +396,7 @@ class Callable(NonVar):
         else:
             raise UnificationFailed
     
+    @jit.unroll_safe
     def copy_and_basic_unify(self, other, heap, env):
         if (isinstance(other, Callable) and
             self.signature().eq(other.signature())):
@@ -332,7 +418,7 @@ class Callable(NonVar):
     
     def getvalue(self, heap):
         return self._copy_term(_term_getvalue, heap)
-    
+
     @specialize.arg(1)
     @jit.unroll_safe
     def _copy_term(self, copy_individual, heap, *extraargs):

@@ -20,10 +20,11 @@ class Heap(object):
             self = self.prev
         return self
 
-    def add_trail_atts(self, attvar, attr_name):
+    def add_trail_atts(self, attvar, attr_name, old_map=None):
         if self._is_created_in_self(attvar):
             return
-        self.trail_attrs.append((attvar, attr_name, attvar.atts.get(attr_name, None)))
+        value, index = attvar.get_attribute(attr_name)
+        self.trail_attrs.append((attvar, index, value, old_map))
 
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
@@ -100,11 +101,9 @@ class Heap(object):
             self.trail_binding[i] = None
         self.i = 0
 
-        for attvar, name, value in self.trail_attrs:
-            if value is None:
-                del attvar.atts[name]
-            else:
-                attvar.atts[name] = value
+        for attvar, index, value, old_map in self.trail_attrs:
+            attvar.reset_field(index, value)
+
         self.trail_attrs = []
         self.hooks.clear()
 
@@ -129,6 +128,7 @@ class Heap(object):
                     targetpos += 1
             current_heap.i = targetpos
 
+            
             trail_attrs = []
             targetpos = 0
             for var, attr, value in current_heap.trail_attrs:
@@ -149,11 +149,8 @@ class Heap(object):
                 current_heap.add_trail(var)
                 var.binding = currbinding
 
-            for attvar, name, value in self.trail_attrs:
-                current_val = attvar.atts[name]
-                attvar.atts[name] = value
-                current_heap.add_trail_atts(attvar, name)
-                attvar.atts[name] = current_val
+            for tup in self.trail_attrs:
+                current_heap.trail_attrs.append(tup)
 
             current_heap.prev = self.prev
             self.trail_var = None
