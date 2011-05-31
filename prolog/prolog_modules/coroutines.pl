@@ -175,7 +175,7 @@ when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandid
     ->
         coroutines:when_decidable_list(RestA, RestB, Goal, Candidates, ReturnCandidates, Executed)
     ;
-        coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA, HeadB|Candidates], ReturnCandidates, Executed)
+        coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
     ).
 
 when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
