@@ -15,6 +15,18 @@ e = get_engine("""
     """,
     load_system=True)
 
+def test_unifiable():
+    assert_false("unifiable(a, b, _).", e)
+    assert_true("unifiable(a, a, X), X == [].", e)
+    assert_true("unifiable(X, X, L), L == [].", e)
+    assert_true("unifiable(X, Y, L), L == [X-Y].", e)
+    assert_true("unifiable(f(a), f(a), L), L == [].", e)
+    assert_true("unifiable([A, B, C], T, X), X == [T-[A, B, C]].", e)
+    assert_true("unifiable([A, B, C], [S|T], X), X == [T-[B, C], A-S].", e)
+    assert_true("unifiable(f(a, b, T), X, L), L == [X-f(a, b, T)].", e)
+    assert_true("unifiable(f(g(t(Z)), b, x(y(a))), f(g(Q), b, x(y(A))), L), L == [A-a, Q-t(Z)].", e)
+    assert_true("unifiable([X1, X2, X3], [Y1, Y2, Y3], L), L == [X3-Y3, X2-Y2, X1-Y1].", e)
+
 def test_freeze():
     assert_true("freeze(X, Y = 1), X = 1, Y == 1.", e)
     assert_false("freeze(X, true), X = 1, attvar(X).", e)
