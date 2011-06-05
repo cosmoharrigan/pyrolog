@@ -85,104 +85,39 @@ when_impl(X, _) :-
     throw(error(domain_error(when_condition, X))).
 
 when_decidable(A, B, Goal) :-
-	var(A),
-	coroutines:when_decidable_first_var(A, B, Goal).
-
-when_decidable(A, B, Goal) :-
-	nonvar(A),
-	coroutines:when_decidable_first_nonvar(A, B, Goal).
-
-when_decidable_first_var(A, B, Goal) :-
-	var(B),
-	(A == B
-	->
-		Goal
-	;
-		coroutines:put_when_attributes([A, B], coroutines:when_decidable(A, B, call_when_disjoint(Guard, Goal)))
-	).
-
-when_decidable_first_var(A, B, Goal) :-
-    nonvar(B),
-    coroutines:put_when_attributes([A], coroutines:when_decidable(A, B, Goal)).
-
-when_decidable_first_nonvar(A, B, Goal) :-
-    var(B),
-    coroutines:put_when_attributes([B], coroutines:when_decidable(A, B, Goal)).
-
-% the goal is not stacked yet
-when_decidable_first_nonvar(A, B, Goal) :-
-    nonvar(B),
-    Goal \= coroutines:call_when_disjoint(_, _),        
-    NewGoal = coroutines:call_when_disjoint(X, Goal),
-    coroutines:when_decidable_collect_attributes(A, B, NewGoal, [], Candidates, Executed),
-    (var(Executed)
+    unifiable(A, B, Unifiers), !,
+    (Unifiers == []
     ->
-        (Candidates == []
-        ->
-            NewGoal
-        ;
-            coroutines:put_when_attributes(Candidates, coroutines:when_decidable(A, B, NewGoal))
-        )
+        Goal
+    ;
+        put_attr(Trigger, when, det(when_decidable(A, B, Goal))),
+        when_decidable_list(Unifiers, coroutines:call_decidable(Trigger))
+    ).
+
+when_decidable(_, _, Goal) :-
+    call(Goal).
+
+call_decidable(Trigger) :-
+    (var(Trigger)
+    ->
+        get_attr(Trigger, when, Goal),
+        del_attr(Trigger, when),
+        Trigger = a,
+        Goal = det(ToCall),
+        call(ToCall)
     ;
         true
     ).
 
-% the goal is already stacked
-when_decidable_first_nonvar(A, B, Goal) :-
-    nonvar(B),
-    Goal = coroutines:call_when_disjoint(_Guard, _),
-    coroutines:when_decidable_collect_attributes(A, B, Goal, [], Candidates, Executed),
-    (var(Executed)
+when_decidable_list([], _).
+when_decidable_list([A-B|Rest], Goal) :-
+    (var(B)
     ->
-        (Candidates == []
-        ->
-            Goal
-        ;
-            coroutines:put_when_attributes(Candidates, coroutines:when_decidable(A, B, Goal))
-        )
+        put_when_attributes([A, B], Goal)
     ;
-        true
-    ).
-
-when_decidable_collect_attributes(A, B, Goal, Candidates, ReturnCandidates, Executed) :-
-	functor(A, FunctorA, ArityA),
-	functor(B, FunctorB, ArityB),
-	((FunctorA \= FunctorB; ArityA \= ArityB)
-	-> 
-		Executed = true,
-		Goal
-	;
-		A =.. [_|ArgsA],
-		B =.. [_|ArgsB],
-		when_decidable_list(ArgsA, ArgsB, Goal, Candidates, ReturnCandidates, Executed)
-	).
-
-when_decidable_list([], [], _, Candidates, Candidates, _).
-when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
-    var(HeadA),
-    nonvar(HeadB),
-    when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed).
-
-when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
-    var(HeadB),
-    nonvar(HeadA),
-    when_decidable_list(RestA, RestB, Goal, [HeadB|Candidates], ReturnCandidates, Executed).
-
-when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
-    var(HeadA),
-    var(HeadB),
-    (HeadA == HeadB
-    ->
-        coroutines:when_decidable_list(RestA, RestB, Goal, Candidates, ReturnCandidates, Executed)
-    ;
-        coroutines:when_decidable_list(RestA, RestB, Goal, [HeadA|Candidates], ReturnCandidates, Executed)
-    ).
-
-when_decidable_list([HeadA|RestA], [HeadB|RestB], Goal, Candidates, ReturnCandidates, Executed) :-
-    nonvar(HeadA),
-    nonvar(HeadB),
-    when_decidable_collect_attributes(HeadA, HeadB, Goal, Candidates, TempCandidates, Executed),
-    when_decidable_list(RestA, RestB, Goal, TempCandidates, ReturnCandidates, Executed).
+        put_when_attributes([A], Goal)
+    ),
+    when_decidable_list(Rest, Goal).
 
 when(Cond, Goal) :-
     var(Cond), !,
