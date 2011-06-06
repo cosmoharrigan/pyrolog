@@ -85,39 +85,44 @@ when_impl(X, _) :-
     throw(error(domain_error(when_condition, X))).
 
 when_decidable(A, B, Goal) :-
-    unifiable(A, B, Unifiers), !,
-    (Unifiers == []
+    (unifiable(A, B, Unifiers)
     ->
+        (Unifiers == []
+        ->
+            Goal
+        ;
+            when_decidable_list(Unifiers, coroutines:call_when_disjoint(_Guard, coroutines:when_decidable(A, B, Goal)))
+        )
+    ;
         Goal
-    ;
-        put_attr(Trigger, when, det(when_decidable(A, B, Goal))),
-        when_decidable_list(Unifiers, coroutines:call_decidable(Trigger))
-    ).
-
-when_decidable(_, _, Goal) :-
-    call(Goal).
-
-call_decidable(Trigger) :-
-    (var(Trigger)
-    ->
-        get_attr(Trigger, when, Goal),
-        del_attr(Trigger, when),
-        Trigger = a,
-        Goal = det(ToCall),
-        call(ToCall)
-    ;
-        true
     ).
 
 when_decidable_list([], _).
 when_decidable_list([A-B|Rest], Goal) :-
     (var(B)
     ->
-        put_when_attributes([A, B], Goal)
+        (var(A)
+        ->
+            put_when_attributes([A, B], Goal)
+        ;
+            put_when_attributes([B], Goal)
+        )
     ;
-        put_when_attributes([A], Goal)
+        (var(A)
+        ->
+            put_when_attributes([A], Goal)
+        ;
+            true
+        )
     ),
     when_decidable_list(Rest, Goal).
+
+unifiable_list(Unifiers, NewUnifiers) :-
+    unifiable_list(Unifiers, [], NewUnifiers).
+unifiable_list([], A, A).
+unifiable_list([X-Y|Rest], Acc, Ret) :-
+    unifiable(X, Y, Acc, Temp),
+    unifiable_list(Rest, Temp, Ret).
 
 when(Cond, Goal) :-
     var(Cond), !,
