@@ -53,12 +53,14 @@ def test_frozen():
     assert_true("freeze(X, true), frozen(X, user:true), freeze(X, fail), frozen(X, (user:true, user:fail)).", e)
     assert_true("freeze(X, true), X = a, frozen(X, R), R == true.", e)
 
-def test_when():
+def test_when_nonvar():
     assert_true("when(nonvar(X), Y = 1), X = a, Y == 1.", e)
     assert_true("when(nonvar(a), f(a)).", e)
     assert_true("when(nonvar(a), (X = 1, Y = 2)), X == 1, Y == 2.", e)
     assert_true("when(nonvar(a), z).", e)
     assert_true("when(nonvar(X), f(a)), X = 1.", e)
+
+def test_when_ground():
     assert_true("when(ground(f(X, Y)), Z = 1), X = 1, var(Z), Y = a, Z == 1.", e)
     assert_true("when(ground(f(X, Y)), Z = 1), Y = 1, var(Z), X = a, Z == 1.", e)
     assert_false("when(ground(f(X, Y)), Z = 1), X = 1, Z == 1.", e)
@@ -71,34 +73,16 @@ def test_when():
     assert_true("when((ground(X); ground(Y)), Z = 1), var(Z), X = b, Z == 1.", e)
     assert_true("when((ground(X); ground(Y)), Z = 1), var(Z), Y = b, Z == 1, X = a.", e)
     assert_true("when((ground(X); ground(Y)), test_once(Z)), var(Z), Y = b, Z == 1, X = a.", e)
-    assert_true("when(?=(1, 1), X = a), X == a.", e)
-    assert_true("when(?=(X, X), Z = a), Z == a.", e)
-    assert_false("when(?=(X, Y), Z = a), Z == a.", e)
-    assert_true("when(?=(X, Y), Z = a), Y = a, X = b, Z == a.", e)
-    assert_true("when(?=(X, Y), Z = a), X = a, Y = b, Z == a.", e)
-    assert_true("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == 1.", e)
-
-    assert_false("when(?=(f(1), f(2)), nl), fail.", e) # minimal example for cut bug
-    assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
-
-    assert_true("when(?=(f(X), f(X)), Z = a), Z == a.", e)
-    assert_true("when(?=(f(X, Y), f(X, Y)), Z = a), Z == a.", e)
-    assert_true("when(?=(f(X, Y), f(X, W)), Z = a), var(Z), Y = 1, var(Z), W = 1, Z == a.", e)
-    assert_false("when(?=(f(X), f(Y)), Z = a), Z == a.", e)
-    assert_false("when(?=(X, f(X)), Z = a), Z == a.", e)
-    prolog_raises("instantiation_error", "when(X, X == 1)", e)
-    prolog_raises("instantiation_error", "when(nonvar(a), X)", e)
     assert_true("when(ground(1), m:g(q)).", e)
     assert_true("when(ground(X), Y = 1), X = a, Y == 1.", e)
     assert_true("when(ground(X), Y = 1), when(ground(X), Z = 2), X = a, Y == 1, Z == 2.", e)
     assert_true("when(ground(X), Y), when(ground(A), Y = (B = 3)), A = a, X = q, Y == (3 = 3).", e)
-    prolog_raises("instantiation_error", "when(ground(X), Y), when(ground(A), Y = (B = 3)), X = q, A = 1", e)
     assert_true("when(ground(f(X, Y)), when(ground(X), Z = 1)), X = a, var(Z), Y = b, Z == 1.", e)
     assert_true("when(ground(f(X, Y)), when(ground(A), Z = 1)), X = a, var(Z), Y = b, var(Z), A = 1, Z == 1.", e)
-    prolog_raises("domain_error(_, _)", "when(var(X), f(a))", e)
-    prolog_raises("domain_error(_, _)", "when((ground(1), (ground(1), var(1))), f(a))", e)
-    prolog_raises("domain_error(_, _)", "when(((1; 2), (ground(1), nonvar(1))), f(a))", e)
 
+def test_when_decidable():
+    assert_true("when(?=([1, 2, 3], X), C = 1), X = [1|Y], var(C), Y = [2|Z], var(C), Z = [3], C == 1.", e)
+    assert_true("when(?=([X, Y], [X, X]), Q = 1), when(?=(X, Z), R = 2), X = Z, R == 2, var(Q), Y = X, Q == 1.", e) 
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, A = a, var(Q), Y = b, B = b, Q == 1.", e)
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), Y = a, B = a, var(Q), X = b, A = b, Q == 1.", e)
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), Y = a, B = 1, Q == 1.", e)
@@ -106,8 +90,27 @@ def test_when():
     assert_true("when(?=(f(X, Y), f(A, B)), Q = 1), X = a, B = 1, var(Q).", e)
     assert_true("when(?=(X, Y), Z = 1), var(Z), X = Y, Z == 1.", e)
     assert_false("when(?=(X, Y), X \== Y), X = Y.", e)
+    assert_false("when(?=(f(1), f(2)), nl), fail.", e)
+    assert_false("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == a.", e)
+    assert_true("when(?=(1, 1), X = a), X == a.", e)
+    assert_true("when(?=(X, X), Z = a), Z == a.", e)
+    assert_false("when(?=(X, Y), Z = a), Z == a.", e)
+    assert_true("when(?=(X, Y), Z = a), Y = a, X = b, Z == a.", e)
+    assert_true("when(?=(X, Y), Z = a), X = a, Y = b, Z == a.", e)
+    assert_true("when(?=(f(A, B), f(a, b)), test_once(Z)), var(Z), A = 1, B = 2, Z == 1.", e)
+    assert_true("when(?=(f(X), f(X)), Z = a), Z == a.", e)
+    assert_true("when(?=(f(X, Y), f(X, Y)), Z = a), Z == a.", e)
+    assert_true("when(?=(f(X, Y), f(X, W)), Z = a), var(Z), Y = 1, var(Z), W = 1, Z == a.", e)
+    assert_false("when(?=(f(X), f(Y)), Z = a), Z == a.", e)
+    assert_false("when(?=(X, f(X)), Z = a), Z == a.", e)
 
-    assert_true("when(?=([1, 2, 3], X), C = 1), X = [1|Y], var(C), Y = [2|Z], var(C), Z = [3], C == 1.", e)
+def test_when_errors():
+    prolog_raises("domain_error(_, _)", "when(var(X), f(a))", e)
+    prolog_raises("domain_error(_, _)", "when((ground(1), (ground(1), var(1))), f(a))", e)
+    prolog_raises("domain_error(_, _)", "when(((1; 2), (ground(1), nonvar(1))), f(a))", e)
+    prolog_raises("instantiation_error", "when(X, X == 1)", e)
+    prolog_raises("instantiation_error", "when(nonvar(a), X)", e)
+    prolog_raises("instantiation_error", "when(ground(X), Y), when(ground(A), Y = (B = 3)), X = q, A = 1", e)
 
 def test_hard_when():
     assert_true("findall(Z, (when(?=(X, Y), Z = a), X = a, Y = b), L), L == [a].", e)
