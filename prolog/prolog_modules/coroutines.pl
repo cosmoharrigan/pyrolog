@@ -91,7 +91,20 @@ when_decidable(A, B, Goal) :-
         ->
             Goal
         ;
-            when_decidable_list(Unifiers, coroutines:call_when_disjoint(_Guard, coroutines:when_decidable(A, B, Goal)))
+            when_decidable_list(Unifiers, coroutines:call_when_disjoint(_Guard, coroutines:when_decidable_helper(Unifiers, Goal)))
+        )
+    ;
+        Goal
+    ).
+
+when_decidable_helper(Unifiers, Goal) :-
+    (unifiable_list(Unifiers, NewUnifiers)
+    ->
+        (NewUnifiers == []
+        ->
+            Goal
+        ;
+            when_decidable_list(NewUnifiers, coroutines:call_when_disjoint(_Guard, coroutines:when_decidable_helper(NewUnifiers, Goal)))
         )
     ;
         Goal
