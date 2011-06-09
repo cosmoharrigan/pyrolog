@@ -18,10 +18,8 @@ walk_goals(Goals) :-
 	walk_goals(Rest).
 
 check_decidable(Goal) :-
-	%Goal \= coroutines:call_decidable(_).
     Goal \= coroutines:call_when_disjoint(_, _).
 
 check_decidable(Goal) :-
-	%Goal = coroutines:call_decidable(_),
     Goal = coroutines:call_when_disjoint(_, _),
-	Goal.
+	call(Goal).
