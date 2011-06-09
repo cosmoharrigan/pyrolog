@@ -42,6 +42,7 @@ def test_freeze():
     assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2).", e)
     assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2), X = 1, Z1 == 1, Z2 == 2.", e)
     assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), X = Y, var(Z1), var(Z2), Y = 1, Z1 == 1, Z2 == 2.", e)
+    assert_true("freeze(X, Z1 = 1), freeze(Y, Z2 = 2), var(Z1), var(Z2), Y = X, var(Z1), var(Z2), Y = 1, Z1 == 1, Z2 == 2.", e)
 
 def test_frozen():
     assert_false("frozen(a, a).", e)
@@ -59,6 +60,11 @@ def test_when_nonvar():
     assert_true("when(nonvar(a), (X = 1, Y = 2)), X == 1, Y == 2.", e)
     assert_true("when(nonvar(a), z).", e)
     assert_true("when(nonvar(X), f(a)), X = 1.", e)
+
+    assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), X = Y, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), Y = X, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), X = Y, var(A), var(B), Y = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), A = 1), when(nonvar(Y), B = 2), Y = X, var(A), var(B), Y = a, A == 1, B == 2.", e)
 
 def test_when_ground():
     assert_true("when(ground(f(X, Y)), Z = 1), X = 1, var(Z), Y = a, Z == 1.", e)
@@ -79,6 +85,11 @@ def test_when_ground():
     assert_true("when(ground(X), Y), when(ground(A), Y = (B = 3)), A = a, X = q, Y == (3 = 3).", e)
     assert_true("when(ground(f(X, Y)), when(ground(X), Z = 1)), X = a, var(Z), Y = b, Z == 1.", e)
     assert_true("when(ground(f(X, Y)), when(ground(A), Z = 1)), X = a, var(Z), Y = b, var(Z), A = 1, Z == 1.", e)
+
+    assert_true("when(ground(X), A = 1), when(ground(Y), B = 2), X = Y, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(ground(X), A = 1), when(ground(Y), B = 2), Y = X, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(ground(X), A = 1), when(ground(Y), B = 2), X = Y, var(A), var(B), Y = a, A == 1, B == 2.", e)
+    assert_true("when(ground(X), A = 1), when(ground(Y), B = 2), Y = X, var(A), var(B), Y = a, A == 1, B == 2.", e)
 
 def test_when_decidable():
     assert_true("when(?=(1, 1), X = a), X == a.", e)
@@ -119,6 +130,17 @@ def test_hard_when():
     assert_true("when(nonvar(X), assert(xyz(a))), when(nonvar(Y), assert(xyz(b))), X = Y, Y = a.", e)
     assert_true("findall(X, xyz(X), L), L == [b, a].", e)
     assert_true("abolish(xyz/1).", e)
+
+def test_freeze_when_mix():
+    assert_true("freeze(X, A = 1), when(nonvar(X), B = 2), var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("freeze(X, A = 1), when(nonvar(Y), B = 2), X = Y, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("freeze(X, A = 1), when(nonvar(Y), B = 2), Y = X, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), A = 1), freeze(Y, B = 2), X = Y, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("when(nonvar(X), A = 1), freeze(Y, B = 2), Y = X, var(A), var(B), X = a, A == 1, B == 2.", e)
+    assert_true("freeze(X, A = 1), freeze(Y, B = 2), when(nonvar(Y), C = 3), X = Y, var(A), var(B), var(C), X = a, A == 1, B == 2, C == 3.", e)
+    assert_true("freeze(X, A = 1), freeze(Y, B = 2), when(nonvar(Y), C = 3), Y = X, var(A), var(B), var(C), X = a, A == 1, B == 2, C == 3.", e)
+    assert_true("when(nonvar(X), A = 1), freeze(Y, B = 2), when(nonvar(Y), C = 3), Y = X, var(A), var(B), var(C), X = a, A == 1, B == 2, C == 3.", e)
+    assert_true("when(nonvar(X), A = 1), freeze(Y, B = 2), when(nonvar(Y), C = 3), Y = X, var(A), var(B), var(C), X = a, A == 1, B == 2, C == 3.", e)
 
 def test_meta_predicate_with_when():
     e = get_engine("""

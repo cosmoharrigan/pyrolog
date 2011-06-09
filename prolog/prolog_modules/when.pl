@@ -1,7 +1,8 @@
 :- module(when, []).
 
 attr_unify_hook(Goal, Value) :-
-    (attvar(Value) ->
+    (attvar(Value) 
+    ->
 	    coroutines:put_when_attributes([Value], Goal),
 	    walk_goals(Goal)
     ;

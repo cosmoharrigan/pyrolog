@@ -9,15 +9,17 @@ freeze(X, Goal) :-
     nonvar(X),
     call(Goal).
 
-freeze(X, Goal) :- 
-    var(X),
-    \+ get_attr(X, freeze, _),
-    put_attr(X, freeze, Goal).
-
 freeze(X, Goal) :-
     var(X),
-    get_attr(X, freeze, Old_Goals),
-    put_attr(X, freeze, (Old_Goals, Goal)).
+    put_freeze_attribute(X, Goal).
+
+put_freeze_attribute(X, Freeze_Goal) :-
+    (get_attr(X, freeze, Current_Goals)
+    ->
+        put_attr(X, freeze, (Current_Goals, Freeze_Goal))
+    ;
+        put_attr(X, freeze, Freeze_Goal)
+    ).
 
 % * FROZEN *
 

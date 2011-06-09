@@ -1,14 +1,10 @@
 :- module(freeze, []).
 
-attr_unify_hook(Goals, X) :-
-	nonvar(X),
-	call(Goals).
+attr_unify_hook(Goal, X) :-
+    (attvar(X) 
+    ->
+	    coroutines:put_freeze_attribute(X, Goal)
+    ;
+	    call(Goal)
+    ).
 
-attr_unify_hook(Goals, X) :-
-	attvar(X),
-	get_attr(X, freeze, Current_Goal),
-	put_attr(X, freeze, (Goals, Current_Goal)).
-	
-attr_unify_hook(Goals, X) :-
-	attvar(X),
-	\+ get_attr(X, freeze, Current_Goal).
