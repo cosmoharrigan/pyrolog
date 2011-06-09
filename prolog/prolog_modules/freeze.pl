@@ -2,7 +2,7 @@
 
 attr_unify_hook(Goals, X) :-
 	nonvar(X),
-	Goals.
+	call(Goals).
 
 attr_unify_hook(Goals, X) :-
 	attvar(X),
@@ -12,7 +12,3 @@ attr_unify_hook(Goals, X) :-
 attr_unify_hook(Goals, X) :-
 	attvar(X),
 	\+ get_attr(X, freeze, Current_Goal).
-
-attr_unify_hook(Goals, X) :-
-	\+ attvar(X),
-	var(X).
