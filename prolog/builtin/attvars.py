@@ -19,8 +19,10 @@ def impl_attvar(engine, heap, obj):
 @expose_builtin("put_attr", unwrap_spec=["obj", "atom", "obj"])
 def impl_put_attr(engine, heap, var, attr, value):
     if isinstance(var, AttVar):
-        heap.add_trail_atts(var, attr)
+        old_value, _ = var.get_attribute(attr)
         var.add_attribute(attr, value)
+        _, index = var.get_attribute(attr)
+        heap.trail_new_attr(var, index, old_value)
     elif isinstance(var, Var):
         attvar = heap.new_attvar()
         attvar.add_attribute(attr, value)

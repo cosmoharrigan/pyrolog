@@ -26,6 +26,11 @@ class Heap(object):
         value, index = attvar.get_attribute(attr_name)
         self.trail_attrs.append((attvar, index, value))
 
+    def trail_new_attr(self, attvar, index, value):
+        if self._is_created_in_self(attvar):
+            return
+        self.trail_attrs.append((attvar, index, value))
+
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
