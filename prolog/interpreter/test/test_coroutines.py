@@ -424,3 +424,22 @@ def test_4_queens():
     assert_false("queens(X), X == [4, 2, 1, 3].", e)
     # XXX make findall run
     #assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)
+
+def test_findall_when():
+    e = get_engine("""
+    f(X) :-
+        when(nonvar(X), ';'(X == 1, X == 2)),
+        init(X).
+
+    init(1).
+    init(2).
+    init(3).
+
+    g(X) :-
+        when(nonvar(X), not(X == 2)),
+        init(X).
+    """,
+    load_system=True)
+
+    assert_true("findall(X, f(X), L), L == [1, 2].", e)
+    assert_true("findall(X, g(X), L), L == [1, 3].", e)
