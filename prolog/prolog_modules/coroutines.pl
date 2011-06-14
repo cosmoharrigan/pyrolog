@@ -6,11 +6,11 @@
 % *****************************************************
 
 freeze(X, Goal) :-
-    nonvar(X),
+    nonvar(X), !,
     call(Goal).
 
 freeze(X, Goal) :-
-    var(X),
+    var(X), !,
     put_freeze_attribute(X, Goal).
 
 put_freeze_attribute(X, Freeze_Goal) :-
