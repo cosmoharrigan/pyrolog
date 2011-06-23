@@ -31,7 +31,7 @@ class ContinueContinuation(Continuation):
         while 1:
             if isinstance(fcont, DoneFailureContinuation):
                 self.write("\n")
-                return DoneSuccessContinuation(None), fcont, heap
+                return DoneSuccessContinuation(self.engine), fcont, heap
             res = getch()
             if res in "\r\x04\n":
                 self.write("\n")

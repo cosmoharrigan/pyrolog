@@ -114,6 +114,9 @@ class Engine(object):
         self.clocks.startup()
         self.streamwrapper = StreamWrapper()
 
+    def _freeze_(self):
+        return True
+
     # _____________________________________________________
     # database functionality
 
@@ -151,6 +154,7 @@ class Engine(object):
     # parsing-related functionality
 
     def _build_and_run(self, tree):
+        assert self is not None # for the annotator (!)
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
