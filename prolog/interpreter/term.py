@@ -64,6 +64,7 @@ class PrologObject(object):
 
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
+    __slots__ = ("created_after_choice_point", )
 
     def __init__(self):
         self.created_after_choice_point = None
@@ -958,7 +959,6 @@ def generate_abstract_class(n_args, immutable=True):
             else:
                 raise UnificationFailed
 
-        @specialize.arg(1)
         def copy_standardize_apart(self, heap, env):
             needmutable = False
             for i in arg_iter:
