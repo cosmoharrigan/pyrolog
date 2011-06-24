@@ -121,24 +121,24 @@ def test_add_trail_atts():
     hp = Heap()
     a = hp.new_attvar()
     assert a.created_after_choice_point is hp
-    hp.trail_attrs == []
+    assert hp.trail_attrs == []
     ma = AttMap()
     ma.indexes = {"a": 0}
     a.value_list = [10]
     a.attmap = ma
 
-    hp.add_trail_atts(a, "a", ma)
+    hp.add_trail_atts(a, "a")
     assert hp.trail_attrs == []
     hp2 = hp.branch()
-    hp2.add_trail_atts(a, "a", ma)
-    assert hp2.trail_attrs == [(a, 0, 10, ma)]
+    hp2.add_trail_atts(a, "a")
+    assert hp2.trail_attrs == [(a, 0, 10)]
     a.add_attribute("a", 20)
     assert a.value_list == [20]
     hp2._revert()
     assert a.value_list == [10]
 
     hp3 = hp2.branch()
-    hp3.add_trail_atts(a, "b", ma)
+    hp3.add_trail_atts(a, "b")
     a.add_attribute("b", 30)
     assert a.value_list == [10, 30]
     assert a.attmap.indexes == {"a": 0, "b": 1}

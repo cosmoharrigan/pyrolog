@@ -326,6 +326,24 @@ def test_module_prefixing():
 def test_prefix_non_existent_module():
     prolog_raises("existence_error(X, Y)", "a:b")
 
+def test_prefix_module_in_other_directory():
+    d = "__dir__"
+    create_dir(d)
+    m = "mod"
+    create_file("%s/%s" % (d, m), """
+    :- module(%s, [f/1]).
+
+    f(a).
+    """ % m)
+
+    e = Engine()
+    try:
+        assert_true("use_module('%s/%s')." % (d, m), e)
+        assert_true("current_module(%s)." % m, e)
+        assert_true("%s:f(X), X == a." % m, e)
+    finally:
+        delete_dir(d)
+
 def test_recursive_use_module():
     # if this test fails, one will recognize it by
     # waiting very long ...
