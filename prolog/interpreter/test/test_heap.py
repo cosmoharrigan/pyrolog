@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter.heap import Heap, HookChain
-from prolog.interpreter.term import AttVar, Var, Callable, Number, Atom, AttMap
+from prolog.interpreter.term import AttVar, BindingVar, Callable, Number, Atom, AttMap
 
 def test_heap():
     h1 = Heap()
@@ -208,7 +208,7 @@ def test_hookchain():
 
 def test_simple_hooks():
     hp = Heap()
-    v = Var()
+    v = BindingVar()
     a = AttVar()
     v.unify(a, hp)
     assert hp.hooks.last is None 
@@ -216,8 +216,8 @@ def test_simple_hooks():
     assert hp.hooks.last.hook == a
 
     hp = Heap()
-    v1 = Var()
-    v2 = Var()
+    v1 = BindingVar()
+    v2 = BindingVar()
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
@@ -228,9 +228,9 @@ def test_simple_hooks():
     assert hp.hooks.last.hook == a1
 
     hp = Heap()
-    v1 = Var()
-    v2 = Var()
-    v3 = Var()
+    v1 = BindingVar()
+    v2 = BindingVar()
+    v3 = BindingVar()
     a1 = AttVar()
     a2 = AttVar()
     a3 = AttVar()
@@ -245,8 +245,8 @@ def test_simple_hooks():
     assert hp.hooks.last.next.next is None
 
     hp = Heap()
-    v1 = Var()
-    v2 = Var()
+    v1 = BindingVar()
+    v2 = BindingVar()
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
@@ -260,8 +260,8 @@ def test_simple_hooks():
     assert hp.hooks.last.next.next is None
 
     hp = Heap()
-    v1 = Var()
-    v2 = Var()
+    v1 = BindingVar()
+    v2 = BindingVar()
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
@@ -274,7 +274,7 @@ def test_simple_hooks():
     assert hp.hooks.last.next.next is None
 
     hp = Heap()
-    v = Var()
+    v = BindingVar()
     av = AttVar()
     v.unify(av, hp)
     assert hp.hooks.last is None

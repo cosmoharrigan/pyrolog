@@ -13,7 +13,7 @@ h(X, Y, Z) :- -Y = Z.
     assert len(facts) == 1
 
 def test_numeral():
-    from prolog.interpreter.term import Callable, Atom, Var
+    from prolog.interpreter.term import Callable, Atom, BindingVar
     from prolog.interpreter.continuation import Engine
     t = parse_file("""
 numeral(null). % end of line comment
@@ -41,7 +41,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")
     e.run(term, m.user_module)
     hp = Heap()
-    var = Var().getvalue(hp)
+    var = BindingVar().getvalue(hp)
     # does not raise
     var.unify(four, hp)
     term = parse_query_term(

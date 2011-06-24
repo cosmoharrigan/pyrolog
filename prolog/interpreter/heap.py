@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Var, AttVar
+from prolog.interpreter.term import BindingVar, AttVar
 
 from pypy.rlib import jit
 
@@ -63,7 +63,7 @@ class Heap(object):
     def newvar(self):
         """ Make a new variable. Should return a Var instance, possibly with
         interesting attributes set that e.g. add_trail can inspect."""
-        result = Var()
+        result = BindingVar()
         result.created_after_choice_point = self
         return result
 

@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter.helper import convert_to_str, unwrap_list
-from prolog.interpreter.term import Callable, BigInt, Var, Atom
+from prolog.interpreter.term import Callable, BigInt, BindingVar, Atom
 from prolog.interpreter.heap import Heap
 from pypy.rlib.rbigint import rbigint
 
@@ -21,21 +21,21 @@ def test_unwrap_list():
     assert len(l) == 1
     assert l[0] is a
 
-    v1 = Var()
+    v1 = BindingVar()
     a1 = Callable.build("a")
     l1 = unwrap_list(Callable.build(".",
             [v1, Callable.build(".", [a1, Callable.build("[]")])]))
     assert l1 == [v1, a1]
 
     empty = Callable.build("[]")
-    v2 = Var()
+    v2 = BindingVar()
     l2 = Callable.build(".", [a, v2])
     v2.unify(empty, Heap())
     unwrapped = unwrap_list(l2)
     assert unwrapped == [a]
 
-    v3 = Var()
-    v4 = Var()
+    v3 = BindingVar()
+    v4 = BindingVar()
     b = Callable.build("b")
     h = Heap()
     l3 = Callable.build(".", [a, v3])

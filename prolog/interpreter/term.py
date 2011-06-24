@@ -61,29 +61,33 @@ class PrologObject(object):
 
 class Var(PrologObject):
     TYPE_STANDARD_ORDER = 0
-    __slots__ = ("binding", "created_after_choice_point")
-    
+
     def __init__(self):
-        self.binding = None
         self.created_after_choice_point = None
-    
+        assert type(self) is not Var, "abstract base class"
+
     @specialize.arg(3)
     @jit.unroll_safe
     def unify(self, other, heap, occurs_check=False):
         other = other.dereference(heap)
-        next = self.binding
+        next = self.getbinding()
         while isinstance(next, Var):
             self = next
-            next = next.binding
+            next = next.getbinding()
         if next is None:
             assert isinstance(self, Var)
             return self._unify_derefed(other, heap, occurs_check)
         else:
-            assert isinstance(next, NonVar)
-            if next is not other:
-                if isinstance(other, NonVar):
-                    self.setvalue(other, heap)
-                next._unify_derefed(other, heap, occurs_check)
+            self._unify_potential_recursion(next, other, heap, occurs_check)
+
+    @specialize.arg(3)
+    def _unify_potential_recursion(self, next, other, heap, occurs_check):
+        assert isinstance(next, NonVar)
+        if next is not other:
+            next._unify_derefed(other, heap, occurs_check)
+
+    def getbinding(self):
+        raise NotImplementedError
 
     @specialize.arg(3)
     def _unify_derefed(self, other, heap, occurs_check=False):
@@ -95,7 +99,7 @@ class Var(PrologObject):
             self.setvalue(other, heap)
     
     def dereference(self, heap):
-        next = self.binding
+        next = self.getbinding()
         if next is None:
             return self
         else:
@@ -110,11 +114,7 @@ class Var(PrologObject):
         if not isinstance(res, Var):
             return res.getvalue(heap)
         return res
-    
-    def setvalue(self, value, heap):
-        heap.add_trail(self)
-        self.binding = value
-    
+
     def copy(self, heap, memo):
         self = self.dereference(heap)
         if isinstance(self, Var):
@@ -136,27 +136,42 @@ class Var(PrologObject):
         if not isinstance(self, Var):
             return self.contains_var(var, heap)
         return False
-    
-    def __repr__(self):
-        return "Var(%s)" % (self.binding, )
 
-    
-    def __eq__(self, other):
-        # for testing
-        # XXX delete
-        return self is other
-    
+    def __repr__(self):
+        return "Var(%s)" % (self.getbinding(), )
+
     def eval_arithmetic(self, engine):
         self = self.dereference(None)
         if isinstance(self, Var):
             error.throw_instantiation_error()
-        
         return self.eval_arithmetic(engine)
     
     @jit.dont_look_inside
     def cmp_standard_order(self, other, heap):
         assert isinstance(other, Var)
         return rcmp(compute_unique_id(self), compute_unique_id(other))
+
+class BindingVar(Var):
+    __slots__ = ("binding", "created_after_choice_point")
+
+    def __init__(self):
+        Var.__init__(self)
+        self.binding = None
+
+    def getbinding(self):
+        return self.binding
+
+    def setvalue(self, value, heap):
+        heap.add_trail(self)
+        self.binding = value
+
+    @specialize.arg(3)
+    def _unify_potential_recursion(self, next, other, heap, occurs_check):
+        assert isinstance(next, NonVar)
+        if next is not other:
+            if isinstance(other, NonVar):
+                self.setvalue(other, heap)
+            next._unify_derefed(other, heap, occurs_check)
 
 class AttMap(object):
     def __init__(self):
@@ -183,11 +198,11 @@ class AttMap(object):
     def get_attname_at_index(self, index):
         return self.attnames_in_order[index]
 
-class AttVar(Var):
+class AttVar(BindingVar):
     attmap = AttMap()
 
     def __init__(self):
-        Var.__init__(self)
+        BindingVar.__init__(self)
         self.value_list = debug.make_sure_not_resized([])
 
     @specialize.arg(3)
@@ -203,7 +218,7 @@ class AttVar(Var):
     def setvalue(self, value, heap):
         if self.value_list is not None:
             heap.add_hook(self)
-        Var.setvalue(self, value, heap)
+        BindingVar.setvalue(self, value, heap)
 
     def __repr__(self):
         attrs = []
@@ -213,7 +228,7 @@ class AttVar(Var):
                 value = self.value_list[index]
                 if value is not None:
                     attrs.append("%s=%s" % (key, value))
-        return "AttVar(%s, %s)" % (self.binding, "[" + ", ".join(attrs) + "]")
+        return "AttVar(%s, %s)" % (self.getbinding(), "[" + ", ".join(attrs) + "]")
 
     def copy(self, heap, memo):
         self = self.dereference(heap)
@@ -480,9 +495,9 @@ class Callable(NonVar):
             # already and cannot be backtracked
             for i in range(len(args)):
                 arg = args[i]
-                if (isinstance(arg, Var) and arg.binding is not None and
+                if (isinstance(arg, Var) and arg.getbinding() is not None and
                         arg.created_after_choice_point is heap):
-                    args[i] = arg.binding
+                    args[i] = arg.getbinding()
         if len(args) == 0:
             if cache:
                 return Atom.newatom(term_name)

@@ -4,7 +4,7 @@ from pypy.rlib import jit
 from pypy.rlib.objectmodel import we_are_translated, specialize
 from prolog.interpreter import error
 from prolog.interpreter import helper
-from prolog.interpreter.term import Term, Atom, Var, Callable
+from prolog.interpreter.term import Term, Atom, BindingVar, Callable, Var
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
@@ -166,12 +166,12 @@ class Engine(object):
 
     def _term_expand(self, term):
         if self.modulewrapper.system is not None:
-            v = Var()
+            v = BindingVar()
             call = Callable.build("term_expand", [term, v])
             try:
                 self.run(call, self.modulewrapper.current_module)
             except error.UnificationFailed:
-                v = Var()
+                v = BindingVar()
                 call = Callable.build("term_expand", [term, v])
                 self.run(call, self.modulewrapper.system)
             term = v.getvalue(None)

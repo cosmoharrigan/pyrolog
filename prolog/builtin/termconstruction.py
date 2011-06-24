@@ -27,7 +27,7 @@ def impl_functor(engine, heap, t, functor, arity):
             else:
                 name = helper.unwrap_atom(functor)
                 t.unify(
-                    term.Callable.build(name, [term.Var() for i in range(a)]),
+                    term.Callable.build(name, [heap.newvar() for i in range(a)]),
                     heap)
 
 @continuation.make_failure_continuation
