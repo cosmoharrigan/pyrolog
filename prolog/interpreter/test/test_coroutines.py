@@ -425,6 +425,7 @@ def test_4_queens():
     # XXX make findall run
     #assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)
 
+@py.test.mark.xfail
 def test_findall_when():
     e = get_engine("""
     f(X) :-

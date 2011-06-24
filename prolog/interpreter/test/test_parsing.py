@@ -41,7 +41,7 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")
     e.run(term, m.user_module)
     hp = Heap()
-    var = Var().getvalue(hp)
+    var = Var().dereference(hp)
     # does not raise
     var.unify(four, hp)
     term = parse_query_term(

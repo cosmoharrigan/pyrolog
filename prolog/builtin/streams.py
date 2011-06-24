@@ -251,21 +251,21 @@ def impl_nl(engine, heap, stream):
 def impl_nl_0(engine, heap):
     impl_nl(engine, heap, engine.streamwrapper.current_outstream)
 
-@expose_builtin("write", unwrap_spec=["outstream", "concrete"])
+@expose_builtin("write", unwrap_spec=["outstream", "raw"])
 def impl_write(engine, heap, stream, term):
     formatter = TermFormatter.from_option_list(engine, [])
     stream.write(formatter.format(term))
 
-@expose_builtin("write", unwrap_spec=["concrete"])
+@expose_builtin("write", unwrap_spec=["raw"])
 def impl_write_1(engine, heap, term):
     impl_write(engine, heap, engine.streamwrapper.current_outstream, term)
 
-@expose_builtin("write_term", unwrap_spec=["outstream", "concrete", "list"])
+@expose_builtin("write_term", unwrap_spec=["outstream", "raw", "list"])
 def impl_write_term(engine, heap, stream, term, options):
     formatter = TermFormatter.from_option_list(engine, options)
     stream.write(formatter.format(term))
  
-@expose_builtin("write_term", unwrap_spec=["concrete", "list"])
+@expose_builtin("write_term", unwrap_spec=["raw", "list"])
 def impl_write_term_2(engine, heap, term, options):
     impl_write_term(engine, heap, engine.streamwrapper.current_outstream,
             term, options)

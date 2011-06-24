@@ -57,8 +57,9 @@ def impl_callable(engine, heap, var):
     if not helper.is_callable(var, engine):
         raise error.UnificationFailed()
 
-@expose_builtin("ground", unwrap_spec=["concrete"])
+@expose_builtin("ground", unwrap_spec=["raw"])
 def impl_ground(engine, heap, var):
+    var = var.dereference(heap)
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
     if isinstance(var, term.Callable):

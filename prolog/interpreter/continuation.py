@@ -89,7 +89,7 @@ def _process_hooks(scont, fcont, heap):
                 if val is None:
                     continue
                 module = attmap.get_attname_at_index(i)
-                query = Callable.build("attr_unify_hook", [val, hook.getvalue(heap)])
+                query = Callable.build("attr_unify_hook", [val, hook])
                 try:
                     mod = e.modulewrapper.get_module(module, query)
                 except error.CatchableError, err:
@@ -174,7 +174,7 @@ class Engine(object):
                 v = Var()
                 call = Callable.build("term_expand", [term, v])
                 self.run(call, self.modulewrapper.system)
-            term = v.getvalue(None)
+            term = v.dereference(None)
         self.add_rule(term)
 
     def runstring(self, s):
