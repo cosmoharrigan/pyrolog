@@ -81,7 +81,7 @@ class Var(PrologObject):
         else:
             self._unify_potential_recursion(next, other, heap, occurs_check)
 
-    @specialize.arg(3)
+    @specialize.arg(4)
     def _unify_potential_recursion(self, next, other, heap, occurs_check):
         assert isinstance(next, NonVar)
         if next is not other:
@@ -110,10 +110,6 @@ class Var(PrologObject):
                 self.setvalue(result, heap)
             return result
 
-    def setvalue(self, value, heap):
-        heap.add_trail(self)
-        self.binding = value
-    
     def copy(self, heap, memo):
         self = self.dereference(heap)
         if isinstance(self, Var):
@@ -167,7 +163,7 @@ class BindingVar(Var):
         heap.add_trail(self)
         self.binding = value
 
-    @specialize.arg(3)
+    @specialize.arg(4)
     def _unify_potential_recursion(self, next, other, heap, occurs_check):
         assert isinstance(next, NonVar)
         if next is not other:
@@ -864,15 +860,19 @@ def generate_class(cname, fname, n_args, immutable=True):
         def signature(self):
             return signature
 
-        def _make_new(self, name, signature, mutable=False):
+        def _make_new(self, name, signature):
             cls = specific_class
-            if mutable:
-                cls = cls.mutable_version
             return cls(name, None, signature)
+
+        if immutable:
+            def _make_new_mutable(self, name, signature):
+                cls = mutable_version
+                return cls(name, None, signature)
+        else:
+            _make_new_mutable = _make_new
     if immutable:
-        specific_class.mutable_version = generate_class(cname, fname, n_args, False)
-    else:
-        specific_class.mutable_version = specific_class
+        mutable_version = specific_class.mutable_version = generate_class(
+                cname, fname, n_args, False)
     specific_class.__name__ = cname + "Mutable" * (not immutable)
     return specific_class
 
@@ -899,7 +899,8 @@ def generate_abstract_class(n_args, immutable=True):
 
         def _make_new(self, name, signature, mutable=False):
             raise NotImplementedError("abstract base class")
-        
+        _make_new_mutable = _make_new
+
         def arguments(self):
             result = [None] * n_args
             for x in arg_iter:
@@ -952,17 +953,15 @@ def generate_abstract_class(n_args, immutable=True):
                 raise UnificationFailed
 
         def copy_standardize_apart(self, heap, env):
-            needmutable = False
-            for i in arg_iter:
-                arg = getattr(self, 'val_%d' % i)
-                needmutable = needmutable | isinstance(arg, NumberedVar)
-            result = self._make_new(self.name(), self.signature(), mutable=needmutable)
+            result = self._make_new_mutable(self.name(), self.signature())
             newinstance = False
+            needmutable = False
             i = 0
             for i in arg_iter:
                 arg = getattr(self, 'val_%d' % i)
                 cloned = arg.copy_standardize_apart_as_child_of(heap, env, result, i)
                 newinstance = newinstance | (cloned is not arg)
+                needmutable = needmutable | isinstance(arg, VarInTerm)
                 setattr(result, 'val_%d' % i, cloned)
                 i += 1
             if newinstance:
@@ -1026,16 +1025,19 @@ def generate_generic_class(n_args, immutable=True):
 
         def _make_new(self, name, signature, mutable=False):
             cls = generic_callable
-            if mutable:
-                cls = generic_callable.mutable_version
             return cls(name, None, signature)
+
+        if immutable:
+            def _make_new_mutable(self, name, signature, mutable=False):
+                cls = mutable_version
+                return cls(name, None, signature)
+        else:
+            _make_new_mutable = _make_new
 
         def signature(self):
             return self._signature
     if immutable:
-        generic_callable.mutable_version = generate_generic_class(n_args, False)
-    else:
-        generic_callable.mutable_version = generic_callable
+        mutable_version = generic_callable.mutable_version = generate_generic_class(n_args, False)
     generic_callable.__name__ = 'Generic'+str(n_args) + "Mutable" * (not immutable)
     return generic_callable
 
