@@ -1,6 +1,8 @@
 from prolog.interpreter.parsing import parse_file, TermBuilder
-from prolog.interpreter.term import Atom, Number, Term, Callable, specialized_term_classes
+from prolog.interpreter.term import Atom, Number, Term, Callable, \
+        specialized_term_classes, NumberedVar, MutableCallable
 from prolog.interpreter.test.tool import parse
+from prolog.interpreter.heap import Heap
 import py
 
 def parse(inp):
@@ -92,3 +94,15 @@ def test_callable_factory_for_cons():
     assert r.arguments() == [1, Callable.build('[]')]
     assert r.argument_at(0) == 1
     assert r.argument_at(1) == Callable.build('[]')
+
+def test_callable_mutable():
+    for name in [".", "f"]:
+        t = Callable.build(name, [NumberedVar(0), NumberedVar(1)])
+        res = t.copy_standardize_apart(Heap(), [None, None])
+        assert isinstance(res, MutableCallable)
+        res.set_argument_at(0, 1)
+        assert res.argument_at(0) == 1
+        res.set_argument_at(1, 7)
+        assert res.argument_at(0) == 1
+        assert res.argument_at(1) == 7
+
