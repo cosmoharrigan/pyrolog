@@ -66,6 +66,7 @@ class Signature(object):
         self.factory = factory
         factory.init_extra_attrs(self)
 
+    @jit.purefunction_promote('all')
     def eq(self, other):
         return self is other or (
                 self.name == other.name and
