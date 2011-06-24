@@ -342,7 +342,7 @@ def test_current_input():
     h = Heap()
     X = h.newvar()
     impl_current_input(e, h, X)
-    assert X.getvalue(h).name() == e.streamwrapper.current_instream.alias
+    assert X.dereference(h).name() == e.streamwrapper.current_instream.alias
 
 def test_current_input_2():
     src = "__src__"
@@ -361,7 +361,7 @@ def test_current_output():
     h = Heap()
     X = h.newvar()
     impl_current_output(e, h, X)
-    assert X.getvalue(h).name() == e.streamwrapper.current_outstream.alias
+    assert X.dereference(h).name() == e.streamwrapper.current_outstream.alias
 
 def test_current_input_output_domain_error():
     prolog_raises("domain_error(stream, X)", "current_input(f(a))")

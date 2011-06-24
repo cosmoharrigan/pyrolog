@@ -51,7 +51,7 @@ def var_representation(var_to_pos, engine, write, heap):
     for var, real_var in var_to_pos.iteritems():
         if var.startswith("_"):
             continue
-        value = real_var.getvalue(heap)
+        value = real_var.dereference(heap)
         val = f.format(value)
         if isinstance(value, term.AttVar):
             write("%s\n" % val)

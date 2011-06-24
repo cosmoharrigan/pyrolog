@@ -57,17 +57,12 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         if spec in ("obj", "callable", "int", "atom", "arithmetic", "instream", "outstream", "stream", "list"):
             code.append("    %s = query.argument_at(%s).dereference(heap)" %
                         (varname, i))
-        elif spec in ("concrete", ):
-            code.append("    %s = query.argument_at(%s).getvalue(heap)" %
-                        (varname, i))
         if spec in ("int", "atom", "arithmetic", "list", "instream", "outstream", "stream"):
             code.append(
                 "    if isinstance(%s, term.Var):" % (varname,))
             code.append(
                 "        error.throw_instantiation_error()")
         if spec == "obj":
-            pass
-        elif spec == "concrete":
             pass
         elif spec == "callable":
             code.append(

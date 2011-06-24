@@ -20,10 +20,7 @@ def debug_print(*args):
 class PrologObject(object):
     __slots__ = ()
     __metaclass__ = extendabletype
-    
-    def getvalue(self, heap):
-        return self
-    
+
     def dereference(self, heap):
         raise NotImplementedError("abstract base class")
     
@@ -112,13 +109,11 @@ class Var(PrologObject):
                 # do path compression
                 self.setvalue(result, heap)
             return result
-    
-    def getvalue(self, heap):
-        res = self.dereference(heap)
-        if not isinstance(res, Var):
-            return res.getvalue(heap)
-        return res
 
+    def setvalue(self, value, heap):
+        heap.add_trail(self)
+        self.binding = value
+    
     def copy(self, heap, memo):
         self = self.dereference(heap)
         if isinstance(self, Var):
@@ -131,8 +126,11 @@ class Var(PrologObject):
         return self.copy(heap, memo)
     
     def enumerate_vars(self, memo):
-        return memo.get(self)
-    
+        self = self.dereference(None)
+        if isinstance(self, Var):
+            return memo.get(self)
+        return self.enumerate_vars(memo)
+
     def contains_var(self, var, heap):
         self = self.dereference(heap)
         if self is var:
@@ -483,9 +481,6 @@ class Callable(NonVar):
     
     def enumerate_vars(self, memo):
         return self._copy_term(_term_enumerate_vars, None, memo)
-    
-    def getvalue(self, heap):
-        return self._copy_term(_term_getvalue, heap)
 
     @specialize.arg(1)
     @jit.unroll_safe
@@ -789,9 +784,6 @@ def _term_copy_standardize_apart(obj, i, heap, env):
 
 def _term_enumerate_vars(obj, i, _, memo):
     return obj.enumerate_vars(memo)
-
-def _term_getvalue(obj, i, heap):
-    return obj.getvalue(heap)
 
 def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
     obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)

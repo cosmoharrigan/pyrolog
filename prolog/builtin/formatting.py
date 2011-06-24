@@ -52,6 +52,7 @@ class TermFormatter(object):
 
     def format(self, term):
         self.curr_depth += 1
+        term = term.dereference(None)
         if self.max_depth > 0 and self.curr_depth > self.max_depth:
             return "..."
         if isinstance(term, Atom):

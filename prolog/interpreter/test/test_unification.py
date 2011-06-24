@@ -19,13 +19,13 @@ def test_var():
     b = BindingVar()
     heap = Heap()
     b.unify(Callable.build("hallo"), heap)
-    assert b.getvalue(heap).name()== "hallo"
+    assert b.dereference(heap).name()== "hallo"
     a = BindingVar()
     b = BindingVar()
     a.unify(b, heap)
     a.unify(Callable.build("hallo"), heap)
-    assert a.getvalue(heap).name()== "hallo"
-    assert b.getvalue(heap).name()== "hallo"
+    assert a.dereference(heap).name()== "hallo"
+    assert b.dereference(heap).name()== "hallo"
 
 def test_unify_var():
     b = BindingVar()
@@ -47,8 +47,8 @@ def test_term():
     heap = Heap()
     print t1, t2
     t1.unify(t2, heap)
-    assert X.getvalue(heap).name()== "HALLO"
-    assert Y.getvalue(heap).name()== "hallo"
+    assert X.dereference(heap).name()== "HALLO"
+    assert Y.dereference(heap).name()== "hallo"
 
 def test_enumerate_vars():
     from prolog.interpreter.memo import EnumerationMemo
@@ -62,6 +62,18 @@ def test_enumerate_vars():
     assert t2.argument_at(0) is t2.argument_at(1)
     assert t2.argument_at(0).num == 0
     assert t2.argument_at(2).argument_at(1).num == 0
+
+def test_enumerate_vars_of_bound_var():
+    from prolog.interpreter.memo import EnumerationMemo
+    h = Heap()
+    X = h.newvar()
+    X.setvalue(Callable.build("a"), h)
+    t1 = Callable.build("f", [X])
+    memo = EnumerationMemo()
+    t2 = t1.enumerate_vars(memo)
+    assert is_term(t2)
+    assert t2.signature().eq(t1.signature())
+    assert t1.argument_at(0).dereference(None) is t2.argument_at(0)
 
 def test_enumerate_vars_var_occurs_once():
     from prolog.interpreter.memo import EnumerationMemo
@@ -165,7 +177,7 @@ def test_quick_unify_check():
     assert b.quick_unify_check(b)
     assert not a.quick_unify_check(b)
 
-def test_copy_derefences():
+def test_copy_dereferences():
     from prolog.interpreter.memo import CopyMemo
     v1 = BindingVar()
     v1.binding = Number(10)

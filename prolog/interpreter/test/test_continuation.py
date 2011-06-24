@@ -95,24 +95,19 @@ def test_full():
         def discard(self):
             pass
         def activate(self, fcont, heap):
-            all.append(query.getvalue(heap))
+            all.append((X.dereference(heap).name(), Y.dereference(heap).name()))
             raise error.UnificationFailed
     e.add_rule(Callable.build("f", [Callable.build("x")]), True)
     e.add_rule(Callable.build("f", [Callable.build("y")]), True)
     e.add_rule(Callable.build("g", [Callable.build("a")]), True)
     e.add_rule(Callable.build("g", [Callable.build("b")]), True)
-            
-    query = Callable.build(",", [Callable.build("f", [BindingVar()]), Callable.build("g", [BindingVar()])])
+
+    X = BindingVar()
+    Y = BindingVar()
+    query = Callable.build(",", [Callable.build("f", [X]), Callable.build("g", [Y])])
     py.test.raises(error.UnificationFailed,
                    e.run_query, query, e.modulewrapper.user_module, CollectContinuation())
-    assert all[0].argument_at(0).argument_at(0).name()== "x"
-    assert all[0].argument_at(1).argument_at(0).name()== "a"
-    assert all[1].argument_at(0).argument_at(0).name()== "x"
-    assert all[1].argument_at(1).argument_at(0).name()== "b"
-    assert all[2].argument_at(0).argument_at(0).name()== "y"
-    assert all[2].argument_at(1).argument_at(0).name()== "a"
-    assert all[3].argument_at(0).argument_at(0).name()== "y"
-    assert all[3].argument_at(1).argument_at(0).name()== "b"
+    assert all == [("x", "a"), ("x", "b"), ("y", "a"), ("y", "b")]
 
 
 def test_cut_not_reached():
