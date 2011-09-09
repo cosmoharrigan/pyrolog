@@ -8,7 +8,6 @@ from pypy.rlib.rarithmetic import intmask, ovfcheck_float_to_int
 from pypy.rlib.unroll import unrolling_iterable
 from pypy.rlib import jit, rarithmetic
 from pypy.rlib.rbigint import rbigint
-from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 
 Signature.register_extr_attr("arithmetic")
 
@@ -408,8 +407,6 @@ class __extend__(term.Float):
 
     # ------------------ miscellanous ------------------
     def arith_round(self):
-        # XXX round is not RPython. What if the result doesn't fit into a Number?
-        # use ovfcheck_float_to_int
         fval = self.floatval
         if fval >= 0:
             factor = 1
@@ -524,15 +521,17 @@ class __extend__(term.BigInt):
 
     def arith_shr_number(self, other_num):
         try:
-            num = string_to_int(self.value.str())
-        except ParseStringOverflowError:
+            num = self.value.toint()
+        except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return term.Number(other_num >> num)
 
     def arith_shr_bigint(self, other_value):
         try:
-            num = string_to_int(self.value.str())
-        except ParseStringOverflowError:
+            num = self.value.toint()
+        except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return make_int(term.BigInt(other_value.rshift(num)))
 
@@ -542,16 +541,18 @@ class __extend__(term.BigInt):
 
     def arith_shl_number(self, other_num):
         try:
-            num = string_to_int(self.value.str())
-        except ParseStringOverflowError:
+            num = self.value.toint()
+        except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         else:
             return make_int(term.BigInt(rbigint.fromint(other_num).lshift(num)))
 
     def arith_shl_bigint(self, other_value):
         try:
-            num = string_to_int(self.value.str())
-        except ParseStringOverflowError:
+            num = self.value.toint()
+        except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return make_int(term.BigInt(other_value.lshift(num)))
 
