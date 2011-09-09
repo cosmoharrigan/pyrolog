@@ -176,6 +176,7 @@ class AttMap(object):
         self.indexes = {}
         self.attnames_in_order = []
         self.other_maps = {}
+        self.last_name = None
 
     @jit.purefunction
     def get_index(self, attname):
@@ -306,7 +307,8 @@ class VarInTerm(Var):
         self.index = index
 
     def getbinding(self):
-        if self.index == -1:
+        index = jit.hint(self.index, promote=True)
+        if index == -1:
             return self.parent
         res = self.parent.argument_at(self.index)
         assert res is self
