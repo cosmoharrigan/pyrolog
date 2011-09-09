@@ -90,7 +90,7 @@ for prolog_name, num_args, name in simple_functions:
             raise NotImplementedError("abstract base class")
         setattr(term.Numeric, "arith_%s%s" % (name, suffix), not_implemented_func)
 
-@jit.purefunction
+@jit.elidable
 def get_arithmetic_function(signature):
     return signature.get_extra("arithmetic")
 

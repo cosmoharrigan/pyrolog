@@ -158,11 +158,11 @@ class AttMap(object):
         self.attnames_in_order = []
         self.other_maps = {}
 
-    @jit.purefunction
+    @jit.elidable
     def get_index(self, attname):
         return self.indexes.get(attname, -1)
 
-    @jit.purefunction
+    @jit.elidable
     def with_extra_attribute(self, attname):
         if attname not in self.other_maps:
             new_map = AttMap()
@@ -173,7 +173,7 @@ class AttMap(object):
             self.other_maps[attname] = new_map
         return self.other_maps[attname]
 
-    @jit.purefunction
+    @jit.elidable
     def get_attname_at_index(self, index):
         return self.attnames_in_order[index]
 
@@ -495,9 +495,9 @@ class Callable(NonVar):
             if cls is not None:
                 return cls(term_name, args, signature)
             return Term(term_name, args, signature)
-    
+
     @staticmethod
-    @jit.purefunction
+    @jit.elidable
     def _find_specialized_class(term_name, numargs):
         return specialized_term_classes.get((term_name, numargs), None)
 
