@@ -7,7 +7,7 @@ from prolog.interpreter.translatedmain import repl, execute
 
 # __________  Entry point  __________
 
-from prolog.interpreter.continuation import Engine
+from prolog.interpreter.continuation import Engine, jitdriver
 from prolog.interpreter import term
 from prolog.interpreter import arithmetic # for side effects
 from prolog import builtin # for side effects
@@ -16,8 +16,22 @@ term.DEBUG = False
 
 def entry_point(argv):
     e.clocks.startup()
+    # XXX crappy argument handling
+    for i in range(len(argv)):
+        if argv[i] == "--jit":
+            if len(argv) == i + 1:
+                print "missing argument after --jit"
+                return 2
+            jitarg = argv[i + 1]
+            del argv[i:i+2]
+            jitdriver.set_user_param(jitarg)
+            break
+
     if len(argv) == 2:
         execute(e, argv[1])
+    if len(argv) > 2:
+        print "too many arguments"
+        return 2
     try:
         repl(e)
     except SystemExit:
