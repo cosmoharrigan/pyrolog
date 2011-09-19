@@ -66,7 +66,7 @@ class Signature(object):
         self.factory = factory
         factory.init_extra_attrs(self)
 
-    @jit.purefunction_promote('all')
+    @jit.elidable_promote('all')
     def eq(self, other):
         return self is other or (
                 self.name == other.name and
@@ -118,7 +118,7 @@ class Signature(object):
         return "<Signature %s>" % (self.string(), )
 
     @staticmethod
-    @jit.purefunction
+    @jit.elidable
     def getsignature(name, numargs):
         return Signature._cache.getsignature(name, numargs)
 

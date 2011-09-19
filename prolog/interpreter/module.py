@@ -37,10 +37,10 @@ class ModuleWrapper(object):
         error.throw_existence_error("procedure",
             errorterm.get_prolog_signature())
 
-    @jit.purefunction
+    @jit.elidable
     def _get_module(self, name, version):
         return self.modules.get(name, None)
-        
+
     def add_module(self, name, exports = []):
         mod = Module(name)
         for export in exports:
@@ -62,7 +62,7 @@ class Module(object):
         func = self.lookup(signature)
         func.meta_args = arglist
 
-    @jit.purefunction_promote("0")
+    @jit.elidable_promote("0")
     def lookup(self, signature):
         try:
             function = self.functions[signature]

@@ -144,7 +144,7 @@ class Engine(object):
         if old_modname is not None:
             self.switch_module(old_modname)
 
-    @jit.purefunction_promote('all')
+    @jit.elidable_promote('all')
     def get_builtin(self, signature):
         from prolog import builtin # for the side-effects
         return signature.get_extra("builtin")
