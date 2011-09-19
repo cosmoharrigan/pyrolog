@@ -1016,7 +1016,7 @@ def generate_generic_class(n_args, immutable=True):
         parent = parent.mutable_version
 
     class generic_callable(parent):
-        _immutable_fields_ = ["signature"]
+        _immutable_fields_ = ["_signature"]
         TYPE_STANDARD_ORDER = Term.TYPE_STANDARD_ORDER
         
         def __init__(self, term_name, args, signature):
