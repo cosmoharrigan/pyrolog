@@ -524,8 +524,8 @@ class Callable(NonVar):
     
     def eval_arithmetic(self, engine):
         from prolog.interpreter.arithmetic import get_arithmetic_function
-        
         func = get_arithmetic_function(self.signature())
+        jit.promote(func)
         if func is None:
             error.throw_type_error("evaluable", self.get_prolog_signature())
         return func(engine, self)
