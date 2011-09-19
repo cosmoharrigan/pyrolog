@@ -271,3 +271,57 @@ class TestRunPyrologC(BaseTestPyrologC):
             jump(p0, i7, p2, p3, descr=<Loop0>)
         """)
 
+
+    def test_append(self):
+        code = """
+        loop(0, []).
+        loop(X, [a | T]) :- X > 0, X0 is X - 1, loop(X0, T).
+        length([], O, O).
+        length([_|T], I, O) :- I1 is I + 1, length(T, I1, X0).
+        """
+        log = self.run_and_check(code, "loop(10000, A), loop(1000, B), append(A, B, C), length(C, 0, D).")
+        # assert "D = 11000" in log.result # XXX fix this!
+        loop, = log.filter_loops("append")
+        assert loop.match("""
+            guard_nonnull(p6, descr=...)
+            i9 = ptr_eq(p6, ConstPtr(ptr8))
+            guard_false(i9, descr=...)
+            p10 = getfield_gc(p3, descr=...)
+            guard_nonnull(p10, descr=...)
+            i11 = getfield_gc(p10, descr=...) # inst_discarded
+            guard_false(i11, descr=...)
+            i12 = ptr_eq(p5, p10)
+            guard_true(i12, descr=...)
+            guard_nonnull_class(p7, 136989568, descr=...)
+            i16 = ptr_eq(p7, ConstPtr(ptr15))
+            guard_false(i16, descr=...)
+            guard_not_invalidated(descr=...)
+            p18 = new_with_vtable(136988224)
+            setfield_gc(p18, p6, descr=...)  # inst_val_0
+            p20 = new_with_vtable(136989568)
+            setfield_gc(p20, p5, descr=...)  # inst_created_after_choice_point
+            setfield_gc(p18, p20, descr=...) # inst_val_1
+            setfield_gc(p3, p18, descr=...)  # inst_binding
+            p21 = getfield_gc(p7, descr=...) # inst_binding
+            guard_nonnull_class(p21, 136988224, descr=...)
+            p23 = getfield_gc_pure(p21, descr=...)  # inst_val_0
+            p24 = getfield_gc_pure(p21, descr=...) # inst_val_1
+            p25 = getfield_gc(p20, descr=...) # inst_binding
+            guard_isnull(p25, descr=...)
+            jump(p0, p7, p2, p20, p4, p5, p23, p24, descr=...)
+        """)
+        loop, = log.filter_loops("length")
+        assert loop.match("""
+            guard_nonnull_class(p5, 136989568, descr=...)
+            i8 = ptr_eq(p5, ConstPtr(ptr7))
+            guard_false(i8, descr=...)
+            i10 = int_add_ovf(i2, 1)
+            guard_no_overflow(descr=...)
+            guard_not_invalidated(descr=...)
+            p12 = getfield_gc(p5, descr=...) # inst_binding
+            guard_nonnull_class(p12, 136988224, descr=...)
+            p14 = getfield_gc_pure(p12, descr=...) # inst_val_0
+            p15 = getfield_gc_pure(p12, descr=...) # inst_val_1
+            jump(p0, p5, i10, p3, p4, p15, descr=...)
+
+        """)

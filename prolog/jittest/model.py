@@ -21,9 +21,10 @@ class Log(object):
     def _filter(self, loop, is_entry_bridge=False):
         return is_entry_bridge == '*' or loop.is_entry_bridge == is_entry_bridge
 
-    def filter_loops(self, **kwds):
+    def filter_loops(self, function="", **kwds):
         return [loop for loop in self.loops
-                if self._filter(loop, **kwds)]
+                    if function in loop.chunks[0].bytecode_name and
+                        self._filter(loop, **kwds)]
 
     @classmethod
     def opnames(self, oplist):
