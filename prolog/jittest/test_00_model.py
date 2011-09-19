@@ -289,23 +289,28 @@ class TestRunPyrologC(BaseTestPyrologC):
             p10 = getfield_gc(p3, descr=...)  # inst_created_after_choice_point
             i12 = ptr_eq(p5, p10)
             guard_true(i12, descr=...)
-            guard_nonnull_class(p7, 136989568, descr=...)
+            setfield_gc(p3, -1, descr=...) # inst_index
+            guard_nonnull_class(p7, ..., descr=...)
             i16 = ptr_eq(p7, ConstPtr(ptr15))
             guard_false(i16, descr=...)
             guard_not_invalidated(descr=...)
+            p18 = getfield_gc(p7, descr=...) # inst_val_0
             p20 = new_with_vtable(...)
-            setfield_gc(p20, p5, descr=...)  # inst_created_after_choice_point
-            p18 = new_with_vtable(...)
-            setfield_gc(p18, p20, descr=...) # inst_val_1
-            setfield_gc(p18, p6, descr=...)  # inst_val_0
-            setfield_gc(p3, p18, descr=...)  # inst_binding
-            p21 = getfield_gc(p7, descr=...) # inst_binding
-            guard_nonnull_class(p21, 136988224, descr=...)
-            p23 = getfield_gc_pure(p21, descr=...)  # inst_val_0
-            p24 = getfield_gc_pure(p21, descr=...) # inst_val_1
-            p25 = getfield_gc(p20, descr=...) # inst_binding
-            guard_isnull(p25, descr=...)
-            jump(p0, p7, p2, p20, p4, p5, p23, p24, descr=...)
+            p22 = new_with_vtable(...)
+            setfield_gc(p22, 1, descr=...) # inst_index
+            setfield_gc(p22, p20, descr=...) # inst_parent
+            setfield_gc(p22, p5, descr=...) # inst_created_after_choice_point
+            setfield_gc(p20, p22, descr=...) # inst_val_1
+            setfield_gc(p20, p6, descr=...) # inst_val_0
+            setfield_gc(p8, p20, descr=...) # inst_val_1
+            p24 = getfield_gc(p7, descr=...) # inst_val_1
+            i25 = getfield_gc(p22, descr=...) # inst_index
+            setfield_gc(p3, p20, descr=...) # inst_parent
+            guard_value(i25, 1, descr=...)
+            p27 = getfield_gc(p22, descr=...) # inst_parent
+            guard_class(p27, ..., descr=...)
+            p29 = getfield_gc(p27, descr=...) # inst_val_1
+            jump(p0, p7, p2, p22, p4, p5, p18, p24, p27, descr=<Loop2>)
         """)
         loop, = log.filter_loops("length")
         assert loop.match("""
@@ -315,10 +320,7 @@ class TestRunPyrologC(BaseTestPyrologC):
             i10 = int_add_ovf(i2, 1)
             guard_no_overflow(descr=...)
             guard_not_invalidated(descr=...)
-            p12 = getfield_gc(p5, descr=...) # inst_binding
-            guard_nonnull_class(p12, 136988224, descr=...)
-            p14 = getfield_gc_pure(p12, descr=...) # inst_val_0
-            p15 = getfield_gc_pure(p12, descr=...) # inst_val_1
-            jump(p0, p5, i10, p3, p4, p15, descr=...)
-
+            p14 = getfield_gc(p5, descr=...) # inst_val_0
+            p15 = getfield_gc(p5, descr=...) # inst_val_1
+            ...
         """)
