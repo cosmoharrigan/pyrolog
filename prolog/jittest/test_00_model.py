@@ -261,14 +261,14 @@ class TestRunPyrologC(BaseTestPyrologC):
         """
         log = self.run_and_check(code, "loop(100000000).")
         loop, = log.filter_loops()
-        loop.match("""
+        assert loop.match("""
             i5 = int_gt(i1, 0)
             guard_true(i5, descr=<Guard2>)
             i7 = int_sub(i1, 1)
             guard_not_invalidated(descr=<Guard3>)
             i10 = int_eq(i7, 0)
             guard_false(i10, descr=<Guard4>)
-            jump(p0, i7, p2, p3, descr=<Loop0>)
+            jump(p0, p2, i7, p3, descr=<Loop0>)
         """)
 
 
@@ -281,6 +281,33 @@ class TestRunPyrologC(BaseTestPyrologC):
         """
         log = self.run_and_check(code, "loop(10000, A), loop(1000, B), append(A, B, C), length(C, 0, D).")
         # assert "D = 11000" in log.result # XXX fix this!
+        loop, = log.filter_loops("loop")
+        assert loop.match("""
+            p6 = getfield_gc(p3, descr=...) # inst_created_after_choice_point
+            i7 = ptr_eq(p1, p6)
+            guard_true(i7, descr=...)
+            setfield_gc(p3, -1, descr=...) # inst_index
+            i10 = int_gt(i2, 0)
+            guard_true(i10, descr=...)
+            i12 = int_sub(i2, 1)
+            guard_not_invalidated(descr=...)
+            i15 = int_eq(i12, 0)
+            guard_false(i15, descr=...)
+            p17 = new_with_vtable(137097632)
+            setfield_gc(p17, 1, descr=...) # inst_index
+            p20 = new_with_vtable(137097984)
+            setfield_gc(p20, p17, descr=...) # inst_val_1
+            setfield_gc(p20, ConstPtr(ptr21), descr=...) # inst_val_0
+            setfield_gc(p17, p20, descr=...) # inst_parent
+            setfield_gc(p17, p1, descr=...) # inst_created_after_choice_point
+            i22 = getfield_gc(p17, descr=...) # inst_index
+            setfield_gc(p5, p20, descr=...) # inst_val_1
+            setfield_gc(p3, p20, descr=...) # inst_parent
+            guard_value(i22, 1, descr=...)
+            p24 = getfield_gc(p17, descr=...) # inst_parent
+            guard_nonnull_class(p24, 137097984, descr=...)
+            jump(p0, p1, i12, p17, p4, p24, descr=<Loop0>)
+        """)
         loop, = log.filter_loops("append")
         assert loop.match("""
             guard_nonnull(p6, descr=...)
