@@ -286,21 +286,18 @@ class TestRunPyrologC(BaseTestPyrologC):
             guard_nonnull(p6, descr=...)
             i9 = ptr_eq(p6, ConstPtr(ptr8))
             guard_false(i9, descr=...)
-            p10 = getfield_gc(p3, descr=...)
-            guard_nonnull(p10, descr=...)
-            i11 = getfield_gc(p10, descr=...) # inst_discarded
-            guard_false(i11, descr=...)
+            p10 = getfield_gc(p3, descr=...)  # inst_created_after_choice_point
             i12 = ptr_eq(p5, p10)
             guard_true(i12, descr=...)
             guard_nonnull_class(p7, 136989568, descr=...)
             i16 = ptr_eq(p7, ConstPtr(ptr15))
             guard_false(i16, descr=...)
             guard_not_invalidated(descr=...)
-            p18 = new_with_vtable(136988224)
-            setfield_gc(p18, p6, descr=...)  # inst_val_0
-            p20 = new_with_vtable(136989568)
+            p20 = new_with_vtable(...)
             setfield_gc(p20, p5, descr=...)  # inst_created_after_choice_point
+            p18 = new_with_vtable(...)
             setfield_gc(p18, p20, descr=...) # inst_val_1
+            setfield_gc(p18, p6, descr=...)  # inst_val_0
             setfield_gc(p3, p18, descr=...)  # inst_binding
             p21 = getfield_gc(p7, descr=...) # inst_binding
             guard_nonnull_class(p21, 136988224, descr=...)
