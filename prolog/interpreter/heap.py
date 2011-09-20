@@ -135,7 +135,8 @@ class Heap(object):
             if self.i:
                 self._discard_move_bindings_to_current(current_heap)
 
-            current_heap.trail_attrs.extend(self.trail_attrs)
+            if self.trail_attrs:
+                current_heap.trail_attrs.extend(self.trail_attrs)
 
             current_heap.prev = self.prev
             self.trail_var = None
