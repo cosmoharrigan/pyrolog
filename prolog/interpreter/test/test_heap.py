@@ -1,5 +1,5 @@
 import py
-from prolog.interpreter.heap import Heap, HookChain
+from prolog.interpreter.heap import Heap
 from prolog.interpreter.term import AttVar, BindingVar, Callable, Number, Atom, AttMap
 
 def test_heap():
@@ -121,14 +121,14 @@ def test_add_trail_atts():
     hp = Heap()
     a = hp.new_attvar()
     assert a.created_after_choice_point is hp
-    assert hp.trail_attrs == []
+    assert hp.trail_attrs is None
     ma = AttMap()
     ma.indexes = {"a": 0}
     a.value_list = [10]
     a.attmap = ma
 
     hp.add_trail_atts(a, "a")
-    assert hp.trail_attrs == []
+    assert hp.trail_attrs is None
     hp2 = hp.branch()
     hp2.add_trail_atts(a, "a")
     assert hp2.trail_attrs == [(a, 0, 10)]
@@ -196,24 +196,24 @@ def test_discard_with_attvars():
     assert v2.atts == {"a": 3}
 
 def test_hookchain():
-    hc = HookChain()
-    assert hc.last is None
+    hc = Heap()
+    assert hc.hook is None
     hc.add_hook(1)
     hc.add_hook(2)
     hc.add_hook(3)
-    assert hc.last.hook == 3
-    assert hc.last.next.hook == 2
-    assert hc.last.next.next.hook == 1
-    assert hc.last.next.next.next is None
+    assert hc.hook.attvar == 3
+    assert hc.hook.next.attvar == 2
+    assert hc.hook.next.next.attvar == 1
+    assert hc.hook.next.next.next is None
 
 def test_simple_hooks():
     hp = Heap()
     v = BindingVar()
     a = AttVar()
     v.unify(a, hp)
-    assert hp.hooks.last is None 
+    assert hp.hook is None
     v.unify(Number(1), hp)
-    assert hp.hooks.last.hook == a
+    assert hp.hook.attvar == a
 
     hp = Heap()
     v1 = BindingVar()
@@ -221,11 +221,11 @@ def test_simple_hooks():
     a1 = AttVar()
     a2 = AttVar()
     v1.unify(a1, hp)
-    assert hp.hooks.last is None
+    assert hp.hook is None
     v2.unify(a2, hp)
-    assert hp.hooks.last is None
+    assert hp.hook is None
     v1.unify(v2, hp)
-    assert hp.hooks.last.hook == a1
+    assert hp.hook.attvar == a1
 
     hp = Heap()
     v1 = BindingVar()
@@ -240,9 +240,9 @@ def test_simple_hooks():
 
     v1.unify(v2, hp)
     v2.unify(v3, hp)
-    assert hp.hooks.last.hook == a2
-    assert hp.hooks.last.next.hook == a1
-    assert hp.hooks.last.next.next is None
+    assert hp.hook.attvar == a2
+    assert hp.hook.next.attvar == a1
+    assert hp.hook.next.next is None
 
     hp = Heap()
     v1 = BindingVar()
@@ -251,13 +251,13 @@ def test_simple_hooks():
     a2 = AttVar()
     v1.unify(a1, hp)
     v2.unify(a2, hp)
-    assert hp.hooks.last is None
+    assert hp.hook is None
     v1.unify(v2, hp)
-    assert hp.hooks.last.hook == a1
+    assert hp.hook.attvar == a1
     v1.unify(Number(1), hp)
-    assert hp.hooks.last.hook == a2
-    assert hp.hooks.last.next.hook == a1
-    assert hp.hooks.last.next.next is None
+    assert hp.hook.attvar == a2
+    assert hp.hook.next.attvar == a1
+    assert hp.hook.next.next is None
 
     hp = Heap()
     v1 = BindingVar()
@@ -269,30 +269,40 @@ def test_simple_hooks():
     t1 = Callable.build("f", [v1, v2])
     t2 = Callable.build("f", [Atom("a"), Atom("b")])
     t1.unify(t2, hp)
-    assert hp.hooks.last.hook == a2
-    assert hp.hooks.last.next.hook == a1
-    assert hp.hooks.last.next.next is None
+    assert hp.hook.attvar == a2
+    assert hp.hook.next.attvar == a1
+    assert hp.hook.next.next is None
 
     hp = Heap()
     v = BindingVar()
     av = AttVar()
     v.unify(av, hp)
-    assert hp.hooks.last is None
+    assert hp.hook is None
     a = Callable.build("a")
     v.unify(a, hp)
-    assert hp.hooks.last.hook == av
+    assert hp.hook.attvar == av
     v.unify(a, hp)
-    assert hp.hooks.last.hook == av
-    assert hp.hooks.last.next is None
+    assert hp.hook.attvar == av
+    assert hp.hook.next is None
 
 def test_hookchain_size():
-    h = HookChain()
-    assert h._size() == 0
+    def size(heap):
+        # for tests only
+        if heap.hook is None:
+            return 0
+        current = heap.hook
+        size = 0
+        while current is not None:
+            current = current.next
+            size += 1
+        return size
+    h = Heap()
+    assert size(h) == 0
     h.add_hook(1)
-    assert h._size() == 1
+    assert size(h) == 1
     h.add_hook(2)
-    assert h._size() == 2
-    h.clear()
-    assert h._size() == 0
+    assert size(h) == 2
+    h.hook = None
+    assert size(h) == 0
 
 
