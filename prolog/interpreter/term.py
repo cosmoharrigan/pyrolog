@@ -11,6 +11,7 @@ from pypy.tool.pairtype import extendabletype
 from pypy.rlib.rbigint import rbigint
 
 DEBUG = False
+OPTIMIZED_TERM_SIZE_MAX = 10
 
 def debug_print(*args):
     if DEBUG and not we_are_translated():
@@ -173,11 +174,12 @@ class BindingVar(Var):
 
 
 class VarInTerm(Var):
-    _immutable_fields_ = ["index"]
-    def __init__(self, parent, index):
+    def __init__(self, parent):
+        raise NotImplementedError("abstract base class")
+
+    def init(self, parent):
         assert isinstance(parent, MutableCallable)
         self.parent_or_binding = parent
-        self.index = index
         self.bound = False
 
     def getbinding(self):
@@ -199,14 +201,32 @@ class VarInTerm(Var):
             var = self.created_after_choice_point.newvar()
             var.setvalue(value, heap)
             value = var
-        self.parent_or_binding.set_argument_at(self.index, value)
+        self._setvalue_in_parent(value)
         self.bound = True
         self.parent_or_binding = value
 
+    def _setvalue_in_parent(self, value):
+        raise NotImplementedError("abstract base class")
+
     def __repr__(self):
         if self.getbinding():
-            return "VarInTerm(%s)" % self.getbinding()
-        return "VarInTerm(%s, %s)" % (self.parent_or_binding.signature(), self.index)
+            return "%s(%s)" % (self.__class__.__name__, self.getbinding())
+        return "%s(%s)" % (self.__class__.__name__, self.parent_or_binding.signature())
+
+def make_var_in_term_class(index):
+    class VarInTermN(VarInTerm):
+        def __init__(self, parent):
+            self.init(parent)
+
+        def _setvalue_in_parent(self, value):
+            self.parent_or_binding.set_argument_at(index, value)
+    VarInTermN.__name__ = "VarInTerm%s" % index
+    return VarInTermN
+
+var_in_term_classes = [make_var_in_term_class(i)
+                            for i in range(OPTIMIZED_TERM_SIZE_MAX)]
+
+
 
 
 class AttMap(object):
@@ -1045,7 +1065,7 @@ def generate_generic_class(n_args, immutable=True):
 specialized_term_classes = {}
 callables = {}
 
-for numargs in range(1, 10):
+for numargs in range(1, OPTIMIZED_TERM_SIZE_MAX):
     callables['Abstract', numargs] = generate_abstract_class(numargs)
 
 classes = [('Cons', '.', 2), ('Or', ';', 2), ('And', ',', 2)]

@@ -10,7 +10,7 @@ def test_copy_standardize_apart():
     res = t.copy_standardize_apart(h, [None])
     assert res.argument_at(1).parent_or_binding is res
     assert not res.argument_at(1).bound
-    assert res.argument_at(1).index == 1
+    assert res.argument_at(1).__class__.__name__ == "VarInTerm1"
 
 def test_varinterm_bind():
     h = Heap()
