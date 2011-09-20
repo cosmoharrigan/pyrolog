@@ -307,7 +307,7 @@ class VarInTerm(Var):
         self.index = index
 
     def getbinding(self):
-        index = jit.hint(self.index, promote=True)
+        index = jit.promote(self.index)
         if index == -1:
             return self.parent
         res = self.parent.argument_at(self.index)
@@ -322,14 +322,12 @@ class VarInTerm(Var):
         return next.dereference(heap)
 
     def setvalue(self, value, heap):
+        # this is true because setvalues on bound VarInTerms don't happen
+        assert self.index != -1
         if heap is not self.created_after_choice_point:
-            assert self.index != -1
             var = self.created_after_choice_point.newvar()
             var.setvalue(value, heap)
             value = var
-        elif self.index == -1:
-            self.parent = value
-            return
         self.parent.set_argument_at(self.index, value)
         self.index = -1
         self.parent = value
