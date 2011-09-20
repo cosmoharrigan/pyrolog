@@ -171,6 +171,44 @@ class BindingVar(Var):
                 self.setvalue(other, heap)
             next._unify_derefed(other, heap, occurs_check)
 
+
+class VarInTerm(Var):
+    _immutable_fields_ = ["index"]
+    def __init__(self, parent, index):
+        assert isinstance(parent, MutableCallable)
+        self.parent_or_binding = parent
+        self.index = index
+        self.bound = False
+
+    def getbinding(self):
+        if self.bound:
+            return self.parent_or_binding
+        return None
+
+    def dereference(self, heap):
+        # makes no sense to do path compression here
+        next = self.getbinding()
+        if next is None:
+            return self
+        return next.dereference(heap)
+
+    def setvalue(self, value, heap):
+        # this is true because setvalues on bound VarInTerms don't happen
+        assert not self.bound
+        if heap is not self.created_after_choice_point:
+            var = self.created_after_choice_point.newvar()
+            var.setvalue(value, heap)
+            value = var
+        self.parent_or_binding.set_argument_at(self.index, value)
+        self.bound = True
+        self.parent_or_binding = value
+
+    def __repr__(self):
+        if self.getbinding():
+            return "VarInTerm(%s)" % self.getbinding()
+        return "VarInTerm(%s, %s)" % (self.parent_or_binding.signature(), self.index)
+
+
 class AttMap(object):
     def __init__(self):
         self.indexes = {}
@@ -298,43 +336,6 @@ class AttVar(BindingVar):
                 return False
         return True
 
-
-
-class VarInTerm(Var):
-    _immutable_fields_ = ["index"]
-    def __init__(self, parent, index):
-        assert isinstance(parent, MutableCallable)
-        self.parent_or_binding = parent
-        self.index = index
-        self.bound = False
-
-    def getbinding(self):
-        if self.bound:
-            return self.parent_or_binding
-        return None
-
-    def dereference(self, heap):
-        # makes no sense to do path compression here
-        next = self.getbinding()
-        if next is None:
-            return self
-        return next.dereference(heap)
-
-    def setvalue(self, value, heap):
-        # this is true because setvalues on bound VarInTerms don't happen
-        assert not self.bound
-        if heap is not self.created_after_choice_point:
-            var = self.created_after_choice_point.newvar()
-            var.setvalue(value, heap)
-            value = var
-        self.parent_or_binding.set_argument_at(self.index, value)
-        self.bound = True
-        self.parent_or_binding = value
-
-    def __repr__(self):
-        if self.getbinding():
-            return "VarInTerm(%s)" % self.getbinding()
-        return "VarInTerm(%s, %s)" % (self.parent_or_binding.signature(), self.index)
 
 
 class NumberedVar(PrologObject):
