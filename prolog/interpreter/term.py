@@ -301,17 +301,16 @@ class AttVar(BindingVar):
 
 
 class VarInTerm(Var):
+    _immutable_fields_ = ["index"]
     def __init__(self, parent, index):
         assert isinstance(parent, MutableCallable)
-        self.parent = parent
+        self.parent_or_binding = parent
         self.index = index
+        self.bound = False
 
     def getbinding(self):
-        index = jit.promote(self.index)
-        if index == -1:
-            return self.parent
-        res = self.parent.argument_at(self.index)
-        assert res is self
+        if self.bound:
+            return self.parent_or_binding
         return None
 
     def dereference(self, heap):
@@ -323,19 +322,19 @@ class VarInTerm(Var):
 
     def setvalue(self, value, heap):
         # this is true because setvalues on bound VarInTerms don't happen
-        assert self.index != -1
+        assert not self.bound
         if heap is not self.created_after_choice_point:
             var = self.created_after_choice_point.newvar()
             var.setvalue(value, heap)
             value = var
-        self.parent.set_argument_at(self.index, value)
-        self.index = -1
-        self.parent = value
+        self.parent_or_binding.set_argument_at(self.index, value)
+        self.bound = True
+        self.parent_or_binding = value
 
     def __repr__(self):
         if self.getbinding():
             return "VarInTerm(%s)" % self.getbinding()
-        return "VarInTerm(%s, %s)" % (self.parent.signature(), self.index)
+        return "VarInTerm(%s, %s)" % (self.parent_or_binding.signature(), self.index)
 
 
 class NumberedVar(PrologObject):
