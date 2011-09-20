@@ -286,27 +286,26 @@ class TestRunPyrologC(BaseTestPyrologC):
             p6 = getfield_gc(p3, descr=...) # inst_created_after_choice_point
             i7 = ptr_eq(p1, p6)
             guard_true(i7, descr=...)
-            setfield_gc(p3, -1, descr=...) # inst_index
+            p7 = getfield_gc(p3, descr=...) # inst_parent_or_binding
+            guard_class(p7, ..., descr=...)
+            setfield_gc(p3, 1, descr=...) # inst_bound
             i10 = int_gt(i2, 0)
             guard_true(i10, descr=...)
             i12 = int_sub(i2, 1)
             guard_not_invalidated(descr=...)
             i15 = int_eq(i12, 0)
             guard_false(i15, descr=...)
-            p17 = new_with_vtable(137097632)
-            setfield_gc(p17, 1, descr=...) # inst_index
-            p20 = new_with_vtable(137097984)
-            setfield_gc(p20, p17, descr=...) # inst_val_1
-            setfield_gc(p20, ConstPtr(ptr21), descr=...) # inst_val_0
-            setfield_gc(p17, p20, descr=...) # inst_parent
+            p17 = new_with_vtable(...)
             setfield_gc(p17, p1, descr=...) # inst_created_after_choice_point
-            i22 = getfield_gc(p17, descr=...) # inst_index
-            setfield_gc(p5, p20, descr=...) # inst_val_1
-            setfield_gc(p3, p20, descr=...) # inst_parent
-            guard_value(i22, 1, descr=...)
-            p24 = getfield_gc(p17, descr=...) # inst_parent
-            guard_nonnull_class(p24, 137097984, descr=...)
-            jump(p0, p1, i12, p17, p4, p24, descr=<Loop0>)
+            p20 = new_with_vtable(...)
+            setfield_gc(p20, ConstPtr(ptr21), descr=...) # inst_val_0
+            setfield_gc(p20, p17, descr=...) # inst_val_1
+            setfield_gc(p17, p20, descr=...) # inst_parent_or_binding
+            i22 = getfield_gc(p17, descr=...) # inst_bound
+            setfield_gc(p7, p20, descr=...) # inst_val_1
+            setfield_gc(p3, p20, descr=...) # inst_parent_or_binding
+            guard_value(i22, 0, descr=...)
+            jump(p0, p1, i12, p17, p4, descr=<Loop0>)
         """)
         loop, = log.filter_loops("append")
         assert loop.match("""
@@ -316,28 +315,26 @@ class TestRunPyrologC(BaseTestPyrologC):
             p10 = getfield_gc(p3, descr=...)  # inst_created_after_choice_point
             i12 = ptr_eq(p5, p10)
             guard_true(i12, descr=...)
-            setfield_gc(p3, -1, descr=...) # inst_index
+            p12 = getfield_gc(p3, descr=...) # inst_parent_or_binding
+            guard_class(p12, ..., descr=...)
+            setfield_gc(p3, 1, descr=...) # inst_bound
             guard_nonnull_class(p7, ..., descr=...)
             i16 = ptr_eq(p7, ConstPtr(ptr15))
             guard_false(i16, descr=...)
             guard_not_invalidated(descr=...)
             p18 = getfield_gc(p7, descr=...) # inst_val_0
             p20 = new_with_vtable(...)
-            p22 = new_with_vtable(...)
-            setfield_gc(p22, 1, descr=...) # inst_index
-            setfield_gc(p22, p20, descr=...) # inst_parent
-            setfield_gc(p22, p5, descr=...) # inst_created_after_choice_point
-            setfield_gc(p20, p22, descr=...) # inst_val_1
             setfield_gc(p20, p6, descr=...) # inst_val_0
-            setfield_gc(p8, p20, descr=...) # inst_val_1
+            p22 = new_with_vtable(...)
+            setfield_gc(p22, p5, descr=...) # inst_created_after_choice_point
+            setfield_gc(p22, p20, descr=...) # inst_parent_or_binding
+            setfield_gc(p20, p22, descr=...) # inst_val_1
+            setfield_gc(p12, p20, descr=...) # inst_val_1
             p24 = getfield_gc(p7, descr=...) # inst_val_1
-            i25 = getfield_gc(p22, descr=...) # inst_index
-            setfield_gc(p3, p20, descr=...) # inst_parent
-            guard_value(i25, 1, descr=...)
-            p27 = getfield_gc(p22, descr=...) # inst_parent
-            guard_class(p27, ..., descr=...)
-            p29 = getfield_gc(p27, descr=...) # inst_val_1
-            jump(p0, p7, p2, p22, p4, p5, p18, p24, p27, descr=<Loop2>)
+            i25 = getfield_gc(p22, descr=...) # inst_bound
+            setfield_gc(p3, p20, descr=...) # inst_parent_or_binding
+            guard_false(i25, descr=...)
+            jump(p0, p7, p2, p22, p4, p5, p18, p24, descr=<Loop2>)
         """)
         loop, = log.filter_loops("length")
         assert loop.match("""
