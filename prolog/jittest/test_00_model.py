@@ -296,11 +296,11 @@ class TestRunPyrologC(BaseTestPyrologC):
             i15 = int_eq(i12, 0)
             guard_false(i15, descr=...)
             p17 = new_with_vtable(...)
-            setfield_gc(p17, p1, descr=...) # inst_created_after_choice_point
             p20 = new_with_vtable(...)
             setfield_gc(p20, ConstPtr(ptr21), descr=...) # inst_val_0
             setfield_gc(p20, p17, descr=...) # inst_val_1
             setfield_gc(p17, p20, descr=...) # inst_parent_or_binding
+            setfield_gc(p17, p1, descr=...) # inst_created_after_choice_point
             i22 = getfield_gc(p17, descr=...) # inst_bound
             setfield_gc(p7, p20, descr=...) # inst_val_1
             setfield_gc(p3, p20, descr=...) # inst_parent_or_binding
@@ -326,8 +326,8 @@ class TestRunPyrologC(BaseTestPyrologC):
             p20 = new_with_vtable(...)
             setfield_gc(p20, p6, descr=...) # inst_val_0
             p22 = new_with_vtable(...)
-            setfield_gc(p22, p5, descr=...) # inst_created_after_choice_point
             setfield_gc(p22, p20, descr=...) # inst_parent_or_binding
+            setfield_gc(p22, p5, descr=...) # inst_created_after_choice_point
             setfield_gc(p20, p22, descr=...) # inst_val_1
             setfield_gc(p12, p20, descr=...) # inst_val_1
             p24 = getfield_gc(p7, descr=...) # inst_val_1
@@ -347,4 +347,70 @@ class TestRunPyrologC(BaseTestPyrologC):
             p14 = getfield_gc(p5, descr=...) # inst_val_0
             p15 = getfield_gc(p5, descr=...) # inst_val_1
             ...
+        """)
+
+    def test_map(self):
+        code = """
+            loop(0, []).
+            loop(X, [X | T]) :- X > 0, X0 is X - 1, loop(X0, T).
+            add1(X, X1) :- X1 is X + 1.
+            map(_, [], []).
+            map(Pred, [H1 | T1], [H2 | T2]) :-
+                C =.. [Pred, H1, H2],
+                call(C),
+                map(Pred, T1, T2).
+        """
+        log = self.run_and_check(code, "loop(10000, A), map(add1, A, B).")
+        loop, = log.filter_loops("map")
+        assert loop.match("""
+            p8 = getfield_gc(p3, descr=...) # inst_created_after_choice_point
+            i9 = ptr_eq(p5, p8)
+            guard_true(i9, descr=...)
+            p10 = getfield_gc(p3, descr=...) # inst_parent_or_binding
+            guard_class(p10, 137099520, descr=...)
+            setfield_gc(p3, 1, descr=...) # inst_bound
+            guard_nonnull_class(p7, 137096992, descr=...)
+            i16 = ptr_eq(p7, ConstPtr(ptr15))
+            guard_false(i16, descr=...)
+            guard_nonnull_class(p6, 137099520, descr=...)
+            i19 = ptr_eq(p6, ConstPtr(ptr18))
+            guard_false(i19, descr=...)
+            guard_not_invalidated(descr=...)
+            i21 = ptr_eq(p7, ConstPtr(ptr20))
+            guard_false(i21, descr=...)
+            i22 = getfield_gc(p7, descr=...) # inst_bound
+            guard_true(i22, descr=...)
+            p24 = new_with_vtable(137099520)
+            p26 = new_with_vtable(137096992)
+            setfield_gc(p26, p24, descr=...) # inst_parent_or_binding
+            setfield_gc(p26, p5, descr=...) # inst_created_after_choice_point
+            setfield_gc(p24, p26, descr=...) # inst_val_0
+            p28 = new_with_vtable(137096288)
+            setfield_gc(p28, p24, descr=...) # inst_parent_or_binding
+            setfield_gc(p28, p5, descr=...) # inst_created_after_choice_point
+            setfield_gc(p24, p28, descr=...) # inst_val_1
+            setfield_gc(p3, p24, descr=...) # inst_parent_or_binding
+            p29 = getfield_gc(p7, descr=...) # inst_parent_or_binding
+            setfield_gc(p10, p24, descr=...) # inst_val_1
+            guard_nonnull_class(p29, 137096032, descr=...)
+            i31 = getfield_gc_pure(p29, descr=...) # inst_num
+            i33 = int_add_ovf(i31, 1)
+            guard_no_overflow(descr=...)
+            i34 = getfield_gc(p26, descr=...) # inst_bound
+            guard_false(i34, descr=...)
+            p35 = getfield_gc(p26, descr=...) # inst_created_after_choice_point
+            i36 = ptr_eq(p5, p35)
+            guard_true(i36, descr=...)
+            p37 = getfield_gc(p26, descr=...) # inst_parent_or_binding
+            guard_class(p37, 137099520, descr=...)
+            p40 = new_with_vtable(137096032)
+            setfield_gc(p40, i33, descr=...) # inst_num
+            setfield_gc(p37, p40, descr=...) # inst_val_0
+            p41 = getfield_gc(p6, descr=...) # inst_val_0
+            p42 = getfield_gc(p6, descr=...) # inst_val_1
+            setfield_gc(p26, 1, descr=...) # inst_bound
+            i44 = getfield_gc(p28, descr=...) # inst_bound
+            setfield_gc(p26, p40, descr=...) # inst_parent_or_binding
+            guard_false(i44, descr=...)
+            jump(p0, p1, p6, p28, p4, p5, p42, p41, descr=<Loop2>)
         """)
