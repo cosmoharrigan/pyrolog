@@ -103,16 +103,15 @@ def impl_module_prefixing(engine, heap, modulename,
 
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
 def impl_add_library_dir(engine, heap, path):
-    from os.path import isdir, abspath
+    from os.path import isdir
     assert path is not None
     if not isdir(path):
         error.throw_existence_error("source_sink", Callable.build(path))
-    abspath = abspath(path)
     libs = engine.modulewrapper.libs
     for lib in libs:
-        if lib == abspath:  
+        if lib == path:  
             return
-    engine.modulewrapper.libs.append(abspath)
+    engine.modulewrapper.libs.append(path)
 
 @continuation.make_failure_continuation
 def continue_librarydir(Choice, engine, scont, fcont, heap, pathvar, keycount):

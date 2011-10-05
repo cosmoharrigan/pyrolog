@@ -521,11 +521,10 @@ def test_use_library_errors():
 def test_library_dir_single_query():
     e = Engine()
     tempdir = "__temp__"
-    from os.path import abspath
     create_dir(tempdir)
     try:
         assert_true("add_library_dir('%s')." % tempdir, e)
-        assert_true("library_directory('%s')." % abspath(tempdir), e)
+        assert_true("library_directory('%s')." % tempdir, e)
     finally:
         delete_dir(tempdir)
 
