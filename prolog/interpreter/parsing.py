@@ -13,7 +13,7 @@ def make_regexes():
         ("VAR", parse_regex("[A-Z_]([a-zA-Z0-9]|_)*|_")),
         ("NUMBER", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)?")),
         ("IGNORE", parse_regex(
-            "[ \\n\\t]|(/\\*[^\\*]*(\\*[^/][^\\*]*)*\\*/)|(%[^\\n]*)")),
+            "[ \\n\\t\\r]|(/\\*[^\\*]*(\\*[^/][^\\*]*)*\\*/)|(%[^\\n]*)")),
         ("ATOM", parse_regex("([a-z]([a-zA-Z0-9]|_)*)|('[^']*')|\[\]|!|\+|\-")),
         ("(", parse_regex("\(")),
         (")", parse_regex("\)")),
@@ -505,20 +505,23 @@ parser_query = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EO
   Rule('expr200', [['complexterm', '**', 'complexterm', 'extraexpr200'], ['complexterm', '^', 'expr200', 'extraexpr200'], ['complexterm', 'extraexpr200']])],
  'query')
 def recognize(runner, i):
+    #auto-generated code, don't edit
     assert i >= 0
     input = runner.text
     state = 0
     while 1:
         if state == 0:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 0
                 return ~i
             if char == '\t':
                 state = 1
             elif char == '\n':
+                state = 1
+            elif char == '\r':
                 state = 1
             elif char == ' ':
                 state = 1
@@ -542,11 +545,11 @@ def recognize(runner, i):
                 state = 9
             elif 'a' <= char <= 'h':
                 state = 10
-            elif 'j' <= char <= 'l':
+            elif 's' <= char <= 'w':
                 state = 10
             elif 'n' <= char <= 'q':
                 state = 10
-            elif 's' <= char <= 'w':
+            elif 'j' <= char <= 'l':
                 state = 10
             elif char == 'y':
                 state = 10
@@ -603,10 +606,10 @@ def recognize(runner, i):
         if state == 4:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 4
                 return i
             if char == '.':
@@ -616,10 +619,10 @@ def recognize(runner, i):
         if state == 5:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 5
                 return i
             if char == '.':
@@ -632,10 +635,10 @@ def recognize(runner, i):
         if state == 6:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 6
                 return i
             if char == '<':
@@ -643,10 +646,10 @@ def recognize(runner, i):
             else:
                 break
         if state == 7:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 7
                 return ~i
             if char == '=':
@@ -660,22 +663,22 @@ def recognize(runner, i):
         if state == 8:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 8
                 return i
-            if '0' <= char <= '9':
-                state = 8
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 8
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 8
                 continue
             elif 'a' <= char <= 'z':
+                state = 8
+                continue
+            elif '0' <= char <= '9':
+                state = 8
+                continue
+            elif char == '_':
                 state = 8
                 continue
             else:
@@ -683,10 +686,10 @@ def recognize(runner, i):
         if state == 9:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 9
                 return i
             if char == '=':
@@ -700,22 +703,22 @@ def recognize(runner, i):
         if state == 10:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 10
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             else:
@@ -723,19 +726,13 @@ def recognize(runner, i):
         if state == 11:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 11
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'n':
@@ -744,23 +741,29 @@ def recognize(runner, i):
             elif 'p' <= char <= 'z':
                 state = 10
                 continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
             elif char == 'o':
                 state = 61
             else:
                 break
         if state == 13:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 13
                 return ~i
             if char == "'":
                 state = 26
-            elif '\x00' <= char <= '&':
+            elif '(' <= char <= '\xff':
                 state = 13
                 continue
-            elif '(' <= char <= '\xff':
+            elif '\x00' <= char <= '&':
                 state = 13
                 continue
             else:
@@ -768,10 +771,10 @@ def recognize(runner, i):
         if state == 15:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 15
                 return i
             if char == '*':
@@ -785,10 +788,10 @@ def recognize(runner, i):
         if state == 17:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 17
                 return i
             if char == '-':
@@ -798,10 +801,10 @@ def recognize(runner, i):
         if state == 18:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 18
                 return i
             if char == ']':
@@ -811,10 +814,10 @@ def recognize(runner, i):
         if state == 19:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 19
                 return i
             if char == '*':
@@ -824,10 +827,10 @@ def recognize(runner, i):
         if state == 21:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 21
                 return i
             if char == '-':
@@ -837,10 +840,10 @@ def recognize(runner, i):
         if state == 22:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 22
                 return i
             if char == '=':
@@ -852,25 +855,25 @@ def recognize(runner, i):
         if state == 24:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 24
                 return i
-            if '0' <= char <= '9':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
-            elif 'A' <= char <= 'Z':
+            elif 'f' <= char <= 'z':
                 state = 10
                 continue
-            elif char == '_':
+            elif '0' <= char <= '9':
                 state = 10
                 continue
             elif 'a' <= char <= 'd':
                 state = 10
                 continue
-            elif 'f' <= char <= 'z':
+            elif char == '_':
                 state = 10
                 continue
             elif char == 'e':
@@ -880,16 +883,16 @@ def recognize(runner, i):
         if state == 27:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 27
                 return i
-            if '\x00' <= char <= '\t':
+            if '\x0b' <= char <= '\xff':
                 state = 27
                 continue
-            elif '\x0b' <= char <= '\xff':
+            elif '\x00' <= char <= '\t':
                 state = 27
                 continue
             else:
@@ -897,10 +900,10 @@ def recognize(runner, i):
         if state == 29:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 29
                 return i
             if char == '>':
@@ -912,21 +915,21 @@ def recognize(runner, i):
         if state == 30:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 30
                 return i
             if char == '@':
                 state = 37
             elif char == '<':
                 state = 38
-            elif char == '.':
-                state = 39
-            elif char == ':':
-                state = 40
             elif char == '=':
+                state = 39
+            elif char == '.':
+                state = 40
+            elif char == ':':
                 state = 41
             elif char == '\\':
                 state = 42
@@ -935,25 +938,25 @@ def recognize(runner, i):
         if state == 32:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 32
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'r':
                 state = 10
                 continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
             elif 't' <= char <= 'z':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             elif char == 's':
@@ -963,25 +966,25 @@ def recognize(runner, i):
         if state == 33:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 33
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'n':
                 state = 10
                 continue
             elif 'p' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             elif char == 'o':
@@ -991,25 +994,25 @@ def recognize(runner, i):
         if state == 34:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 34
                 return i
-            if '0' <= char <= '9':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
-            elif 'A' <= char <= 'Z':
+            elif 'e' <= char <= 'z':
                 state = 10
                 continue
-            elif char == '_':
+            elif '0' <= char <= '9':
                 state = 10
                 continue
             elif 'a' <= char <= 'c':
                 state = 10
                 continue
-            elif 'e' <= char <= 'z':
+            elif char == '_':
                 state = 10
                 continue
             elif char == 'd':
@@ -1019,22 +1022,22 @@ def recognize(runner, i):
         if state == 35:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 35
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             else:
@@ -1042,64 +1045,64 @@ def recognize(runner, i):
         if state == 36:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 36
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'z':
                 state = 10
                 continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
             else:
                 break
         if state == 37:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 37
                 return ~i
             if char == '=':
                 state = 46
             else:
                 break
-        if state == 39:
-            if i < len(input):
+        if state == 40:
+            try:
                 char = input[i]
                 i += 1
-            else:
-                runner.state = 39
+            except IndexError:
+                runner.state = 40
                 return ~i
             if char == '.':
                 state = 45
             else:
                 break
-        if state == 40:
-            if i < len(input):
+        if state == 41:
+            try:
                 char = input[i]
                 i += 1
-            else:
-                runner.state = 40
+            except IndexError:
+                runner.state = 41
                 return ~i
             if char == '=':
                 state = 44
             else:
                 break
         if state == 42:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 42
                 return ~i
             if char == '=':
@@ -1107,10 +1110,10 @@ def recognize(runner, i):
             else:
                 break
         if state == 47:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 47
                 return ~i
             if char == '>':
@@ -1120,25 +1123,25 @@ def recognize(runner, i):
         if state == 50:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 50
                 return i
-            if '0' <= char <= '9':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            elif 'n' <= char <= 'z':
                 state = 10
                 continue
             elif 'a' <= char <= 'l':
                 state = 10
                 continue
-            elif 'n' <= char <= 'z':
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             elif char == 'm':
@@ -1148,37 +1151,37 @@ def recognize(runner, i):
         if state == 51:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 51
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'z':
                 state = 10
                 continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
             else:
                 break
         if state == 57:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 57
                 return ~i
-            if '\x00' <= char <= ')':
+            if '+' <= char <= '\xff':
                 state = 57
                 continue
-            elif '+' <= char <= '\xff':
+            elif '\x00' <= char <= ')':
                 state = 57
                 continue
             elif char == '*':
@@ -1186,16 +1189,16 @@ def recognize(runner, i):
             else:
                 break
         if state == 60:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 60
                 return ~i
-            if '\x00' <= char <= '.':
+            if '0' <= char <= '\xff':
                 state = 57
                 continue
-            elif '0' <= char <= '\xff':
+            elif '\x00' <= char <= '.':
                 state = 57
                 continue
             elif char == '/':
@@ -1205,25 +1208,25 @@ def recognize(runner, i):
         if state == 61:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 61
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'q':
                 state = 10
                 continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
             elif 's' <= char <= 'z':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             elif char == 'r':
@@ -1233,22 +1236,22 @@ def recognize(runner, i):
         if state == 62:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 62
                 return i
-            if '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif char == '_':
+            if 'A' <= char <= 'Z':
                 state = 10
                 continue
             elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
                 state = 10
                 continue
             else:
@@ -1256,10 +1259,10 @@ def recognize(runner, i):
         if state == 64:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 64
                 return i
             if char == '=':
@@ -1267,10 +1270,10 @@ def recognize(runner, i):
             else:
                 break
         if state == 67:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 67
                 return ~i
             if char == '<':
@@ -1280,10 +1283,10 @@ def recognize(runner, i):
         if state == 69:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 69
                 return i
             if char == '=':
@@ -1291,10 +1294,10 @@ def recognize(runner, i):
             else:
                 break
         if state == 73:
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 73
                 return ~i
             if '0' <= char <= '9':
@@ -1304,10 +1307,10 @@ def recognize(runner, i):
         if state == 74:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
-            if i < len(input):
+            try:
                 char = input[i]
                 i += 1
-            else:
+            except IndexError:
                 runner.state = 74
                 return i
             if '0' <= char <= '9':
@@ -1328,6 +1331,7 @@ def recognize(runner, i):
 lexer = DummyLexer(recognize, DFA(75,
  {(0, '\t'): 1,
   (0, '\n'): 1,
+  (0, '\r'): 1,
   (0, ' '): 1,
   (0, '!'): 26,
   (0, '%'): 27,
@@ -2209,10 +2213,10 @@ lexer = DummyLexer(recognize, DFA(75,
   (27, '\xff'): 27,
   (29, '-'): 47,
   (29, '>'): 48,
-  (30, '.'): 39,
-  (30, ':'): 40,
+  (30, '.'): 40,
+  (30, ':'): 41,
   (30, '<'): 38,
-  (30, '='): 41,
+  (30, '='): 39,
   (30, '@'): 37,
   (30, '\\'): 42,
   (32, '0'): 10,
@@ -2531,8 +2535,8 @@ lexer = DummyLexer(recognize, DFA(75,
   (36, 'y'): 10,
   (36, 'z'): 10,
   (37, '='): 46,
-  (39, '.'): 45,
-  (40, '='): 44,
+  (40, '.'): 45,
+  (41, '='): 44,
   (42, '='): 43,
   (47, '>'): 49,
   (50, '0'): 10,
@@ -3322,9 +3326,133 @@ lexer = DummyLexer(recognize, DFA(75,
   (74, '7'): 74,
   (74, '8'): 74,
   (74, '9'): 74},
- set([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 41, 43, 44, 45, 46, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 59, 61, 62, 63, 64, 65, 66, 68, 69, 70, 71, 72, 74]),
- set([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 41, 43, 44, 45, 46, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 59, 61, 62, 63, 64, 65, 66, 68, 69, 70, 71, 72, 74]),
- ['0, start|, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, start|, 0, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
+ set([1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      38,
+      39,
+      43,
+      44,
+      45,
+      46,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      58,
+      59,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      68,
+      69,
+      70,
+      71,
+      72,
+      74]),
+ set([1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      38,
+      39,
+      43,
+      44,
+      45,
+      46,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      58,
+      59,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      68,
+      69,
+      70,
+      71,
+      72,
+      74]),
+ ['0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
   'IGNORE',
   '(',
   'ATOM',
@@ -3337,7 +3465,7 @@ lexer = DummyLexer(recognize, DFA(75,
   'ATOM',
   'ATOM',
   '|',
-  '0, 1, 0, start|, 0, final*, start*, 0, 0, 1, final|, start|, 0, final*, start*, 0, 0, final|, start|, 0, 1, final*, start*',
+  '0, start|, 0, final*, start*, 0, 1, final*, 0, final|, start|, 0, 1, final*, start*, 0, final*, 0, 1, final|, start|, 0, final*, start*, 0, final*',
   'ATOM',
   'ATOM',
   'ATOM',
@@ -3363,28 +3491,28 @@ lexer = DummyLexer(recognize, DFA(75,
   'ATOM',
   '2',
   'ATOM',
+  'ATOM',
+  '2',
   '2',
   '2',
   'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
   '2',
   'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
-  '2',
   'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
+  '0, final*, start*, 2, final*, 0, start|, 0, final*, start*, final*, 0, final*, start*, 0, final*, 0, final|, start|, 0, 1, final*, start*, final*, 0, final*, start*, 0, final*, 0, 1, final|, start|, 0, final*, start*, final*, 0, final|, 1, final*, 0, start|, 0, final*, start*, final*, start*, 0, final*, 0, final*, 1, final|, final*, 0, start|, 0, final*, start*, final*, start*, 0, final*, 0, final*, final*, 0, final|, start|, 0, 1, final*, start*, final*, start*, 0, final*, 0, final*, 0, 1, final|, start|, 0, final*, start*, final*, start*, 0, final*, 0',
   'ATOM',
   'ATOM',
-  'ATOM',
-  'ATOM',
-  'final*, start*, 1, 0, 0, start|, 0, final*, start*, 0, final*, start*, 0, 0, 1, final|, start|, 0, final*, start*, 0, final*, start*, 0, 0, final|, start|, 0, 1, final*, start*, 0, final*, 0, start|, 0, final*, start*, final*, start*, 0, 0, final*, 1, final|, final*, 0, start|, 0, final*, start*, final*, start*, 0, 0, final*, final|, 1, final*, 0, 1, final|, start|, 0, final*, start*, final*, start*, 0, 0, final*, final*, 0, final|, start|, 0, 1, final*, start*, final*, start*, 0, 0, final*',
-  'ATOM',
-  'ATOM',
-  '1, 0, 1, 0, start|',
+  '0, start|, 0, final*, 1, 0, 1',
   'ATOM',
   'ATOM',
   'ATOM',
