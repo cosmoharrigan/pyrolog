@@ -11,6 +11,9 @@ import prolog.interpreter.arithmetic # has side-effects, changes Number etc
 
 from pypy.rlib.rbigint import rbigint
 
+def is_64_bit():
+    return sys.maxint > 2147483647
+
 class TestArithmeticMethod(object):
     def test_add(self):
         f1 = Float(5.1)
@@ -97,8 +100,6 @@ class TestArithmeticMethod(object):
         assert Number(5).arith_pow(Number(2)).num == 25
         assert Float(2.3).arith_pow(Float(3.1)).floatval == 13.223800591254721
         assert BigInt(rbigint.fromdecimalstr('1000000')).arith_pow(Number(4)).value.str() == '1000000000000000000000000'
-        assert BigInt(rbigint.fromdecimalstr('10')).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).value.str() == '10000000000'
-        assert Number(10).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).value.str() == '10000000000'
         assert Float(10.0).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).floatval == 10000000000.0
         assert BigInt(rbigint.fromdecimalstr('10')).arith_pow(Float(10.0)).floatval == 10000000000.0
 
@@ -129,19 +130,16 @@ class TestArithmeticMethod(object):
     def test_and(self):
         assert Number(8).arith_and(Number(2)).num == 0
         assert BigInt(rbigint.fromint(46546)).arith_and(Number(34)).num == 2
-        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_and(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '15973735027198597'
         assert Number(46546).arith_and(BigInt(rbigint.fromint(34))).num == 2
 
     def test_xor(self):
         assert Number(8).arith_xor(Number(2)).num == 10
         assert BigInt(rbigint.fromint(46546)).arith_xor(Number(34)).num == 46576
-        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_xor(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '848692582328774746'
         assert Number(46546).arith_xor(BigInt(rbigint.fromint(34))).num == 46576
 
     def test_mod(self):
         assert Number(8).arith_mod(Number(2)).num == 0
         assert BigInt(rbigint.fromint(46546)).arith_mod(Number(33)).num == 16
-        assert BigInt(rbigint.fromdecimalstr('348765738456378457436537854637845')).arith_mod(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '738607793931799615'
         assert Number(46546).arith_mod(BigInt(rbigint.fromint(33))).num == 16
 
         py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(BigInt(rbigint.fromint(0)))')
@@ -185,6 +183,13 @@ class TestArithmeticMethod(object):
         assert Float(7.4).arith_float_fractional_part().floatval == 7.4 - 7
         assert Float(7.4).arith_float_integer_part().num == 7.0
 
+    def test_data_types_32_bit(self):
+        if is_64_bit():
+            py.test.skip("only test on 32 bit")
+        assert BigInt(rbigint.fromdecimalstr('348765738456378457436537854637845')).arith_mod(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '738607793931799615'
+        assert BigInt(rbigint.fromdecimalstr('10')).arith_pow(BigInt(rbigint.fromdecimalstr('10'))).value.str() == '10000000000'
+        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_xor(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '848692582328774746'
+        assert BigInt(rbigint.fromdecimalstr('34876573845637845')).arith_and(BigInt(rbigint.fromdecimalstr('845763478537534095'))).value.str() == '15973735027198597'
 
 def test_simple():
     assert_true("X is 1 + 2, X = 3.")
