@@ -119,3 +119,81 @@ def test_chaining():
     t = parse_file("f(X) = X + X * 1 + 23 / 13.")
     facts = builder.build(t)
     t = parse_file("-X + 1.")
+
+def test_block_comment_basic():
+    t = parse_file("""
+        g(a).
+        /*
+        a.
+        b.
+        f(x).
+        */
+        h(e).
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 2
+
+def test_block_comment_stars_and_stripes():
+    t = parse_file("""
+        the_first_fact.
+        /* this is some random stuff ....
+
+            * / * / * / ******************** /*
+
+        */
+        some_fact.
+        some_other_fact.
+
+        /**************
+        
+            skjdhfjskdfhskjfd.
+
+        *************/
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 3
+
+def test_many_block_comments():
+    t = parse_file("""
+
+        a.
+
+        /*
+            b.
+            c.
+            d.
+        */
+
+        a2.
+
+        /**********************************************
+
+            d.
+            e.
+
+        ********************************************** */
+
+        a3.
+
+        /*
+            x. 
+            y.
+            z.
+        * */
+
+        /*
+        f.
+        **/
+
+        a4.
+
+    """)
+    builder =  TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 4
+    assert facts[0].name() == "a"
+    assert facts[1].name() == "a2"
+    assert facts[2].name() == "a3"
+    assert facts[3].name() == "a4"
