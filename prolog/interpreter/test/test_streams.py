@@ -700,6 +700,51 @@ def test_seen():
     finally:
         delete_file(src)
 
+def test_append():
+    src = "__src__"
+    create_file(src, "a")
+    try:
+        assert_true("""
+        open('%s', append, S),
+        put_char(S, a), put_char(S, 'ü'), put_char(S, '¼'),
+        close(S).
+        """ % src)
+        assert file_content(src) == "aaü¼"
+    finally:
+        delete_file(src)
+
+    create_file(src, "")
+    try:
+        assert_true("""
+        open('%s', append, S),
+        put_byte(S, 97), put_byte(S, 98), put_byte(S, 99),
+        close(S).
+        """ % src)
+        assert file_content(src) == "abc"
+    finally:
+        delete_file(src)
+
+    try:
+        assert_true("""
+        open('%s', append, S),
+        put_char(S, a),
+        close(S).
+        """ % src)
+        assert file_content(src) == "a"
+    finally:
+        delete_file(src)
+
+    term = "f(a, b, c)"
+    try:
+        assert_true("""
+        open('%s', append, S),
+        write(S, %s),
+        close(S).
+        """ % (src, term))
+        assert file_content(src) == term
+    finally:
+        delete_file(src)
+
 def test_open_stream_strange_buffering():
     prolog_raises("domain_error(buffering, _)",
             "open(blub, write, _, [buffer(strange_stuff)])")
