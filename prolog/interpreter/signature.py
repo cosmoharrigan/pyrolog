@@ -66,7 +66,6 @@ class Signature(object):
         self.factory = factory
         factory.init_extra_attrs(self)
 
-    @jit.elidable_promote('all')
     def eq(self, other):
         # slightly evil
         if jit.isconstant(self):
