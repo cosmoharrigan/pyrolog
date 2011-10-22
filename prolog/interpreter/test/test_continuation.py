@@ -9,7 +9,7 @@ from prolog.interpreter.test.tool import collect_all, assert_true, assert_false
 
 def test_driver():
     order = []
-    done = DoneContinuation(None)
+    done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
@@ -31,48 +31,45 @@ def test_driver():
         def discard(self):
             pass
 
-    c5 = FakeC(FakeC(FakeC(FakeC(FakeC(done, 1), 2), 3), 4), 5)
-    driver(c5, done, None)
+    c5 = FakeC(FakeC(FakeC(FakeC(FakeC(DoneSuccessContinuation(None), 1), 2), 3), 4), 5)
+    driver(c5, done, Heap())
     assert order == [5, 4, 3, 2, 1]
 
     order = []
     ca = FakeC(FakeC(FakeC(FakeC(FakeC(done, -1), 2), 3), 4), 5)
-    driver(ca, c5, None)
+    driver(ca, c5, Heap())
     assert order == [5, 4, 3, 2, "fail", 5, 4, 3, 2, 1]
 
 def test_failure_continuation():
     order = []
     h = Heap()
-    done = DoneContinuation(None)
+    done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
         def __init__(self, next, val):
             self.next = next
             self.val = val
-        
+
         def is_done(self):
             return False
-        def discard(self):
-            pass
         def activate(self, fcont, heap):
             if self.val == -1:
                 raise error.UnificationFailed
             order.append(self.val)
             return self.next, fcont, heap
 
-        def fail(self, heap):
-            order.append("fail")
-            return self, None, heap
-
-    class FakeF(ChoiceContinuation):
+    class FakeF(FailureContinuation):
         def __init__(self, next, count):
             self.next = next
             self.count = count
             self.engine = FakeE()
 
-        def activate(self, fcont, heap):
+        def fail(self, heap):
             if self.count:
-                fcont, heap = self.prepare_more_solutions(fcont, heap)
+                fcont = FakeF(self.next, self.count - 1)
+                heap = heap.branch()
+            else:
+                fcont = DoneFailureContinuation(None)
             res = self.count
             order.append(res)
             self.count -= 1
@@ -81,56 +78,54 @@ def test_failure_continuation():
     class FakeE(object):
         pass
 
-    ca = FakeF(FakeC(FakeC(done, -1), 'c'), 10)
-    driver(ca, FakeC(done, "done"), h)
+    ca = FakeF(FakeC(FakeC(DoneSuccessContinuation(None), -1), 'c'), 10)
+    py.test.raises(UnificationFailed, driver, FakeC(DoneSuccessContinuation(None), -1), ca, h)
     assert order == [10, 'c', 9, 'c', 8, 'c', 7, 'c', 6, 'c', 5, 'c', 4, 'c',
-                     3, 'c', 2, 'c', 1, 'c', 0, 'c', "fail", "done"]
+                     3, 'c', 2, 'c', 1, 'c', 0, 'c']
 
 def test_full():
     from prolog.interpreter.term import Var, Atom, Term
     all = []
+    e = Engine()
     class CollectContinuation(object):
         rule = None
+        module = e.modulewrapper.user_module
         def is_done(self):
             return False
         def discard(self):
             pass
         def activate(self, fcont, heap):
-            all.append(query.getvalue(heap))
+            all.append((X.dereference(heap).name(), Y.dereference(heap).name()))
             raise error.UnificationFailed
-    e = Engine()
     e.add_rule(Callable.build("f", [Callable.build("x")]), True)
     e.add_rule(Callable.build("f", [Callable.build("y")]), True)
     e.add_rule(Callable.build("g", [Callable.build("a")]), True)
     e.add_rule(Callable.build("g", [Callable.build("b")]), True)
-            
-    query = Callable.build(",", [Callable.build("f", [Var()]), Callable.build("g", [Var()])])
+
+    X = Var()
+    Y = Var()
+    query = Callable.build(",", [Callable.build("f", [X]), Callable.build("g", [Y])])
     py.test.raises(error.UnificationFailed,
-                   e.run_query, query, CollectContinuation())
-    assert all[0].argument_at(0).argument_at(0).name()== "x"
-    assert all[0].argument_at(1).argument_at(0).name()== "a"
-    assert all[1].argument_at(0).argument_at(0).name()== "x"
-    assert all[1].argument_at(1).argument_at(0).name()== "b"
-    assert all[2].argument_at(0).argument_at(0).name()== "y"
-    assert all[2].argument_at(1).argument_at(0).name()== "a"
-    assert all[3].argument_at(0).argument_at(0).name()== "y"
-    assert all[3].argument_at(1).argument_at(0).name()== "b"
+                   e.run_query, query, e.modulewrapper.user_module, CollectContinuation())
+    assert all == [("x", "a"), ("x", "b"), ("y", "a"), ("y", "b")]
 
 
 def test_cut_not_reached():
     class CheckContinuation(Continuation):
         def __init__(self):
             self.nextcont = None
+            self.module = e.modulewrapper.user_module
         def is_done(self):
             return False
         def activate(self, fcont, heap):
             assert fcont.is_done()
-            return DoneContinuation(e), DoneContinuation(e), heap
+            return DoneSuccessContinuation(e), DoneFailureContinuation(e), heap
     e = get_engine("""
         g(X, Y) :- X > 0, !, Y = a.
         g(_, b).
     """)
-    e.run(parse_query_term("g(-1, Y), Y == b, g(1, Z), Z == a."), CheckContinuation())
+    e.run(parse_query_term("g(-1, Y), Y == b, g(1, Z), Z == a."), 
+            e.modulewrapper.user_module, CheckContinuation())
 
 # ___________________________________________________________________
 # integration tests
@@ -139,8 +134,9 @@ def test_trivial():
     e = get_engine("""
         f(a).
     """)
+    m = e.modulewrapper
     t, vars = get_query_and_vars("f(X).")
-    e.run(t)
+    e.run(t, m.user_module)
     assert vars['X'].dereference(None).name()== "a"
 
 def test_and():
@@ -150,9 +146,10 @@ def test_and():
         g(b, c).
         f(X, Z) :- g(X, Y), g(Y, Z).
     """)
-    e.run(parse_query_term("f(a, c)."))
+    m = e.modulewrapper
+    e.run(parse_query_term("f(a, c)."), m.user_module)
     t, vars = get_query_and_vars("f(X, c).")
-    e.run(t)
+    e.run(t, m.user_module)
     assert vars['X'].dereference(None).name()== "a"
 
 def test_and_long():
@@ -177,25 +174,26 @@ def test_numeral():
         factorial(0, succ(0)).
         factorial(succ(X), Y) :- factorial(X, Z), mul(Z, succ(X), Y).
     """)
+    m = e.modulewrapper
     def nstr(n):
         if n == 0:
             return "0"
         return "succ(%s)" % nstr(n - 1)
-    e.run(parse_query_term("num(0)."))
-    e.run(parse_query_term("num(succ(0))."))
+    e.run(parse_query_term("num(0)."), m.user_module)
+    e.run(parse_query_term("num(succ(0))."), m.user_module)
     t, vars = get_query_and_vars("num(X).")
-    e.run(t)
+    e.run(t, m.user_module)
     assert vars['X'].dereference(None).num == 0
-    e.run(parse_query_term("add(0, 0, 0)."))
+    e.run(parse_query_term("add(0, 0, 0)."), m.user_module)
     py.test.raises(UnificationFailed, e.run, parse_query_term("""
-        add(0, 0, succ(0))."""))
-    e.run(parse_query_term("add(succ(0), succ(0), succ(succ(0)))."))
-    e.run(parse_query_term("mul(succ(0), 0, 0)."))
-    e.run(parse_query_term("mul(succ(succ(0)), succ(0), succ(succ(0)))."))
-    e.run(parse_query_term("mul(succ(succ(0)), succ(succ(0)), succ(succ(succ(succ(0)))))."))
-    e.run(parse_query_term("factorial(0, succ(0))."))
-    e.run(parse_query_term("factorial(succ(0), succ(0))."))
-    e.run(parse_query_term("factorial(%s, %s)." % (nstr(5), nstr(120))))
+        add(0, 0, succ(0))."""), m.user_module)
+    e.run(parse_query_term("add(succ(0), succ(0), succ(succ(0)))."), m.user_module)
+    e.run(parse_query_term("mul(succ(0), 0, 0)."), m.user_module)
+    e.run(parse_query_term("mul(succ(succ(0)), succ(0), succ(succ(0)))."), m.user_module)
+    e.run(parse_query_term("mul(succ(succ(0)), succ(succ(0)), succ(succ(succ(succ(0)))))."), m.user_module)
+    e.run(parse_query_term("factorial(0, succ(0))."), m.user_module)
+    e.run(parse_query_term("factorial(succ(0), succ(0))."), m.user_module)
+    e.run(parse_query_term("factorial(%s, %s)." % (nstr(5), nstr(120))), m.user_module)
 
 def test_or_backtrack():
     e = get_engine("""
@@ -206,7 +204,7 @@ def test_or_backtrack():
         f(X, Y, Z) :- (g(X, Z); g(X, Z); g(Z, Y)), a(Z).
         """)
     t, vars = get_query_and_vars("f(a, b, Z).")
-    e.run(t)
+    e.run(t, e.modulewrapper.user_module)
     assert vars['Z'].dereference(None).name()== "a"
     f = collect_all(e, "X = 1; X = 2.")
     assert len(f) == 2
@@ -243,7 +241,8 @@ def test_lists():
         append([],L,L).
         append([X|Y],L,[X|Z]) :- append(Y,L,Z).
     """)
-    e.run(parse_query_term("append(%s, %s, X)." % (range(30), range(10))))
+    e.run(parse_query_term("append(%s, %s, X)." % (range(30), range(10))),
+            e.modulewrapper.user_module)
     return
     e.run(parse_query_term("nrev(%s, X)." % (range(15), )))
     e.run(parse_query_term("nrev(%s, %s)." % (range(8), range(7, -1, -1))))
@@ -256,10 +255,10 @@ def test_indexing():
                                 for i in range(97, 122)]))
     t = parse_query_term("f(x, g(y)).")
     for i in range(200):
-        e.run(t)
+        e.run(t, e.modulewrapper.user_module)
     t = parse_query_term("f(x, g(y, a)).")
     for i in range(200):
-        py.test.raises(UnificationFailed, e.run, t)
+        py.test.raises(UnificationFailed, e.run, t, e.modulewrapper.user_module)
 
 def test_indexing2():
     e = get_engine("""

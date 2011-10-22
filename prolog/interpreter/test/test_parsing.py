@@ -29,23 +29,24 @@ greater_than(succ(X), succ(Y)) :- greater_than(X, Y).
     builder = TermBuilder()
     facts = builder.build(t)
     e = Engine()
+    m = e.modulewrapper
     for fact in facts:
         print fact
         e.add_rule(fact)
-    assert e.get_function(Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name()== "null"
+    assert m.modules["user"].lookup(Signature.getsignature("add_numeral", 3)).rulechain.head.argument_at(1).name() == "null"
     four = Callable.build("succ", [Callable.build("succ", [Callable.build("succ",
                 [Callable.build("succ", [Callable.build("null")])])])])
-    e.run(parse_query_term("numeral(succ(succ(null)))."))
+    e.run(parse_query_term("numeral(succ(succ(null)))."), m.user_module)
     term = parse_query_term(
         """add_numeral(succ(succ(null)), succ(succ(null)), X).""")
-    e.run(term)
+    e.run(term, m.user_module)
     hp = Heap()
-    var = Var().getvalue(hp)
+    var = Var().dereference(hp)
     # does not raise
     var.unify(four, hp)
     term = parse_query_term(
         """greater_than(succ(succ(succ(null))), succ(succ(null))).""")
-    e.run(term)
+    e.run(term, m.user_module)
 
 def test_quoted_atoms():
     t = parse_file("""
@@ -63,6 +64,7 @@ def test_quoted_atoms():
     builder = TermBuilder()
     fact1, fact2, = builder.build(t)
     assert fact1.name()== fact2.name()
+
 def test_parenthesis():
     t = parse_file("""
         g(X, Y) :- (g(x, y); g(a, b)), /* this too is a comment
@@ -96,6 +98,26 @@ def test_list():
     builder = TermBuilder()
     facts = builder.build(t)
 
+def test_braces():
+    t = parse_file("""
+        W = {}.
+        X = {}(a, b, c).
+        Y = {a, b, c}.
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+
+    t = parse_file("""
+        {a, b, c}.
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == "{}"
+    assert facts[0].argument_count() == 1
+    assert facts[0].argument_at(0).name() == ","
+    assert facts[0].argument_at(0).argument_count() == 2
+
 def test_number():
     t = parse_file("""
         X = -1.
@@ -119,3 +141,19 @@ def test_chaining():
     t = parse_file("f(X) = X + X * 1 + 23 / 13.")
     facts = builder.build(t)
     t = parse_file("-X + 1.")
+
+def test_block():
+    t = parse_file(":- block f('-', '?'), f('-', '?', '?'), a.")
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == ":-"
+    assert facts[0].argument_at(0).name() == "block"
+    
+def test_meta_predicate():
+    t = parse_file(":- meta_predicate f(:), f(2, '+', '+'), f(:, '-'), a.")
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 1
+    assert facts[0].name() == ":-"
+    assert facts[0].argument_at(0).name() == "meta_predicate"

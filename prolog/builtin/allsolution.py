@@ -22,15 +22,10 @@ class FindallContinuation(continuation.Continuation):
         raise error.UnificationFailed()
 
 class DoneWithFindallContinuation(continuation.FailureContinuation):
-    def __init__(self, engine, heap, collector, scont, fcont, bag):
-        continuation.Continuation.__init__(self, engine, scont)
+    def __init__(self, engine, scont, fcont, heap, collector, bag):
+        continuation.FailureContinuation.__init__(self, engine, scont, fcont, heap)
         self.collector = collector
-        self.orig_fcont = fcont
-        self.undoheap = heap
         self.bag = bag
-
-    def activate(self, fcont, heap):
-        raise NotImplementedError
 
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
@@ -43,10 +38,10 @@ class DoneWithFindallContinuation(continuation.FailureContinuation):
 
 
 @expose_builtin("findall", unwrap_spec=['raw', 'callable', 'raw'],
-                handles_continuation=True)
-def impl_findall(engine, heap, template, goal, bag, scont, fcont):
+                handles_continuation=True, needs_module=True)
+def impl_findall(engine, heap, module, template, goal, bag, scont, fcont):
     newheap = heap.branch()
     collector = FindallContinuation(engine, template, heap)
-    newscont = continuation.BodyContinuation(engine, collector, goal)
-    fcont = DoneWithFindallContinuation(engine, heap, collector, scont, fcont, bag)
+    newscont = continuation.BodyContinuation(engine, module, collector, goal)
+    fcont = DoneWithFindallContinuation(engine, scont, fcont, heap, collector, bag)
     return newscont, fcont, newheap

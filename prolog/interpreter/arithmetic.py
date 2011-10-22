@@ -54,13 +54,12 @@ def wrap_builtin_operation(name, num_args):
     result = miniglobals['prolog_' + name]
     return result
 
-
 # remove unneeded parts, use sane names for operations
 simple_functions = [
     ("+", 2, "add"),
     ("-", 2, "sub"),
     ("*", 2, "mul"),
-    ("//", 2, "div"),
+    ("/", 2, "div"),
     ("**", 2, "pow"),
     (">>", 2, "shr"),
     ("<<", 2, "shl"),
@@ -85,7 +84,12 @@ for prolog_name, num_args, name in simple_functions:
     signature = Signature.getsignature(prolog_name, num_args)
     signature.set_extra("arithmetic", f)
 
-@jit.purefunction
+    for suffix in ["", "_number", "_bigint", "_float"]:
+        def not_implemented_func(*args):
+            raise NotImplementedError("abstract base class")
+        setattr(term.Numeric, "arith_%s%s" % (name, suffix), not_implemented_func)
+
+@jit.elidable
 def get_arithmetic_function(signature):
     return signature.get_extra("arithmetic")
 
@@ -174,7 +178,7 @@ class __extend__(term.Number):
 
     def arith_pow_number(self, other_num):
         try:
-            res = rarithmetic.ovfcheck(other_num ** self.num)
+            res = ovfcheck_float_to_int(math.pow(other_num, self.num))
         except OverflowError:
             return self.arith_pow_bigint(rbigint.fromint(other_num))
         return term.Number(res)
@@ -183,18 +187,14 @@ class __extend__(term.Number):
         return make_int(term.BigInt(other_value.pow(rbigint.fromint(self.num))))
 
     def arith_pow_float(self, other_float):
-        return term.Float(other_float ** float(self.num))
+        return term.Float(math.pow(other_float, float(self.num)))
 
     # ------------------ shift right ------------------ 
     def arith_shr(self, other):
         return other.arith_shr_number(self.num)
 
     def arith_shr_number(self, other_num):
-        try:
-            res = rarithmetic.ovfcheck(other_num >> self.num)
-        except OverflowError:
-            return self.arith_shr_bigint(rbigint.fromint(other_num))
-        return term.Number(res)
+        return term.Number(other_num >> self.num)
 
     def arith_shr_bigint(self, other_value):
         return make_int(term.BigInt(other_value.rshift(self.num)))
@@ -204,11 +204,7 @@ class __extend__(term.Number):
         return other.arith_shl_number(self.num)
 
     def arith_shl_number(self, other_num):
-        try:
-            res = rarithmetic.ovfcheck(intmask(other_num << self.num))
-        except OverflowError:
-            return self.arith_shl_bigint(rbigint.fromint(other_num))
-        return term.Number(res)
+        return term.Number(intmask(other_num << self.num))
 
     def arith_shl_bigint(self, other_value):
         return make_int(term.BigInt(other_value.lshift(self.num)))
@@ -218,11 +214,7 @@ class __extend__(term.Number):
         return other.arith_or_number(self.num)
 
     def arith_or_number(self, other_num):
-        try:
-            res = rarithmetic.ovfcheck(other_num | self.num)
-        except OverflowError:
-            return self.arith_or_bigint(rbigint.fromint(other_num))
-        return term.Number(res)
+        return term.Number(other_num | self.num)
 
     def arith_or_bigint(self, other_value):
         return make_int(term.BigInt(rbigint.fromint(self.num).or_(other_value)))
@@ -232,11 +224,7 @@ class __extend__(term.Number):
         return other.arith_and_number(self.num)
 
     def arith_and_number(self, other_num):
-        try:
-            res = rarithmetic.ovfcheck(other_num & self.num)
-        except OverflowError:
-            return self.arith_and_bigint(rbigint.fromint(other_num))
-        return term.Number(res)
+        return term.Number(other_num & self.num)
 
     def arith_and_bigint(self, other_value):
         return make_int(term.BigInt(rbigint.fromint(self.num).and_(other_value)))
@@ -246,11 +234,7 @@ class __extend__(term.Number):
         return other.arith_xor_number(self.num)
 
     def arith_xor_number(self, other_num):
-        try:
-            res = rarithmetic.ovfcheck(other_num ^ self.num)
-        except OverflowError:
-            return self.arith_xor_bigint(rbigint.fromint(other_num))
-        return term.Number(res)
+        return term.Number(other_num ^ self.num)
 
     def arith_xor_bigint(self, other_value):
         return make_int(term.BigInt(rbigint.fromint(self.num).xor(other_value)))
@@ -267,20 +251,14 @@ class __extend__(term.Number):
 
     # ------------------ inversion ------------------
     def arith_not(self):
-        try:
-            val = rarithmetic.ovfcheck(~self.num)
-        except OverflowError:
-            return make_int(term.BigInt(rbigint.fromint(self.num).invert()))
-        return term.Number(val)
+        return term.Number(~self.num)
 
 
     # ------------------ abs ------------------
     def arith_abs(self):
-        try:
-            val = rarithmetic.ovfcheck(abs(self.num))
-        except OverflowError:
-            return make_int(term.BigInt(rbigint.fromint(self.num).abs()))
-        return term.Number(val)
+        if self.num >= 0:
+            return self
+        return term.Number(0).arith_sub(self)
 
     # ------------------ max ------------------
     def arith_max(self, other):
@@ -389,13 +367,13 @@ class __extend__(term.Float):
         return other.arith_pow_float(self.floatval)
 
     def arith_pow_number(self, other_num):
-        return term.Float(float(other_num) ** self.floatval)
+        return term.Float(math.pow(float(other_num), self.floatval))
 
     def arith_pow_bigint(self, other_value):
-        return term.Float(other_value.tofloat() ** self.floatval)
+        return term.Float(math.pow(other_value.tofloat(), self.floatval))
 
     def arith_pow_float(self, other_float):
-        return term.Float(other_float ** self.floatval)
+        return term.Float(math.pow(other_float, self.floatval))
 
     # ------------------ abs ------------------ 
     def arith_abs(self):
@@ -429,8 +407,6 @@ class __extend__(term.Float):
 
     # ------------------ miscellanous ------------------
     def arith_round(self):
-        # XXX round is not RPython. What if the result doesn't fit into a Number?
-        # use ovfcheck_float_to_int
         fval = self.floatval
         if fval >= 0:
             factor = 1
@@ -462,7 +438,7 @@ class __extend__(term.Float):
         try:
             val = ovfcheck_float_to_int(self.floatval)
         except OverflowError:
-            return self.arith_hyphenminus(self.arith_floor())
+            val = rbigint.fromfloat(self.floatval).tofloat()
         return term.Float(float(self.floatval - val))
 
     def arith_float_integer_part(self):
@@ -537,7 +513,7 @@ class __extend__(term.BigInt):
         return make_int(term.BigInt(other_value.pow(self.value)))
 
     def arith_pow_float(self, other_float):
-        return term.Float(other_float ** self.value.tofloat())
+        return term.Float(math.pow(other_float, self.value.tofloat()))
 
     # ------------------ shift right ------------------ 
     def arith_shr(self, other):
@@ -545,15 +521,17 @@ class __extend__(term.BigInt):
 
     def arith_shr_number(self, other_num):
         try:
-            num = rarithmetic.ovfcheck(int(self.value.str()))
+            num = self.value.toint()
         except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return term.Number(other_num >> num)
 
     def arith_shr_bigint(self, other_value):
         try:
-            num = rarithmetic.ovfcheck(int(self.value.str()))
+            num = self.value.toint()
         except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return make_int(term.BigInt(other_value.rshift(num)))
 
@@ -563,20 +541,18 @@ class __extend__(term.BigInt):
 
     def arith_shl_number(self, other_num):
         try:
-            num = rarithmetic.ovfcheck(int(self.value.str()))
+            num = self.value.toint()
         except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         else:
-            try:
-                res = rarithmetic.ovfcheck(other_num << num)
-            except OverflowError:
-                return make_int(term.BigInt(rbigint.fromint(other_num).lshift(num)))
-            return term.Number(res)
+            return make_int(term.BigInt(rbigint.fromint(other_num).lshift(num)))
 
     def arith_shl_bigint(self, other_value):
         try:
-            num = rarithmetic.ovfcheck(int(self.value.str()))
+            num = self.value.toint()
         except OverflowError:
+            # XXX raise a Prolog-level error!
             raise ValueError('Right operand too big')
         return make_int(term.BigInt(other_value.lshift(num)))
 

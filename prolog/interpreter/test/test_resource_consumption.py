@@ -13,9 +13,11 @@ class CheckContinuation(Continuation):
         self.nextcont = None
         self._candiscard = True
         self.seen = seen
+        self.module = self.engine.modulewrapper.user_module
     def is_done(self):
         return False
     def activate(self, fcont, heap):
+        original_heap = heap
         # hack: use _dot to count size of tree
         seen = set()
 
@@ -34,7 +36,7 @@ class CheckContinuation(Continuation):
             heap = heap.prev
         assert depth < self.seen
         assert numvars < self.seen
-        return DoneContinuation(self.engine), DoneContinuation(self.engine), heap
+        return DoneSuccessContinuation(self.engine), DoneFailureContinuation(self.engine), original_heap
 
 def test_cut():
     e = get_engine("""
@@ -42,14 +44,14 @@ def test_cut():
         f(X) :- X>0, X0 is X - 1, !, f(X0).
         f(_).""")
     query = Callable.build("f", [Number(100)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_call():
     e = get_engine("""
         g(0).
         g(X) :- X > 0, X0 is X - 1, call(g(X0)).""")
     query = Callable.build("g", [Number(100)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_map():
     e = get_engine("""
@@ -63,7 +65,7 @@ def test_map():
         h(X) :- map(add1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 5, 6, 7, 8, 9, 10, 11, 12, 13], [X | _]).
     """)
     query = Callable.build("h", [Number(2)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_partition():
     e = get_engine("""
@@ -76,7 +78,7 @@ def test_partition():
     i(X) :- partition([6, 6, 6, 6, 6, 6, 6, 1, 5, 1, 5, 7, 9,2,4, 3, 7, 9, 0, 10], 5, [X | _], _).
     """)
     query = Callable.build("i", [Number(1)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_tak():
     e = get_engine("""
@@ -98,7 +100,7 @@ def test_tak():
     j(1) :- tak(18, 5, 5, _).
     """)
     query = Callable.build("j", [Number(1)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_recurse_with_if():
     e = get_engine("""
@@ -106,7 +108,7 @@ def test_recurse_with_if():
     f(X) :- equal(X, 0) -> true ; Y is X - 1, f(Y).
     """)
     query = Callable.build("f", [Number(100)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_recurse_with_many_base_cases():
     e = get_engine("""
@@ -118,7 +120,7 @@ def test_recurse_with_many_base_cases():
     f(X) :- Y is X - 1, f(Y).
     """)
     query = Callable.build("f", [Number(100)])
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))
 
 def test_serialize():
     e = get_engine("""
@@ -154,4 +156,4 @@ def test_serialize():
     """)
 
     query = Callable.build("serialise")
-    e.run_query(query, CheckContinuation(e))
+    e.run_query(query, e.modulewrapper.user_module, CheckContinuation(e))

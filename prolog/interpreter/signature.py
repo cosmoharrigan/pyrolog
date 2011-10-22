@@ -56,6 +56,7 @@ class Signature(object):
     _immutable_fields_ = ["name", "numargs", "factory"]
 
     def __init__(self, name, numargs, cached=False, factory=None):
+        assert name is not None
         assert isinstance(name, str)
         self.name = name
         self.numargs = numargs
@@ -65,6 +66,7 @@ class Signature(object):
         self.factory = factory
         factory.init_extra_attrs(self)
 
+    @jit.elidable_promote('all')
     def eq(self, other):
         # slightly evil
         if jit.isconstant(self):
@@ -121,7 +123,7 @@ class Signature(object):
         return "<Signature %s>" % (self.string(), )
 
     @staticmethod
-    @jit.purefunction
+    @jit.elidable
     def getsignature(name, numargs):
         return Signature._cache.getsignature(name, numargs)
 

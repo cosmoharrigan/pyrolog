@@ -8,7 +8,13 @@ import prolog.builtin.exception
 import prolog.builtin.formatting
 import prolog.builtin.metacall
 #import prolog.builtin.parseraccess
-import prolog.builtin.statistics
+#import prolog.builtin.statistics
 import prolog.builtin.source
 import prolog.builtin.termconstruction
 import prolog.builtin.unify
+import prolog.builtin.numberchars
+import prolog.builtin.modules
+import prolog.builtin.streams
+import prolog.builtin.term_variables
+import prolog.builtin.attvars
+import prolog.builtin.tracing

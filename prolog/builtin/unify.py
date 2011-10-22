@@ -3,6 +3,7 @@ from prolog.interpreter import arithmetic
 from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.memo import CopyMemo
 
 # ___________________________________________________________________
 # comparison and unification of terms
@@ -24,6 +25,7 @@ def impl_does_not_unify(engine, heap, obj1, obj2):
     except error.UnificationFailed:
         new_heap.revert_upto(heap)
         return
+    new_heap.revert_upto(heap)
     raise error.UnificationFailed()
 
 
@@ -51,3 +53,18 @@ def impl_compare(engine, heap, result, obj1, obj2):
     else:
         res = term.Callable.build(">")
     result.unify(res, heap)
+
+@expose_builtin("?=", unwrap_spec=["obj", "obj"])
+def impl_strictly_identical_or_not_unifiable(engine, heap, obj1, obj2):
+    try:
+        impl_standard_comparison_eq(engine, heap, obj1, obj2)
+        return
+    except error.UnificationFailed:
+        memo = CopyMemo()
+        copy1 = obj1.copy(heap, memo)
+        copy2 = obj2.copy(heap, memo)
+        try:
+            copy1.unify(copy2, heap)
+        except error.UnificationFailed:
+            return
+    raise error.UnificationFailed()

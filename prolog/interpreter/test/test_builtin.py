@@ -7,6 +7,16 @@ from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
 from prolog.interpreter.test.tool import prolog_raises
 
+def test_or():
+    assert_false("fail;fail.")
+    e = get_engine("""
+        f(X, Y) :-
+               ( fail
+               ; X \== Y
+               ).
+    """)
+    assert_false("f(X,X).", e)
+
 def test_fail():
     e = get_engine("""
         g(a).
@@ -128,6 +138,28 @@ def test_assert_logical_update_view():
         q :- assertz(q), fail.
     """)
     assert_false("q.", e)
+
+def test_assert_retract_colon():
+    e = get_engine("""
+    :(1, 2, 3).
+    :(a).
+    """)
+    assert_true(":(1, 2, 3), :(a).", e)
+    assert_true("assert(:(a, b, c, d)).", e)
+    assert_true(":(a, b, c, d).", e)
+    assert_true("retract(:(a, b, c, d)).", e)
+    prolog_raises("existence_error(_, _)", ":(a, b, c, d)", e)
+
+def test_abolish_colon():
+    e = get_engine("""
+    :(a).
+    :(1, 2, 3).
+    """)
+    assert_true("abolish(:/1).", e)
+    prolog_raises("existence_error(_, _)", ":(a)", e)
+    assert_true(":(1, 2, 3).", e)
+    assert_true("abolish(:/3).", e)
+    prolog_raises("existence_error(_, _)", ":(1, 2, 3)", e)
 
 def test_retract_logical_update_view():
     e = get_engine("""
@@ -348,6 +380,7 @@ def test_univ():
     assert_true("g(a, b, c) =.. [G, A, B, C].")
     assert_true("g(a, b, c) =.. [g, a, b, c].")
     assert_true("X =.. [g, a, b, c], X = g(a, b, c).")
+    assert_true("L = [a|X], X = [], Z =.. L, Z == a.")
     assert_true("L = [X, 1, 2], X = a, Z =.. L, Z == a(1, 2).")
 
 def test_arg():
@@ -369,6 +402,8 @@ def test_arg():
     assert len(heaps) == 3
     assert_true("arg(X, h(a, b, c), b), X = 2.")
     assert_true("arg(X, h(a, b, g(X, b)), g(3, B)), X = 3, B = b.")
+    assert_false("arg(X, a, Y).")
+    prolog_raises("_", "arg(X, 1, Y)")
 
 def test_copy_term():
     assert_true("copy_term(X, Y), X = 1, Y = 2.")
@@ -376,14 +411,19 @@ def test_copy_term():
     assert_false("copy_term(f(X), g(X)).")
     assert_true("copy_term(f(X), f(a)), X = b.")
 
+
 def test_type_checks():
     assert_true("integer(123).")
+    assert_true("integer(1000000000000000000000000000000000000).")
+    assert_true("integer(-1000000000000000000000000000000000000).")
     assert_false("integer(a).")
     assert_false("integer(X).")
     assert_true("float(123.12).")
     assert_false("float(a).")
     assert_false("float(12).")
     assert_true("number(123).")
+    assert_true("number(1000000000000000000000000000000000000).")
+    assert_true("number(-1000000000000000000000000000000000000).")
     assert_true("number(42.42).")
     assert_false("number(abc).")
     assert_false("integer(a).")
@@ -415,8 +455,10 @@ def test_type_checks():
 
 def test_repeat():
     assert_true("repeat, true.")
+    e = Engine()
     py.test.raises(UnificationFailed,
-        Engine().run, parse_query_term("repeat, !, fail."))
+        e.run, parse_query_term("repeat, !, fail."), 
+                e.modulewrapper.user_module)
     # hard to test repeat differently
     e = get_engine('f :- repeat, !, fail.')
     assert_false('f.', e)
@@ -483,6 +525,48 @@ def test_standard_comparison():
     assert_true("'\\\\=='(f(X, Y), 12).")
     assert_true("X = f(a), Y = f(b), Y @> X.")
 
+def test_structural_comparison():
+    assert_true("1.0 @< 1.")
+    assert_true("2.0 @< 1.")
+    assert_true("10000000000000000000000000000000000.0 @< 1.")
+    assert_true("1.0 @< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @< 1000000000000000000000000000001.")
+    assert_true("@<(1.0, 1).")
+
+    assert_false("1.0 @> 1.")
+    assert_false("2.0 @> 1.")
+    assert_false("10000000000000000000000000000000000.0 @> 1.")
+    assert_false("1.0 @> 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @> 1000000000000000000000000000001.")
+    assert_false("@>(1.0, 1).")
+
+    assert_false("1.0 @>= 1.")
+    assert_false("2.0 @>= 1.")
+    assert_false("10000000000000000000000000000000000.0 @>= 1.")
+    assert_false("1.0 @>= 10000000000000000000000000000000000000000.")
+    assert_false("1000000000000000000000000000000 @>= 1000000000000000000000000000001.")
+    assert_false("@>=(1.0, 1).")
+
+    assert_true("1.0 @=< 1.")
+    assert_true("2.0 @=< 1.")
+    assert_true("10000000000000000000000000000000000.0 @=< 1.")
+    assert_true("1.0 @=< 10000000000000000000000000000000000000000.")
+    assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
+    assert_true("@=<(1.0, 1).")
+
+def test_structural_comparison_2():
+    e = Engine(load_system=True)
+    assert_true("1 =@= 1.", e)
+    assert_true("f(X) =@= f(A).", e)
+    assert_false("f(X) =@= X.", e)
+    assert_false("f(X, Y) =@= f(X, X).", e)
+    assert_true("f(X, Y) =@= f(A, B).", e)
+    assert_false("'=@='(1, 1.0).", e)
+    assert_false("'=@='(a, b).", e)
+    assert_true("'=@='(f(A, B), f(B, A)).", e)
+    assert_true("'=@='(f(A, B), f(C, A)).", e)
+    assert_false("a =@= A.", e)
+
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
     assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")
@@ -503,24 +587,31 @@ def test_atom_concat():
         "atom_concat(X, Y, abcd), atom(X), atom(Y).")
     assert len(heaps) == 5
 
+@py.test.mark.xfail
 def test_sub_atom():
     assert_true("sub_atom(abc, B, L, A, bc), B=1, L=2, A=0.")
+@py.test.mark.xfail
 def test_sub_atom2():
     assert_false("sub_atom(abc, B, 1, A, bc).")
+@py.test.mark.xfail
 def test_sub_atom3():
     assert_true("sub_atom(abcabcabc, 3, 3, A, abc), A=3.")
+@py.test.mark.xfail
 def test_sub_atom4():
     assert_true("sub_atom(abcabcabc, B, L, 3, abc), B=3, L=3.")
 
+@py.test.mark.xfail
 def test_sub_atom_with_non_var_sub():
     assert_true("sub_atom(abcabc, Before, Length, After, a), Before=3, Length=1, After=2.")
     assert_false("sub_atom(abcabc, Before, Length, After, b), Before==3, Length==1, After==2.")
 
+@py.test.mark.xfail
 def test_sub_atom_with_var_after():
     assert_true("sub_atom(abcabd, 2, 1, After, Sub), After=3, Sub=c.")
     assert_true("sub_atom(abcabc, Before, Length, After, Sub), Before=1, Length=3, After=2, Sub=bca.")
     assert_false("sub_atom(abcabc, 1, 3, After, Sub), Sub=abc.")
 
+@py.test.mark.xfail
 def test_sub_atom_var_sub_and_non_var_after():
     assert_true("sub_atom(abcabd, 2, 1, 3, Sub), Sub=c.")
     assert_true("sub_atom(abcabc, Before, Length, 2, Sub), Before=1, Length=3, Sub=bca.")
@@ -576,3 +667,39 @@ def test_write_term():
                   "write_term(a, [quoted(af)])")
     prolog_raises("type_error(list, E)",
                   "write_term(a, asdf)")
+
+def test_number_chars():
+    assert_true("number_chars(123, ['1', '2', '3']).")
+    assert_true("number_chars(123, X), X = ['1', '2', '3'].")
+    prolog_raises("type_error(text, E)", "number_chars(X, [f(a)])")
+    prolog_raises("type_error(list, E)", "number_chars(X, a)")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['-', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['1', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['.', '1', '-'])")
+    prolog_raises("syntax_error(E)", "number_chars(X, ['1', '.', '2', '.'])")
+    assert_true("number_chars(X, ['1', '2', '3']), X = 123.")
+    prolog_raises("type_error(list, E)", "number_chars(123, 123)")
+    prolog_raises("type_error(list, E)", "number_chars(b, a)")
+    assert_true("number_chars(-123, ['-', '1', '2', '3']).")
+    assert_true("number_chars(123.1, ['1', '2', '3', '.', '1']).")
+    assert_true("number_chars(1000000000000000, ['1','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0']).")
+    prolog_raises("instantiation_error", "number_chars(X, Y)")
+    prolog_raises("type_error(list, E)", "number_chars(1, ['a'|2])")
+    prolog_raises("type_error(number, a)", "number_chars(a, X)")
+    prolog_raises("type_error(number, a)", "number_chars(a, X)")
+    prolog_raises("syntax_error(E)", "number_chars(A, ['-', '.', '1'])")
+
+def test_atom_chars():
+    assert_true("atom_chars(abc, X), X = [a, b, c].")
+    assert_true("atom_chars(a12, [a, '1', '2']).")
+    assert_true("atom_chars('', []).")
+    prolog_raises("instantiation_error", "atom_chars(X, Y)")
+    assert_true("atom_chars(X, [a, b, '1']), X = ab1.")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [a, b, '10'])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, a)")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [f(a)])")
+    prolog_raises("type_error(list, E)", "atom_chars(X, f(a))")
+    prolog_raises("type_error(text, E)", "atom_chars(X, [[]])")
+
+def test_atom_chars_2():
+    assert_true("atom_chars(ab, [a|B]), B = [b].")

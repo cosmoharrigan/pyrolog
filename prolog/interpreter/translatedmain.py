@@ -1,18 +1,27 @@
 import os, sys
 from pypy.rlib.parsing.parsing import ParseError
 from pypy.rlib.parsing.deterministic import LexerError
-from prolog.interpreter.interactive import helptext, StopItNow, \
-ContinueContinuation
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
-from prolog.interpreter.continuation import Continuation, Engine, DoneContinuation
+from prolog.interpreter.continuation import Continuation, Engine, \
+        DoneSuccessContinuation, DoneFailureContinuation
 from prolog.interpreter import error, term
 import prolog.interpreter.term
 prolog.interpreter.term.DEBUG = False
 
+helptext = """
+ ';':   redo
+ 'p':   print
+ 'h':   help
+ 
+"""
+
+class StopItNow(Exception):
+    pass
+
 class ContinueContinuation(Continuation):
     def __init__(self, engine, var_to_pos, write):
-        Continuation.__init__(self, engine, DoneContinuation(engine))
+        Continuation.__init__(self, engine, DoneSuccessContinuation(engine))
         self.var_to_pos = var_to_pos
         self.write = write
 
@@ -20,9 +29,9 @@ class ContinueContinuation(Continuation):
         self.write("yes\n")
         var_representation(self.var_to_pos, self.engine, self.write, heap)
         while 1:
-            if isinstance(fcont, DoneContinuation):
+            if isinstance(fcont, DoneFailureContinuation):
                 self.write("\n")
-                return DoneContinuation(None), fcont, heap
+                return DoneSuccessContinuation(self.engine), fcont, heap
             res = getch()
             if res in "\r\x04\n":
                 self.write("\n")
@@ -42,8 +51,12 @@ def var_representation(var_to_pos, engine, write, heap):
     for var, real_var in var_to_pos.iteritems():
         if var.startswith("_"):
             continue
-        val = f.format(real_var.getvalue(heap))
-        write("%s = %s\n" % (var, val))
+        value = real_var.dereference(heap)
+        val = f.format(value)
+        if isinstance(value, term.AttVar):
+            write("%s\n" % val)
+        else:
+            write("%s = %s\n" % (var, val))
         
 def getch():
     line = readline()
@@ -74,10 +87,11 @@ def run(query, var_to_pos, engine):
     try:
         if query is None:
             return
-        engine.run(query, ContinueContinuation(engine, var_to_pos, printmessage))
+        engine.run(query, engine.modulewrapper.current_module, 
+                ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("no\n")
-    except error.UncaughtError, e:
+    except (error.UncaughtError, error.CatchableError), e:
         f._make_reverse_op_mapping()
         printmessage("ERROR: ")
         t = e.term
@@ -107,6 +121,31 @@ def run(query, var_to_pos, engine):
                             f.format(errorterm.argument_at(0)),
                             f.format(errorterm.argument_at(1))))
                         return
+                elif errorterm.name() == "syntax_error":
+                    if isinstance(errorterm, term.Callable):    
+                        printmessage("Syntax error: '%s'\n" % \
+                        f.format(errorterm.argument_at(0)))
+                        return
+                elif errorterm.name() == "permission_error":
+                    if isinstance(errorterm, term.Callable):    
+                        printmessage("Permission error: '%s', '%s', '%s'\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1)),
+                        f.format(errorterm.argument_at(2))))
+                        return
+                elif errorterm.name() == "representation_error":
+                    if isinstance(errorterm, term.Callable):
+                        printmessage("%s: Cannot represent: %s\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1))))
+                        return
+                elif errorterm.name() == "import_error":
+                    if isinstance(errorterm, term.Callable):
+                        printmessage("Exported procedure %s:%s is not defined\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1))))
+                        return
+
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
     except StopItNow:
@@ -115,7 +154,12 @@ def run(query, var_to_pos, engine):
 def repl(engine):
     printmessage("welcome!\n")
     while 1:
-        printmessage(">?- ")
+        module = engine.modulewrapper.current_module.name
+        if module == "user":
+            module = ""
+        else:
+            module += ":  "
+        printmessage(module + ">?- ")
         line = readline()
         if line == "halt.\n":
             break
@@ -131,11 +175,12 @@ def repl(engine):
             run(goal, var_to_pos, engine)
  
 def execute(e, filename):
-    e.run(term.Callable.build("consult", [term.Callable.build(filename)]))
+    e.run(term.Callable.build("consult", [term.Callable.build(filename)]),
+            e.modulewrapper.user_module)
 
 if __name__ == '__main__':
     from sys import argv
-    e = Engine()
+    e = Engine(load_system=True)
     if len(argv) == 2:
         execute(e, argv[1])
     repl(e)

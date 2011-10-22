@@ -8,6 +8,9 @@ from prolog.interpreter.term import Term, Atom, Var, Callable
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
+from prolog.interpreter.module import Module, ModuleWrapper
+from prolog.interpreter.helper import unwrap_predicate_indicator
+from prolog.interpreter.stream import StreamWrapper
 
 Signature.register_extr_attr("function", engine=True)
 
@@ -47,7 +50,7 @@ jitdriver = jit.JitDriver(
 def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
-        #view(scont, fcont, heap)
+        #view(scont=scont, fcont=fcont, heap=heap)
         if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
             rule = scont._rule
             jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
@@ -55,7 +58,9 @@ def driver(scont, fcont, heap):
         try:
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
+            oldscont = scont
             scont, fcont, heap  = scont.activate(fcont, heap)
+            assert heap is not None
         except error.UnificationFailed:
             if not we_are_translated():
                 if fcont.is_done():
@@ -63,32 +68,69 @@ def driver(scont, fcont, heap):
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
             scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
-    assert isinstance(scont, DoneContinuation)
+        else:
+            scont, fcont, heap = _process_hooks(scont, fcont, heap)
+    assert isinstance(scont, DoneSuccessContinuation)
+
     if scont.failed:
         raise error.UnificationFailed
 
+@jit.unroll_safe
+def _process_hooks(scont, fcont, heap):
+    if heap.hooks.last:
+        e = scont.engine
+        hookcell = heap.hooks.last
+        heap.hooks.clear()
+        while hookcell:
+            hook = hookcell.hook
+            attmap = jit.hint(hook.attmap, promote=True)
+            for i in range(len(hook.value_list)):
+                val = hook.value_list[i]
+                if val is None:
+                    continue
+                module = attmap.get_attname_at_index(i)
+                query = Callable.build("attr_unify_hook", [val, hook])
+                try:
+                    mod = e.modulewrapper.get_module(module, query)
+                except error.CatchableError, err:
+                    scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
+                    break
+                scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
+                heap.add_trail_atts(hook, module)
+            hookcell = hookcell.next
+            hook.value_list = None
+    return scont, fcont, heap
+
 class Engine(object):
-    def __init__(self):
+    def __init__(self, load_system=False):
         self.parser = None
         self.operations = None
+        self.modulewrapper = ModuleWrapper(self)
+        if load_system:
+            self.modulewrapper.init_system_module()
+        
         from prolog.builtin.statistics import Clocks
         self.clocks = Clocks()
         self.clocks.startup()
+        self.streamwrapper = StreamWrapper()
+
+    def _freeze_(self):
+        return True
+
     # _____________________________________________________
     # database functionality
 
-    def get_function(self, signature):
-        return signature.get_extra_engine_local("function", self)
-
-    def add_rule(self, rule, end=True):
+    def add_rule(self, rule, end=True, old_modname=None):
+        m = self.modulewrapper
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
             if rule.signature().eq(predsig):
-                rule = Rule(rule.argument_at(0), rule.argument_at(1))
+                rule = Rule(rule.argument_at(0), rule.argument_at(1),
+                        m.current_module)
             else:
-                rule = Rule(rule, None)
+                rule = Rule(rule, None, m.current_module)
         elif isinstance(rule, Atom):
-            rule = Rule(rule, None)
+            rule = Rule(rule, None, m.current_module)
         else:
             error.throw_type_error("callable", rule)
             assert 0, "unreachable" # make annotator happy
@@ -96,36 +138,44 @@ class Engine(object):
         if self.get_builtin(signature):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
-        function = self._lookup(signature)
-        
-        function.add_rule(rule, end)
 
-    @jit.purefunction_promote("0")
+        function = m.current_module.lookup(signature)
+        function.add_rule(rule, end)
+        if old_modname is not None:
+            self.switch_module(old_modname)
+
+    @jit.elidable_promote('all')
     def get_builtin(self, signature):
         from prolog import builtin # for the side-effects
         return signature.get_extra("builtin")
 
-    @jit.purefunction_promote("0")
-    def _lookup(self, signature):
-        assert signature.cached
-        function = self.get_function(signature)
-        if function is None:
-            function = Function()
-            signature.set_extra_engine_local("function", function, self)
-        return function
 
     # _____________________________________________________
     # parsing-related functionality
 
     def _build_and_run(self, tree):
+        assert self is not None # for the annotator (!)
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
-        if isinstance(term, Term) and term.signature().eq(callsig):
-            self.run(term.argument_at(0))
+        if isinstance(term, Callable) and term.signature().eq(callsig):
+            self.run(term.argument_at(0), self.modulewrapper.current_module)
         else:
-            self.add_rule(term)
+            self._term_expand(term)
         return self.parser
+
+    def _term_expand(self, term):
+        if self.modulewrapper.system is not None:
+            v = Var()
+            call = Callable.build("term_expand", [term, v])
+            try:
+                self.run(call, self.modulewrapper.current_module)
+            except error.UnificationFailed:
+                v = Var()
+                call = Callable.build("term_expand", [term, v])
+                self.run(call, self.modulewrapper.system)
+            term = v.dereference(None)
+        self.add_rule(term)
 
     def runstring(self, s):
         from prolog.interpreter.parsing import parse_file
@@ -147,33 +197,56 @@ class Engine(object):
     # _____________________________________________________
     # Prolog execution
 
-    def run_query(self, query, continuation=None):
-        fcont = DoneContinuation(self)
+    def run_query(self, query, module, continuation=None):
+        assert isinstance(module, Module)
+        fcont = DoneFailureContinuation(self)
         if continuation is None:
-            continuation = CutScopeNotifier(self, DoneContinuation(self), fcont)
-        driver(*self.call(query, continuation, fcont, Heap()))
+            continuation = CutScopeNotifier(self, DoneSuccessContinuation(self), fcont)
+        driver(*self.call(query, module, continuation, fcont, Heap()))
     run = run_query
 
-    def call(self, query, scont, fcont, heap):
+    def call(self, query, module, scont, fcont, heap):
+        if isinstance(query, Var):
+            query = query.dereference(heap)
         if not isinstance(query, Callable):
+            if isinstance(query, Var):
+                raise error.throw_instantiation_error()
             raise error.throw_type_error('callable', query)
         signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return BuiltinContinuation(self, scont, builtin, query), fcont, heap
+            return BuiltinContinuation(self, module, scont, builtin, query), fcont, heap
 
         # do a real call
-        function = self._lookup(signature)
+        function = self._get_function(signature, module, query)
+        query = function.add_meta_prefixes(query, module.nameatom)
         startrulechain = jit.hint(function.rulechain, promote=True)
-        if startrulechain is None:
-            return error.throw_existence_error(
-                "procedure", query.get_prolog_signature())
         rulechain = startrulechain.find_applicable_rule(query)
         if rulechain is None:
             raise error.UnificationFailed
-        scont = UserCallContinuation(self, scont, query,
-                                     rulechain)
+        scont, fcont, heap = _make_rule_conts(self, scont, fcont, heap, query, rulechain)
         return scont, fcont, heap
+
+    def _get_function(self, signature, module, query): 
+        function = module.lookup(signature)
+        if function.rulechain is None and self.modulewrapper.system is not None:
+            function = self.modulewrapper.system.lookup(signature)
+        if function.rulechain is None:
+            return error.throw_existence_error(
+                    "procedure", query.get_prolog_signature())
+        return function
+
+    # _____________________________________________________
+    # module handling
+
+    def switch_module(self, modulename):
+        m = self.modulewrapper
+        try:
+            m.current_module = m.modules[modulename]
+        except KeyError:
+            module = Module(modulename)
+            m.modules[modulename] = module
+            m.current_module = module
 
     # _____________________________________________________
     # error handling
@@ -194,15 +267,41 @@ class Engine(object):
             else:
                 # XXX discard the heap?
                 return self.call(
-                    scont.recover, scont.nextcont, scont.fcont, heap)
+                    scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc)
+
 
 
     def __freeze__(self):
         return True
 
+def _make_rule_conts(engine, scont, fcont, heap, query, rulechain):
+    rule = jit.hint(rulechain, promote=True)
+    if rule.contains_cut:
+        scont = CutScopeNotifier.insert_scope_notifier(
+                engine, scont, fcont)
+    restchain = rule.find_next_applicable_rule(query)
+    if restchain is not None:
+        fcont = UserCallContinuation(engine, scont, fcont, heap, query, restchain)
+        heap = heap.branch()
+
+    scont = RuleContinuation(engine, scont, rule, query)
+    return scont, fcont, heap
+
 # ___________________________________________________________________
 # Continuation classes
+
+def _dot(self, seen):
+    if self in seen:
+        return
+    seen.add(self)
+    yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
+    for key, value in self.__dict__.iteritems():
+        if hasattr(value, "_dot"):
+            yield "%s -> %s [label=%s]" % (id(self), id(value), key)
+            for line in value._dot(seen):
+                yield line
+
 
 class Continuation(object):
     """ Represents a continuation of the Prolog computation. This can be seen
@@ -227,149 +326,133 @@ class Continuation(object):
     def find_end_of_cut(self):
         return self.nextcont.find_end_of_cut()
 
-    def _dot(self, seen):
-        if self in seen:
-            return
-        seen.add(self)
-        yield '%s [label="%s", shape=box]' % (id(self), repr(self)[:50])
-        for key, value in self.__dict__.iteritems():
-            if hasattr(value, "_dot"):
-                yield "%s -> %s [label=%s]" % (id(self), id(value), key)
-                for line in value._dot(seen):
-                    yield line
+    _dot = _dot
 
-def view(*objects):
+class ContinuationWithModule(Continuation):
+    """ This class represents continuations which need
+    to take care of the module system. """
+
+    def __init__(self, engine, module, nextcont):
+        Continuation.__init__(self, engine, nextcont)
+        self.module = module
+
+def view(*objects, **names):
     from dotviewer import graphclient
     content = ["digraph G{"]
     seen = set()
-    for obj in objects:
+    for obj in list(objects) + names.values():
         content.extend(obj._dot(seen))
+    for key, value in names.items():
+        content.append("%s -> %s" % (key, id(value)))
     content.append("}")
     p = py.test.ensuretemp("prolog").join("temp.dot")
     p.write("\n".join(content))
     graphclient.display_dot_file(str(p))
 
-class FailureContinuation(Continuation):
+
+class FailureContinuation(object):
     """ A continuation that can represent failures. It has a .fail method that
-    is called to prepare it for being used as a failure continuation.
-    
-    NB: a Continuation can be used both as a failure continuation and as a
-    success continuation."""
+    is called to figure out what should happen on a failure.
+    """
+    def __init__(self, engine, nextcont, orig_fcont, heap):
+        self.engine = engine
+        self.nextcont = nextcont
+        self.orig_fcont = orig_fcont
+        self.undoheap = heap
 
     def fail(self, heap):
-        """ Needs to be called to prepare the object as being used as a failure
-        continuation. After fail has been called, the continuation will usually
-        be activated. Particularly useful for objects that are both a regular
-        and a failure continuation, to distinguish the two cases. """
-        # returns (next cont, failure cont, heap)
+        """ Needs to be called to get the new success continuation.
+        Returns a tuple (next cont, failure cont, heap)
+        """
         raise NotImplementedError("abstract base class")
 
     def cut(self, upto, heap):
-        """ Cut away choice points till the next correct cut delimiter.
-        Slightly subtle. """
-        if self is upto:
-            return
-        raise NotImplementedError
-
-class DoneContinuation(FailureContinuation):
-    def __init__(self, engine):
-        Continuation.__init__(self, engine, None)
-        self.failed = False
-
-    def activate(self, fcont, heap):
-        assert 0, "unreachable"
-
-    def fail(self, heap):
-        self.failed = True
-        return self, self, heap
-
-    def is_done(self):
-        return True
-
-    def find_end_of_cut(self):
-        return DoneContinuation(self.engine)
-
-class BodyContinuation(Continuation):
-    """ Represents a bit of Prolog code that is still to be called. """
-    def __init__(self, engine, nextcont, body):
-        Continuation.__init__(self, engine, nextcont)
-        self.body = body
-
-    def activate(self, fcont, heap):
-        return self.engine.call(self.body, self.nextcont, fcont, heap)
-
-    def __repr__(self):
-        return "<BodyContinuation %r>" % (self.body, )
-
-class BuiltinContinuation(Continuation):
-    """ Rerpresents the call to a builtin. """
-    def __init__(self, engine, nextcont, builtin, query):
-        Continuation.__init__(self, engine, nextcont)
-        self.builtin = builtin
-        self.query = query
-
-    def activate(self, fcont, heap):
-        return self.builtin.call(self.engine, self.query, self.nextcont, fcont, heap)
-
-    def __repr__(self):
-        return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
-
-class ChoiceContinuation(FailureContinuation):
-    """ An abstract base class for Continuations that represent a choice point,
-    i.e. a point to which the execution can backtrack to."""
-
-    def __init__(self, *args):
-        FailureContinuation.__init__(self, *args)
-        self.undoheap = None
-        self.orig_fcont = None
-
-    #def activate(self, fcont, heap):
-    #    this method needs to be structured as follows:
-    #    <some code>
-    #    if <has more solutions>:
-    #        fcont, heap = self.prepare_more_solutions(fcont, heap)
-    #    <construct cont> # must not raise UnificationFailed!
-    #    return cont, fcont, heap
-
-    def prepare_more_solutions(self, fcont, heap):
-        self.undoheap = heap
-        heap = heap.branch()
-        self.orig_fcont = fcont
-        fcont = self
-        return fcont, heap
-    
-    def fail(self, heap):
-        assert self.undoheap is not None
-        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
-        return self, self.orig_fcont, heap
-
-    def cut(self, upto, heap):
+        """ Cut away choice points till upto. """
         if self is upto:
             return
         heap = self.undoheap.discard(heap)
         self.orig_fcont.cut(upto, heap)
 
-class UserCallContinuation(ChoiceContinuation):
-    def __init__(self, engine, nextcont, query, rulechain):
-        ChoiceContinuation.__init__(self, engine, nextcont)
+    def is_done(self):
+        return False
+
+    _dot = _dot
+
+def make_failure_continuation(make_func):
+    class C(FailureContinuation):
+        def __init__(self, engine, scont, fcont, heap, *state):
+            FailureContinuation.__init__(self, engine, scont, fcont, heap)
+            self.state = state
+
+        def fail(self, heap):
+            heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
+            return make_func(C, self.engine, self.nextcont, self.orig_fcont,
+                             heap, *self.state)
+    C.__name__ = make_func.__name__ + "FailureContinuation"
+    def make_func_wrapper(*args):
+        return make_func(C, *args)
+    make_func_wrapper.__name__ = make_func.__name__ + "_wrapper"
+    return make_func_wrapper
+
+class DoneSuccessContinuation(Continuation):
+    def __init__(self, engine):
+        Continuation.__init__(self, engine, None)
+        self.failed = False
+
+    def is_done(self):
+        return True
+
+class DoneFailureContinuation(FailureContinuation):
+    def __init__(self, engine):
+        FailureContinuation.__init__(self, engine, None, None, None)
+
+    def fail(self, heap):
+        scont = DoneSuccessContinuation(self.engine)
+        scont.failed = True
+        return scont, self, heap
+
+    def is_done(self):
+        return True
+
+
+class BodyContinuation(ContinuationWithModule):
+    """ Represents a bit of Prolog code that is still to be called. """
+    def __init__(self, engine, module, nextcont, body):
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
+        self.body = body
+
+    def activate(self, fcont, heap):
+        return self.engine.call(self.body, self.module, self.nextcont, fcont, heap)
+
+    def __repr__(self):
+        return "<BodyContinuation %r>" % (self.body, )
+
+class BuiltinContinuation(ContinuationWithModule):
+    """ Represents the call to a builtin. """
+    def __init__(self, engine, module, nextcont, builtin, query):
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
+        self.builtin = builtin
+        self.query = query
+
+    def activate(self, fcont, heap):
+        return self.builtin.call(self.engine, self.query, self.module, 
+                self.nextcont, fcont, heap)
+
+    def __repr__(self):
+        return "<BuiltinContinuation %r, %r>" % (self.builtin, self.query, )
+
+
+class UserCallContinuation(FailureContinuation):
+    def __init__(self, engine, nextcont, orig_fcont, heap, query, rulechain):
+        FailureContinuation.__init__(self, engine, nextcont, orig_fcont, heap)
         self.query = query
         self.rulechain = rulechain
 
-    def activate(self, fcont, heap):
-        rulechain = jit.hint(self.rulechain, promote=True)
-        rule = rulechain
-        nextcont = self.nextcont
-        if rule.contains_cut:
-            nextcont = CutScopeNotifier.insert_scope_notifier(
-                    self.engine, nextcont, fcont)
-        query = self.query
-        restchain = rulechain.find_next_applicable_rule(query)
-        if restchain is not None:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.rulechain = restchain
+    def fail(self, heap):
+        heap = heap.revert_upto(self.undoheap, discard_choicepoint=True)
+        return _make_rule_conts(self.engine, self.nextcont, self.orig_fcont,
+                                heap, self.query, self.rulechain)
 
-        cont = RuleContinuation(self.engine, nextcont, rule, query)
-        return cont, fcont, heap
 
     def __repr__(self):
         return "<UserCallContinuation query=%r rule=%r>" % (
@@ -393,7 +476,7 @@ class RuleContinuation(Continuation):
         rule = jit.hint(self._rule, promote=True)
         nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            return self.engine.call(nextcall, nextcont, fcont, heap)
+            return self.engine.call(nextcall, self._rule.module, nextcont, fcont, heap)
         else:
             cont = nextcont
         return cont, fcont, heap
@@ -419,9 +502,9 @@ class CutScopeNotifier(Continuation):
         return self.nextcont, fcont, heap
 
 
-class CatchingDelimiter(Continuation):
-    def __init__(self, engine, nextcont, fcont, catcher, recover, heap):
-        Continuation.__init__(self, engine, nextcont)
+class CatchingDelimiter(ContinuationWithModule):
+    def __init__(self, engine, module, nextcont, fcont, catcher, recover, heap):
+        ContinuationWithModule.__init__(self, engine, module, nextcont)
         self.catcher = catcher
         self.recover = recover
         self.fcont = fcont

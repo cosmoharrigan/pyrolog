@@ -6,19 +6,28 @@ from pypy.rlib.parsing.deterministic import DFA
 from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from pypy.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from pypy.rlib.parsing.regex import StringExpression
-from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
+from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError, ParseStringError
+from pypy.rlib.rarithmetic import ovfcheck
+from pypy.objspace.std.strutil import string_to_int
+from pypy.rlib.rbigint import rbigint
+from prolog.interpreter.continuation import Engine
+from prolog.interpreter.module import Module
 
 def make_regexes():
     regexs = [
         ("VAR", parse_regex("[A-Z_]([a-zA-Z0-9]|_)*|_")),
-        ("NUMBER", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)?")),
+        ("NUMBER", parse_regex("(0|[1-9][0-9]*)")),
+        ("FLOAT", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)")),
         ("IGNORE", parse_regex(
             "[ \\n\\t\\r]|(/\\*[^\\*]*(\\*[^/][^\\*]*)*\\*/)|(%[^\\n]*)")),
-        ("ATOM", parse_regex("([a-z]([a-zA-Z0-9]|_)*)|('[^']*')|\[\]|!|\+|\-")),
+        ("ATOM", parse_regex("([a-z]([a-zA-Z0-9]|_)*)|('[^']*')|\[\]|!|\+|\-|\{\}")),
+        ("STRING", parse_regex('"[^"]*"')),
         ("(", parse_regex("\(")),
         (")", parse_regex("\)")),
         ("[", parse_regex("\[")),
         ("]", parse_regex("\]")),
+        ("{", parse_regex("\{")),
+        ("}", parse_regex("\}")),
         (".", parse_regex("\.")),
         ("|", parse_regex("\|")),
     ]
@@ -33,8 +42,13 @@ basic_rules = [
           ['NUMBER'],
           ['+', 'NUMBER'],
           ['-', 'NUMBER'],
+          ['FLOAT'],
+          ['+', 'FLOAT'],
+          ['-', 'FLOAT'],
           ['ATOM'],
+          ['STRING'],
           ['(', 'toplevel_op_expr', ')'],
+          ['{', 'toplevel_op_expr', '}'],
           ['listexpr'],
           ]),
     Rule('listexpr', [['[', 'listbody', ']']]),
@@ -64,12 +78,14 @@ def make_default_operations():
     operations = [
          (1200, [("xfx", ["-->", ":-"]),
                  ("fx",  [":-", "?-"])]),
+         (1150, [("fx",  ["meta_predicate"])]),
          (1100, [("xfy", [";"])]),
-         (1050, [("xfy", ["->"])]),
+         (1050, [("xfy", ["->"]),
+                 ("fx",  ["block"])]), 
          (1000, [("xfy", [","])]),
          (900,  [("fy",  ["\\+"]),
                  ("fx",  ["~"])]),
-         (700,  [("xfx", ["<", "=", "=..", "=@=", "=:=", "=<", "==", "=\=", ">",
+         (700,  [("xfx", ["<", "=", "=..", "=@=", "=:=", "=<", "==", "=\=", ">", "?=",
                           ">=", "@<", "@=<", "@>", "@>=", "\=", "\==", "is"])]),
          (600,  [("xfy", [":"])]),
          (500,  [("yfx", ["+", "-", "/\\", "\\/", "xor"]),
@@ -155,6 +171,9 @@ class PrologParseTable(LazyParseTable):
         if input.name == "ATOM":
             return symbol == "ATOM" or symbol == input.source
         return symbol == input.name
+    def match_symbol(self, i, symbol):
+        return LazyParseTable.match_symbol(self, i, symbol)
+
 class PrologPackratParser(PackratParser):
     def __init__(self, rules, startsymbol):
         PackratParser.__init__(self, rules, startsymbol, PrologParseTable,
@@ -218,7 +237,7 @@ def get_query_and_vars(s):
     tokens = lexer.tokenize(s, eof=True)
     s = parser_query.parse(tokens, lazy=False)
     builder = TermBuilder()
-    query = builder.build(s)
+    query = builder.build_query(s)
     return query, builder.varname_to_var
 
 class OrderTransformer(object):
@@ -301,7 +320,7 @@ class TermBuilder(RPythonVisitor):
         return self.dispatch(node)
 
     def general_nonterminal_visit(self, node):
-        from prolog.interpreter.term import Callable, Number, Float
+        from prolog.interpreter.term import Callable, Number, Float, BigInt
         children = []
         name = ""
         for child in node.children:
@@ -320,6 +339,8 @@ class TermBuilder(RPythonVisitor):
                 return Number(factor * child.num)
             if isinstance(child, Float):
                 return Float(factor * child.floatval)
+            if isinstance(child, BigInt):
+                return BigInt(rbigint.fromint(factor).mul(child.value))
         return Callable.build(name, children)
 
     def build_list(self, node):
@@ -366,12 +387,28 @@ class TermBuilder(RPythonVisitor):
         return res
 
     def visit_NUMBER(self, node):
-        from prolog.interpreter.term import Number, Float
+        from prolog.interpreter.term import Number, BigInt
         s = node.additional_info
         try:
-            return Number(int(s))
-        except ValueError:
-            return Float(float(s))
+            intval = string_to_int(s)
+        except ParseStringOverflowError: # overflow
+            return BigInt(rbigint.fromdecimalstr(s))
+        return Number(intval)
+
+    def visit_FLOAT(self, node):
+        from prolog.interpreter.term import Float
+        s = node.additional_info
+        return Float(float(s))
+
+    def visit_STRING(self, node):
+        from prolog.interpreter import helper
+        from prolog.interpreter.term import Callable, Number
+        from pypy.rlib.runicode import str_decode_utf_8
+        info = node.additional_info
+        s = info.strip('"')
+        s, _ = str_decode_utf_8(s, len(s), 'strict')
+        l = [Number(ord(c)) for c in s]
+        return helper.wrap_list(l)
 
     def visit_complexterm(self, node):
         from prolog.interpreter.term import Callable
@@ -380,14 +417,18 @@ class TermBuilder(RPythonVisitor):
         return Callable.build(name, children[:])
 
     def visit_expr(self, node):
-        from prolog.interpreter.term import Number, Float
-        if node.children[0].additional_info == '-':
-            result = self.visit(node.children[1])
+        from prolog.interpreter.term import Number, Float, BigInt
+        additional_info = node.children[0].additional_info
+        result = self.visit(node.children[1])
+        if additional_info == '-':
             if isinstance(result, Number):
                 return Number(-result.num)
             elif isinstance(result, Float):
                 return Float(-result.floatval)
-        return self.visit(node.children[1])
+        elif additional_info == "{":
+            from prolog.interpreter.term import Callable
+            return Callable.build("{}", [result])
+        return result
 
     def visit_listexpr(self, node):
         from prolog.interpreter.term import Callable
@@ -439,13 +480,22 @@ def unescape(s):
         i += 1
     return "".join(result)
 
-def get_engine(source):
+def get_engine(source, create_files=False, load_system=False, **modules):
     from prolog.interpreter.continuation import Engine
-    trees = parse_file(source)
-    builder = TermBuilder()
-    e = Engine()
-    for fact in builder.build_many(trees):
-        e.add_rule(fact)
+    from prolog.interpreter.test.tool import create_file, delete_file
+    e = Engine(load_system)
+    for name, module in modules.iteritems():
+        if create_files:
+            create_file(name, module)
+        else:
+            e.runstring(module)
+    try:
+        e.modulewrapper.current_module = e.modulewrapper.user_module
+        e.runstring(source)
+    finally:
+        if create_files:
+            for name in modules.keys():
+                delete_file(name)
     return e
 
 # generated code between this line and its other occurence
@@ -453,21 +503,23 @@ def get_engine(source):
 parser_fact = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF']]),
   Rule('fact', [['toplevel_op_expr', '.']]),
   Rule('complexterm', [['ATOM', '(', 'toplevel_op_expr', ')'], ['expr']]),
-  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['ATOM'], ['(', 'toplevel_op_expr', ')'], ['listexpr']]),
+  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['FLOAT'], ['+', 'FLOAT'], ['-', 'FLOAT'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
   Rule('listexpr', [['[', 'listbody', ']']]),
   Rule('listbody', [['toplevel_op_expr', '|', 'toplevel_op_expr'], ['toplevel_op_expr']]),
   Rule('extratoplevel_op_expr', [[]]),
-  Rule('toplevel_op_expr', [['expr1100', '-->', 'expr1100', 'extratoplevel_op_expr'], ['expr1100', ':-', 'expr1100', 'extratoplevel_op_expr'], [':-', 'expr1100', 'extratoplevel_op_expr'], ['?-', 'expr1100', 'extratoplevel_op_expr'], ['expr1100', 'extratoplevel_op_expr']]),
+  Rule('toplevel_op_expr', [['expr1150', '-->', 'expr1150', 'extratoplevel_op_expr'], ['expr1150', ':-', 'expr1150', 'extratoplevel_op_expr'], [':-', 'expr1150', 'extratoplevel_op_expr'], ['?-', 'expr1150', 'extratoplevel_op_expr'], ['expr1150', 'extratoplevel_op_expr']]),
+  Rule('extraexpr1150', [[]]),
+  Rule('expr1150', [['meta_predicate', 'expr1100', 'extraexpr1150'], ['expr1100', 'extraexpr1150']]),
   Rule('extraexpr1100', [[]]),
   Rule('expr1100', [['expr1050', ';', 'expr1100', 'extraexpr1100'], ['expr1050', 'extraexpr1100']]),
   Rule('extraexpr1050', [[]]),
-  Rule('expr1050', [['expr1000', '->', 'expr1050', 'extraexpr1050'], ['expr1000', 'extraexpr1050']]),
+  Rule('expr1050', [['expr1000', '->', 'expr1050', 'extraexpr1050'], ['block', 'expr1000', 'extraexpr1050'], ['expr1000', 'extraexpr1050']]),
   Rule('extraexpr1000', [[]]),
   Rule('expr1000', [['expr900', ',', 'expr1000', 'extraexpr1000'], ['expr900', 'extraexpr1000']]),
   Rule('extraexpr900', [[]]),
   Rule('expr900', [['\\+', 'expr900', 'extraexpr900'], ['~', 'expr700', 'extraexpr900'], ['expr700', 'extraexpr900']]),
   Rule('extraexpr700', [[]]),
-  Rule('expr700', [['expr600', '<', 'expr600', 'extraexpr700'], ['expr600', '=', 'expr600', 'extraexpr700'], ['expr600', '=..', 'expr600', 'extraexpr700'], ['expr600', '=@=', 'expr600', 'extraexpr700'], ['expr600', '=:=', 'expr600', 'extraexpr700'], ['expr600', '=<', 'expr600', 'extraexpr700'], ['expr600', '==', 'expr600', 'extraexpr700'], ['expr600', '=\\=', 'expr600', 'extraexpr700'], ['expr600', '>', 'expr600', 'extraexpr700'], ['expr600', '>=', 'expr600', 'extraexpr700'], ['expr600', '@<', 'expr600', 'extraexpr700'], ['expr600', '@=<', 'expr600', 'extraexpr700'], ['expr600', '@>', 'expr600', 'extraexpr700'], ['expr600', '@>=', 'expr600', 'extraexpr700'], ['expr600', '\\=', 'expr600', 'extraexpr700'], ['expr600', '\\==', 'expr600', 'extraexpr700'], ['expr600', 'is', 'expr600', 'extraexpr700'], ['expr600', 'extraexpr700']]),
+  Rule('expr700', [['expr600', '<', 'expr600', 'extraexpr700'], ['expr600', '=', 'expr600', 'extraexpr700'], ['expr600', '=..', 'expr600', 'extraexpr700'], ['expr600', '=@=', 'expr600', 'extraexpr700'], ['expr600', '=:=', 'expr600', 'extraexpr700'], ['expr600', '=<', 'expr600', 'extraexpr700'], ['expr600', '==', 'expr600', 'extraexpr700'], ['expr600', '=\\=', 'expr600', 'extraexpr700'], ['expr600', '>', 'expr600', 'extraexpr700'], ['expr600', '?=', 'expr600', 'extraexpr700'], ['expr600', '>=', 'expr600', 'extraexpr700'], ['expr600', '@<', 'expr600', 'extraexpr700'], ['expr600', '@=<', 'expr600', 'extraexpr700'], ['expr600', '@>', 'expr600', 'extraexpr700'], ['expr600', '@>=', 'expr600', 'extraexpr700'], ['expr600', '\\=', 'expr600', 'extraexpr700'], ['expr600', '\\==', 'expr600', 'extraexpr700'], ['expr600', 'is', 'expr600', 'extraexpr700'], ['expr600', 'extraexpr700']]),
   Rule('extraexpr600', [[]]),
   Rule('expr600', [['expr500', ':', 'expr600', 'extraexpr600'], ['expr500', 'extraexpr600']]),
   Rule('extraexpr500', [['+', 'expr400', 'extraexpr500'], ['-', 'expr400', 'extraexpr500'], ['/\\', 'expr400', 'extraexpr500'], ['\\/', 'expr400', 'extraexpr500'], ['xor', 'expr400', 'extraexpr500'], []]),
@@ -480,21 +532,23 @@ parser_fact = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF
 parser_query = PrologPackratParser([Rule('query', [['toplevel_op_expr', '.', 'EOF']]),
   Rule('fact', [['toplevel_op_expr', '.']]),
   Rule('complexterm', [['ATOM', '(', 'toplevel_op_expr', ')'], ['expr']]),
-  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['ATOM'], ['(', 'toplevel_op_expr', ')'], ['listexpr']]),
+  Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['FLOAT'], ['+', 'FLOAT'], ['-', 'FLOAT'], ['ATOM'], ['STRING'], ['(', 'toplevel_op_expr', ')'], ['{', 'toplevel_op_expr', '}'], ['listexpr']]),
   Rule('listexpr', [['[', 'listbody', ']']]),
   Rule('listbody', [['toplevel_op_expr', '|', 'toplevel_op_expr'], ['toplevel_op_expr']]),
   Rule('extratoplevel_op_expr', [[]]),
-  Rule('toplevel_op_expr', [['expr1100', '-->', 'expr1100', 'extratoplevel_op_expr'], ['expr1100', ':-', 'expr1100', 'extratoplevel_op_expr'], [':-', 'expr1100', 'extratoplevel_op_expr'], ['?-', 'expr1100', 'extratoplevel_op_expr'], ['expr1100', 'extratoplevel_op_expr']]),
+  Rule('toplevel_op_expr', [['expr1150', '-->', 'expr1150', 'extratoplevel_op_expr'], ['expr1150', ':-', 'expr1150', 'extratoplevel_op_expr'], [':-', 'expr1150', 'extratoplevel_op_expr'], ['?-', 'expr1150', 'extratoplevel_op_expr'], ['expr1150', 'extratoplevel_op_expr']]),
+  Rule('extraexpr1150', [[]]),
+  Rule('expr1150', [['meta_predicate', 'expr1100', 'extraexpr1150'], ['expr1100', 'extraexpr1150']]),
   Rule('extraexpr1100', [[]]),
   Rule('expr1100', [['expr1050', ';', 'expr1100', 'extraexpr1100'], ['expr1050', 'extraexpr1100']]),
   Rule('extraexpr1050', [[]]),
-  Rule('expr1050', [['expr1000', '->', 'expr1050', 'extraexpr1050'], ['expr1000', 'extraexpr1050']]),
+  Rule('expr1050', [['expr1000', '->', 'expr1050', 'extraexpr1050'], ['block', 'expr1000', 'extraexpr1050'], ['expr1000', 'extraexpr1050']]),
   Rule('extraexpr1000', [[]]),
   Rule('expr1000', [['expr900', ',', 'expr1000', 'extraexpr1000'], ['expr900', 'extraexpr1000']]),
   Rule('extraexpr900', [[]]),
   Rule('expr900', [['\\+', 'expr900', 'extraexpr900'], ['~', 'expr700', 'extraexpr900'], ['expr700', 'extraexpr900']]),
   Rule('extraexpr700', [[]]),
-  Rule('expr700', [['expr600', '<', 'expr600', 'extraexpr700'], ['expr600', '=', 'expr600', 'extraexpr700'], ['expr600', '=..', 'expr600', 'extraexpr700'], ['expr600', '=@=', 'expr600', 'extraexpr700'], ['expr600', '=:=', 'expr600', 'extraexpr700'], ['expr600', '=<', 'expr600', 'extraexpr700'], ['expr600', '==', 'expr600', 'extraexpr700'], ['expr600', '=\\=', 'expr600', 'extraexpr700'], ['expr600', '>', 'expr600', 'extraexpr700'], ['expr600', '>=', 'expr600', 'extraexpr700'], ['expr600', '@<', 'expr600', 'extraexpr700'], ['expr600', '@=<', 'expr600', 'extraexpr700'], ['expr600', '@>', 'expr600', 'extraexpr700'], ['expr600', '@>=', 'expr600', 'extraexpr700'], ['expr600', '\\=', 'expr600', 'extraexpr700'], ['expr600', '\\==', 'expr600', 'extraexpr700'], ['expr600', 'is', 'expr600', 'extraexpr700'], ['expr600', 'extraexpr700']]),
+  Rule('expr700', [['expr600', '<', 'expr600', 'extraexpr700'], ['expr600', '=', 'expr600', 'extraexpr700'], ['expr600', '=..', 'expr600', 'extraexpr700'], ['expr600', '=@=', 'expr600', 'extraexpr700'], ['expr600', '=:=', 'expr600', 'extraexpr700'], ['expr600', '=<', 'expr600', 'extraexpr700'], ['expr600', '==', 'expr600', 'extraexpr700'], ['expr600', '=\\=', 'expr600', 'extraexpr700'], ['expr600', '>', 'expr600', 'extraexpr700'], ['expr600', '?=', 'expr600', 'extraexpr700'], ['expr600', '>=', 'expr600', 'extraexpr700'], ['expr600', '@<', 'expr600', 'extraexpr700'], ['expr600', '@=<', 'expr600', 'extraexpr700'], ['expr600', '@>', 'expr600', 'extraexpr700'], ['expr600', '@>=', 'expr600', 'extraexpr700'], ['expr600', '\\=', 'expr600', 'extraexpr700'], ['expr600', '\\==', 'expr600', 'extraexpr700'], ['expr600', 'is', 'expr600', 'extraexpr700'], ['expr600', 'extraexpr700']]),
   Rule('extraexpr600', [[]]),
   Rule('expr600', [['expr500', ':', 'expr600', 'extraexpr600'], ['expr500', 'extraexpr600']]),
   Rule('extraexpr500', [['+', 'expr400', 'extraexpr500'], ['-', 'expr400', 'extraexpr500'], ['/\\', 'expr400', 'extraexpr500'], ['\\/', 'expr400', 'extraexpr500'], ['xor', 'expr400', 'extraexpr500'], []]),
@@ -543,7 +597,7 @@ def recognize(runner, i):
                 state = 8
             elif char == '\\':
                 state = 9
-            elif 'a' <= char <= 'h':
+            elif 'c' <= char <= 'h':
                 state = 10
             elif 's' <= char <= 'w':
                 state = 10
@@ -554,6 +608,8 @@ def recognize(runner, i):
             elif char == 'y':
                 state = 10
             elif char == 'z':
+                state = 10
+            elif char == 'a':
                 state = 10
             elif char == 'x':
                 state = 11
@@ -571,36 +627,44 @@ def recognize(runner, i):
                 state = 17
             elif char == '[':
                 state = 18
-            elif char == '*':
+            elif char == '{':
                 state = 19
-            elif char == '.':
+            elif char == '"':
                 state = 20
-            elif char == ':':
+            elif char == '*':
                 state = 21
-            elif char == '>':
+            elif char == '.':
                 state = 22
-            elif char == '^':
+            elif char == ':':
                 state = 23
-            elif char == 'r':
+            elif char == '>':
                 state = 24
-            elif char == '~':
+            elif char == '^':
                 state = 25
-            elif char == '!':
+            elif char == 'b':
                 state = 26
-            elif char == '%':
+            elif char == 'r':
                 state = 27
-            elif char == ')':
+            elif char == '~':
                 state = 28
-            elif char == '-':
+            elif char == '!':
                 state = 29
-            elif char == '=':
+            elif char == '%':
                 state = 30
-            elif char == ']':
+            elif char == ')':
                 state = 31
-            elif char == 'i':
+            elif char == '-':
                 state = 32
-            elif char == 'm':
+            elif char == '=':
                 state = 33
+            elif char == ']':
+                state = 34
+            elif char == 'i':
+                state = 35
+            elif char == 'm':
+                state = 36
+            elif char == '}':
+                state = 37
             else:
                 break
         if state == 4:
@@ -613,7 +677,7 @@ def recognize(runner, i):
                 runner.state = 4
                 return i
             if char == '.':
-                state = 73
+                state = 96
             else:
                 break
         if state == 5:
@@ -626,7 +690,7 @@ def recognize(runner, i):
                 runner.state = 5
                 return i
             if char == '.':
-                state = 73
+                state = 96
             elif '0' <= char <= '9':
                 state = 5
                 continue
@@ -642,7 +706,7 @@ def recognize(runner, i):
                 runner.state = 6
                 return i
             if char == '<':
-                state = 72
+                state = 95
             else:
                 break
         if state == 7:
@@ -653,11 +717,11 @@ def recognize(runner, i):
                 runner.state = 7
                 return ~i
             if char == '=':
-                state = 67
+                state = 90
             elif char == '<':
-                state = 68
+                state = 91
             elif char == '>':
-                state = 69
+                state = 92
             else:
                 break
         if state == 8:
@@ -692,12 +756,12 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 9
                 return i
-            if char == '=':
-                state = 64
-            elif char == '/':
-                state = 65
+            if char == '/':
+                state = 88
             elif char == '+':
-                state = 63
+                state = 86
+            elif char == '=':
+                state = 87
             else:
                 break
         if state == 10:
@@ -748,7 +812,7 @@ def recognize(runner, i):
                 state = 10
                 continue
             elif char == 'o':
-                state = 61
+                state = 84
             else:
                 break
         if state == 13:
@@ -758,14 +822,14 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 13
                 return ~i
-            if char == "'":
-                state = 26
-            elif '(' <= char <= '\xff':
+            if '(' <= char <= '\xff':
                 state = 13
                 continue
             elif '\x00' <= char <= '&':
                 state = 13
                 continue
+            elif char == "'":
+                state = 29
             else:
                 break
         if state == 15:
@@ -778,11 +842,11 @@ def recognize(runner, i):
                 runner.state = 15
                 return i
             if char == '*':
-                state = 57
+                state = 80
             elif char == '\\':
-                state = 58
+                state = 81
             elif char == '/':
-                state = 59
+                state = 82
             else:
                 break
         if state == 17:
@@ -794,8 +858,10 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 17
                 return i
-            if char == '-':
-                state = 56
+            if char == '=':
+                state = 78
+            elif char == '-':
+                state = 79
             else:
                 break
         if state == 18:
@@ -808,7 +874,7 @@ def recognize(runner, i):
                 runner.state = 18
                 return i
             if char == ']':
-                state = 26
+                state = 29
             else:
                 break
         if state == 19:
@@ -820,8 +886,25 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 19
                 return i
-            if char == '*':
-                state = 55
+            if char == '}':
+                state = 29
+            else:
+                break
+        if state == 20:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 20
+                return ~i
+            if '#' <= char <= '\xff':
+                state = 20
+                continue
+            elif '\x00' <= char <= '!':
+                state = 20
+                continue
+            elif char == '"':
+                state = 77
             else:
                 break
         if state == 21:
@@ -833,23 +916,21 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 21
                 return i
-            if char == '-':
-                state = 54
+            if char == '*':
+                state = 76
             else:
                 break
-        if state == 22:
+        if state == 23:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 22
+                runner.state = 23
                 return i
-            if char == '=':
-                state = 52
-            elif char == '>':
-                state = 53
+            if char == '-':
+                state = 75
             else:
                 break
         if state == 24:
@@ -860,6 +941,49 @@ def recognize(runner, i):
                 i += 1
             except IndexError:
                 runner.state = 24
+                return i
+            if char == '=':
+                state = 73
+            elif char == '>':
+                state = 74
+            else:
+                break
+        if state == 26:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 26
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'm' <= char <= 'z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'k':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'l':
+                state = 69
+            else:
+                break
+        if state == 27:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 27
                 return i
             if 'A' <= char <= 'Z':
                 state = 10
@@ -877,39 +1001,7 @@ def recognize(runner, i):
                 state = 10
                 continue
             elif char == 'e':
-                state = 50
-            else:
-                break
-        if state == 27:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 27
-                return i
-            if '\x0b' <= char <= '\xff':
-                state = 27
-                continue
-            elif '\x00' <= char <= '\t':
-                state = 27
-                continue
-            else:
-                break
-        if state == 29:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 29
-                return i
-            if char == '>':
-                state = 48
-            elif char == '-':
-                state = 47
+                state = 67
             else:
                 break
         if state == 30:
@@ -921,18 +1013,12 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 30
                 return i
-            if char == '@':
-                state = 37
-            elif char == '<':
-                state = 38
-            elif char == '=':
-                state = 39
-            elif char == '.':
-                state = 40
-            elif char == ':':
-                state = 41
-            elif char == '\\':
-                state = 42
+            if '\x0b' <= char <= '\xff':
+                state = 30
+                continue
+            elif '\x00' <= char <= '\t':
+                state = 30
+                continue
             else:
                 break
         if state == 32:
@@ -943,6 +1029,44 @@ def recognize(runner, i):
                 i += 1
             except IndexError:
                 runner.state = 32
+                return i
+            if char == '-':
+                state = 64
+            elif char == '>':
+                state = 65
+            else:
+                break
+        if state == 33:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 33
+                return i
+            if char == '@':
+                state = 54
+            elif char == '.':
+                state = 55
+            elif char == ':':
+                state = 56
+            elif char == '=':
+                state = 57
+            elif char == '<':
+                state = 58
+            elif char == '\\':
+                state = 59
+            else:
+                break
+        if state == 35:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 35
                 return i
             if 'A' <= char <= 'Z':
                 state = 10
@@ -960,86 +1084,7 @@ def recognize(runner, i):
                 state = 10
                 continue
             elif char == 's':
-                state = 36
-            else:
-                break
-        if state == 33:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 33
-                return i
-            if 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif 'a' <= char <= 'n':
-                state = 10
-                continue
-            elif 'p' <= char <= 'z':
-                state = 10
-                continue
-            elif '0' <= char <= '9':
-                state = 10
-                continue
-            elif char == '_':
-                state = 10
-                continue
-            elif char == 'o':
-                state = 34
-            else:
-                break
-        if state == 34:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 34
-                return i
-            if 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif 'e' <= char <= 'z':
-                state = 10
-                continue
-            elif '0' <= char <= '9':
-                state = 10
-                continue
-            elif 'a' <= char <= 'c':
-                state = 10
-                continue
-            elif char == '_':
-                state = 10
-                continue
-            elif char == 'd':
-                state = 35
-            else:
-                break
-        if state == 35:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 35
-                return i
-            if 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif 'a' <= char <= 'z':
-                state = 10
-                continue
-            elif '0' <= char <= '9':
-                state = 10
-                continue
-            elif char == '_':
-                state = 10
-                continue
+                state = 53
             else:
                 break
         if state == 36:
@@ -1054,10 +1099,48 @@ def recognize(runner, i):
             if 'A' <= char <= 'Z':
                 state = 10
                 continue
-            elif 'a' <= char <= 'z':
+            elif 'p' <= char <= 'z':
                 state = 10
                 continue
             elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'f' <= char <= 'n':
+                state = 10
+                continue
+            elif 'a' <= char <= 'd':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'e':
+                state = 38
+            elif char == 'o':
+                state = 39
+            else:
+                break
+        if state == 38:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 38
+                return i
+            if char == 't':
+                state = 41
+            elif 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 's':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'u' <= char <= 'z':
                 state = 10
                 continue
             elif char == '_':
@@ -1065,97 +1148,42 @@ def recognize(runner, i):
                 continue
             else:
                 break
-        if state == 37:
+        if state == 39:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 37
-                return ~i
-            if char == '=':
-                state = 46
+                runner.state = 39
+                return i
+            if char == 'd':
+                state = 40
+            elif 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'e' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'c':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
             else:
                 break
         if state == 40:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
                 runner.state = 40
-                return ~i
-            if char == '.':
-                state = 45
-            else:
-                break
-        if state == 41:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 41
-                return ~i
-            if char == '=':
-                state = 44
-            else:
-                break
-        if state == 42:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 42
-                return ~i
-            if char == '=':
-                state = 43
-            else:
-                break
-        if state == 47:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 47
-                return ~i
-            if char == '>':
-                state = 49
-            else:
-                break
-        if state == 50:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 50
-                return i
-            if 'A' <= char <= 'Z':
-                state = 10
-                continue
-            elif 'n' <= char <= 'z':
-                state = 10
-                continue
-            elif 'a' <= char <= 'l':
-                state = 10
-                continue
-            elif '0' <= char <= '9':
-                state = 10
-                continue
-            elif char == '_':
-                state = 10
-                continue
-            elif char == 'm':
-                state = 51
-            else:
-                break
-        if state == 51:
-            runner.last_matched_index = i - 1
-            runner.last_matched_state = state
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 51
                 return i
             if 'A' <= char <= 'Z':
                 state = 10
@@ -1171,48 +1199,89 @@ def recognize(runner, i):
                 continue
             else:
                 break
-        if state == 57:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 57
-                return ~i
-            if '+' <= char <= '\xff':
-                state = 57
-                continue
-            elif '\x00' <= char <= ')':
-                state = 57
-                continue
-            elif char == '*':
-                state = 60
-            else:
-                break
-        if state == 60:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 60
-                return ~i
-            if '0' <= char <= '\xff':
-                state = 57
-                continue
-            elif '\x00' <= char <= '.':
-                state = 57
-                continue
-            elif char == '/':
-                state = 1
-            else:
-                break
-        if state == 61:
+        if state == 41:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 61
+                runner.state = 41
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'b' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'a':
+                state = 42
+            else:
+                break
+        if state == 42:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 42
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 43
+            else:
+                break
+        if state == 43:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 43
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'o':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'q' <= char <= 'z':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'p':
+                state = 44
+            else:
+                break
+        if state == 44:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 44
                 return i
             if 'A' <= char <= 'Z':
                 state = 10
@@ -1230,17 +1299,213 @@ def recognize(runner, i):
                 state = 10
                 continue
             elif char == 'r':
-                state = 62
+                state = 45
             else:
                 break
-        if state == 62:
+        if state == 45:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 62
+                runner.state = 45
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'f' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'd':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'e':
+                state = 46
+            else:
+                break
+        if state == 46:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 46
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'e' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'c':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'd':
+                state = 47
+            else:
+                break
+        if state == 47:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 47
+                return i
+            if char == 'i':
+                state = 48
+            elif 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'j' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'h':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 48:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 48
+                return i
+            if char == 'c':
+                state = 49
+            elif 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'd' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == 'a':
+                state = 10
+                continue
+            elif char == 'b':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 49:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 49
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'b' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'a':
+                state = 50
+            else:
+                break
+        if state == 50:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 50
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 's':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'u' <= char <= 'z':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 't':
+                state = 51
+            else:
+                break
+        if state == 51:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 51
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'f' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'd':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'e':
+                state = 52
+            else:
+                break
+        if state == 52:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 52
                 return i
             if 'A' <= char <= 'Z':
                 state = 10
@@ -1256,28 +1521,133 @@ def recognize(runner, i):
                 continue
             else:
                 break
-        if state == 64:
+        if state == 53:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 64
+                runner.state = 53
                 return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 54:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 54
+                return ~i
             if char == '=':
+                state = 63
+            else:
+                break
+        if state == 55:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 55
+                return ~i
+            if char == '.':
+                state = 62
+            else:
+                break
+        if state == 56:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 56
+                return ~i
+            if char == '=':
+                state = 61
+            else:
+                break
+        if state == 59:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 59
+                return ~i
+            if char == '=':
+                state = 60
+            else:
+                break
+        if state == 64:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 64
+                return ~i
+            if char == '>':
                 state = 66
             else:
                 break
         if state == 67:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
                 runner.state = 67
-                return ~i
-            if char == '<':
-                state = 71
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'n' <= char <= 'z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'l':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'm':
+                state = 68
+            else:
+                break
+        if state == 68:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 68
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
             else:
                 break
         if state == 69:
@@ -1289,32 +1659,251 @@ def recognize(runner, i):
             except IndexError:
                 runner.state = 69
                 return i
-            if char == '=':
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'n':
+                state = 10
+                continue
+            elif 'p' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'o':
                 state = 70
             else:
                 break
-        if state == 73:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 73
-                return ~i
-            if '0' <= char <= '9':
-                state = 74
-            else:
-                break
-        if state == 74:
+        if state == 70:
             runner.last_matched_index = i - 1
             runner.last_matched_state = state
             try:
                 char = input[i]
                 i += 1
             except IndexError:
-                runner.state = 74
+                runner.state = 70
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'd' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == 'a':
+                state = 10
+                continue
+            elif char == 'b':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'c':
+                state = 71
+            else:
+                break
+        if state == 71:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 71
+                return i
+            if char == 'k':
+                state = 72
+            elif 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'l' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 'a' <= char <= 'j':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 72:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 72
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 80:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 80
+                return ~i
+            if '+' <= char <= '\xff':
+                state = 80
+                continue
+            elif '\x00' <= char <= ')':
+                state = 80
+                continue
+            elif char == '*':
+                state = 83
+            else:
+                break
+        if state == 83:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 83
+                return ~i
+            if '0' <= char <= '\xff':
+                state = 80
+                continue
+            elif '\x00' <= char <= '.':
+                state = 80
+                continue
+            elif char == '/':
+                state = 1
+            else:
+                break
+        if state == 84:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 84
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'q':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif 's' <= char <= 'z':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            elif char == 'r':
+                state = 85
+            else:
+                break
+        if state == 85:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 85
+                return i
+            if 'A' <= char <= 'Z':
+                state = 10
+                continue
+            elif 'a' <= char <= 'z':
+                state = 10
+                continue
+            elif '0' <= char <= '9':
+                state = 10
+                continue
+            elif char == '_':
+                state = 10
+                continue
+            else:
+                break
+        if state == 87:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 87
+                return i
+            if char == '=':
+                state = 89
+            else:
+                break
+        if state == 90:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 90
+                return ~i
+            if char == '<':
+                state = 94
+            else:
+                break
+        if state == 92:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 92
+                return i
+            if char == '=':
+                state = 93
+            else:
+                break
+        if state == 96:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 96
+                return ~i
+            if '0' <= char <= '9':
+                state = 97
+            else:
+                break
+        if state == 97:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 97
                 return i
             if '0' <= char <= '9':
-                state = 74
+                state = 97
                 continue
             else:
                 break
@@ -1328,21 +1917,22 @@ def recognize(runner, i):
         break
     runner.state = state
     return ~i
-lexer = DummyLexer(recognize, DFA(75,
+lexer = DummyLexer(recognize, DFA(98,
  {(0, '\t'): 1,
   (0, '\n'): 1,
   (0, '\r'): 1,
   (0, ' '): 1,
-  (0, '!'): 26,
-  (0, '%'): 27,
+  (0, '!'): 29,
+  (0, '"'): 20,
+  (0, '%'): 30,
   (0, "'"): 13,
   (0, '('): 2,
-  (0, ')'): 28,
-  (0, '*'): 19,
+  (0, ')'): 31,
+  (0, '*'): 21,
   (0, '+'): 14,
   (0, ','): 3,
-  (0, '-'): 29,
-  (0, '.'): 20,
+  (0, '-'): 32,
+  (0, '.'): 22,
   (0, '/'): 15,
   (0, '0'): 4,
   (0, '1'): 5,
@@ -1354,11 +1944,11 @@ lexer = DummyLexer(recognize, DFA(75,
   (0, '7'): 5,
   (0, '8'): 5,
   (0, '9'): 5,
-  (0, ':'): 21,
+  (0, ':'): 23,
   (0, ';'): 16,
   (0, '<'): 6,
-  (0, '='): 30,
-  (0, '>'): 22,
+  (0, '='): 33,
+  (0, '>'): 24,
   (0, '?'): 17,
   (0, '@'): 7,
   (0, 'A'): 8,
@@ -1389,27 +1979,27 @@ lexer = DummyLexer(recognize, DFA(75,
   (0, 'Z'): 8,
   (0, '['): 18,
   (0, '\\'): 9,
-  (0, ']'): 31,
-  (0, '^'): 23,
+  (0, ']'): 34,
+  (0, '^'): 25,
   (0, '_'): 8,
   (0, 'a'): 10,
-  (0, 'b'): 10,
+  (0, 'b'): 26,
   (0, 'c'): 10,
   (0, 'd'): 10,
   (0, 'e'): 10,
   (0, 'f'): 10,
   (0, 'g'): 10,
   (0, 'h'): 10,
-  (0, 'i'): 32,
+  (0, 'i'): 35,
   (0, 'j'): 10,
   (0, 'k'): 10,
   (0, 'l'): 10,
-  (0, 'm'): 33,
+  (0, 'm'): 36,
   (0, 'n'): 10,
   (0, 'o'): 10,
   (0, 'p'): 10,
   (0, 'q'): 10,
-  (0, 'r'): 24,
+  (0, 'r'): 27,
   (0, 's'): 10,
   (0, 't'): 10,
   (0, 'u'): 10,
@@ -1418,10 +2008,12 @@ lexer = DummyLexer(recognize, DFA(75,
   (0, 'x'): 11,
   (0, 'y'): 10,
   (0, 'z'): 10,
+  (0, '{'): 19,
   (0, '|'): 12,
-  (0, '~'): 25,
-  (4, '.'): 73,
-  (5, '.'): 73,
+  (0, '}'): 37,
+  (0, '~'): 28,
+  (4, '.'): 96,
+  (5, '.'): 96,
   (5, '0'): 5,
   (5, '1'): 5,
   (5, '2'): 5,
@@ -1432,10 +2024,10 @@ lexer = DummyLexer(recognize, DFA(75,
   (5, '7'): 5,
   (5, '8'): 5,
   (5, '9'): 5,
-  (6, '<'): 72,
-  (7, '<'): 68,
-  (7, '='): 67,
-  (7, '>'): 69,
+  (6, '<'): 95,
+  (7, '<'): 91,
+  (7, '='): 90,
+  (7, '>'): 92,
   (8, '0'): 8,
   (8, '1'): 8,
   (8, '2'): 8,
@@ -1499,9 +2091,9 @@ lexer = DummyLexer(recognize, DFA(75,
   (8, 'x'): 8,
   (8, 'y'): 8,
   (8, 'z'): 8,
-  (9, '+'): 63,
-  (9, '/'): 65,
-  (9, '='): 64,
+  (9, '+'): 86,
+  (9, '/'): 88,
+  (9, '='): 87,
   (10, '0'): 10,
   (10, '1'): 10,
   (10, '2'): 10,
@@ -1616,7 +2208,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (11, 'l'): 10,
   (11, 'm'): 10,
   (11, 'n'): 10,
-  (11, 'o'): 61,
+  (11, 'o'): 84,
   (11, 'p'): 10,
   (11, 'q'): 10,
   (11, 'r'): 10,
@@ -1667,7 +2259,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (13, '$'): 13,
   (13, '%'): 13,
   (13, '&'): 13,
-  (13, "'"): 26,
+  (13, "'"): 29,
   (13, '('): 13,
   (13, ')'): 13,
   (13, '*'): 13,
@@ -1884,530 +2476,662 @@ lexer = DummyLexer(recognize, DFA(75,
   (13, '\xfd'): 13,
   (13, '\xfe'): 13,
   (13, '\xff'): 13,
-  (15, '*'): 57,
-  (15, '/'): 59,
-  (15, '\\'): 58,
-  (17, '-'): 56,
-  (18, ']'): 26,
-  (19, '*'): 55,
-  (21, '-'): 54,
-  (22, '='): 52,
-  (22, '>'): 53,
-  (24, '0'): 10,
-  (24, '1'): 10,
-  (24, '2'): 10,
-  (24, '3'): 10,
-  (24, '4'): 10,
-  (24, '5'): 10,
-  (24, '6'): 10,
-  (24, '7'): 10,
-  (24, '8'): 10,
-  (24, '9'): 10,
-  (24, 'A'): 10,
-  (24, 'B'): 10,
-  (24, 'C'): 10,
-  (24, 'D'): 10,
-  (24, 'E'): 10,
-  (24, 'F'): 10,
-  (24, 'G'): 10,
-  (24, 'H'): 10,
-  (24, 'I'): 10,
-  (24, 'J'): 10,
-  (24, 'K'): 10,
-  (24, 'L'): 10,
-  (24, 'M'): 10,
-  (24, 'N'): 10,
-  (24, 'O'): 10,
-  (24, 'P'): 10,
-  (24, 'Q'): 10,
-  (24, 'R'): 10,
-  (24, 'S'): 10,
-  (24, 'T'): 10,
-  (24, 'U'): 10,
-  (24, 'V'): 10,
-  (24, 'W'): 10,
-  (24, 'X'): 10,
-  (24, 'Y'): 10,
-  (24, 'Z'): 10,
-  (24, '_'): 10,
-  (24, 'a'): 10,
-  (24, 'b'): 10,
-  (24, 'c'): 10,
-  (24, 'd'): 10,
-  (24, 'e'): 50,
-  (24, 'f'): 10,
-  (24, 'g'): 10,
-  (24, 'h'): 10,
-  (24, 'i'): 10,
-  (24, 'j'): 10,
-  (24, 'k'): 10,
-  (24, 'l'): 10,
-  (24, 'm'): 10,
-  (24, 'n'): 10,
-  (24, 'o'): 10,
-  (24, 'p'): 10,
-  (24, 'q'): 10,
-  (24, 'r'): 10,
-  (24, 's'): 10,
-  (24, 't'): 10,
-  (24, 'u'): 10,
-  (24, 'v'): 10,
-  (24, 'w'): 10,
-  (24, 'x'): 10,
-  (24, 'y'): 10,
-  (24, 'z'): 10,
-  (27, '\x00'): 27,
-  (27, '\x01'): 27,
-  (27, '\x02'): 27,
-  (27, '\x03'): 27,
-  (27, '\x04'): 27,
-  (27, '\x05'): 27,
-  (27, '\x06'): 27,
-  (27, '\x07'): 27,
-  (27, '\x08'): 27,
-  (27, '\t'): 27,
-  (27, '\x0b'): 27,
-  (27, '\x0c'): 27,
-  (27, '\r'): 27,
-  (27, '\x0e'): 27,
-  (27, '\x0f'): 27,
-  (27, '\x10'): 27,
-  (27, '\x11'): 27,
-  (27, '\x12'): 27,
-  (27, '\x13'): 27,
-  (27, '\x14'): 27,
-  (27, '\x15'): 27,
-  (27, '\x16'): 27,
-  (27, '\x17'): 27,
-  (27, '\x18'): 27,
-  (27, '\x19'): 27,
-  (27, '\x1a'): 27,
-  (27, '\x1b'): 27,
-  (27, '\x1c'): 27,
-  (27, '\x1d'): 27,
-  (27, '\x1e'): 27,
-  (27, '\x1f'): 27,
-  (27, ' '): 27,
-  (27, '!'): 27,
-  (27, '"'): 27,
-  (27, '#'): 27,
-  (27, '$'): 27,
-  (27, '%'): 27,
-  (27, '&'): 27,
-  (27, "'"): 27,
-  (27, '('): 27,
-  (27, ')'): 27,
-  (27, '*'): 27,
-  (27, '+'): 27,
-  (27, ','): 27,
-  (27, '-'): 27,
-  (27, '.'): 27,
-  (27, '/'): 27,
-  (27, '0'): 27,
-  (27, '1'): 27,
-  (27, '2'): 27,
-  (27, '3'): 27,
-  (27, '4'): 27,
-  (27, '5'): 27,
-  (27, '6'): 27,
-  (27, '7'): 27,
-  (27, '8'): 27,
-  (27, '9'): 27,
-  (27, ':'): 27,
-  (27, ';'): 27,
-  (27, '<'): 27,
-  (27, '='): 27,
-  (27, '>'): 27,
-  (27, '?'): 27,
-  (27, '@'): 27,
-  (27, 'A'): 27,
-  (27, 'B'): 27,
-  (27, 'C'): 27,
-  (27, 'D'): 27,
-  (27, 'E'): 27,
-  (27, 'F'): 27,
-  (27, 'G'): 27,
-  (27, 'H'): 27,
-  (27, 'I'): 27,
-  (27, 'J'): 27,
-  (27, 'K'): 27,
-  (27, 'L'): 27,
-  (27, 'M'): 27,
-  (27, 'N'): 27,
-  (27, 'O'): 27,
-  (27, 'P'): 27,
-  (27, 'Q'): 27,
-  (27, 'R'): 27,
-  (27, 'S'): 27,
-  (27, 'T'): 27,
-  (27, 'U'): 27,
-  (27, 'V'): 27,
-  (27, 'W'): 27,
-  (27, 'X'): 27,
-  (27, 'Y'): 27,
-  (27, 'Z'): 27,
-  (27, '['): 27,
-  (27, '\\'): 27,
-  (27, ']'): 27,
-  (27, '^'): 27,
-  (27, '_'): 27,
-  (27, '`'): 27,
-  (27, 'a'): 27,
-  (27, 'b'): 27,
-  (27, 'c'): 27,
-  (27, 'd'): 27,
-  (27, 'e'): 27,
-  (27, 'f'): 27,
-  (27, 'g'): 27,
-  (27, 'h'): 27,
-  (27, 'i'): 27,
-  (27, 'j'): 27,
-  (27, 'k'): 27,
-  (27, 'l'): 27,
-  (27, 'm'): 27,
-  (27, 'n'): 27,
-  (27, 'o'): 27,
-  (27, 'p'): 27,
-  (27, 'q'): 27,
-  (27, 'r'): 27,
-  (27, 's'): 27,
-  (27, 't'): 27,
-  (27, 'u'): 27,
-  (27, 'v'): 27,
-  (27, 'w'): 27,
-  (27, 'x'): 27,
-  (27, 'y'): 27,
-  (27, 'z'): 27,
-  (27, '{'): 27,
-  (27, '|'): 27,
-  (27, '}'): 27,
-  (27, '~'): 27,
-  (27, '\x7f'): 27,
-  (27, '\x80'): 27,
-  (27, '\x81'): 27,
-  (27, '\x82'): 27,
-  (27, '\x83'): 27,
-  (27, '\x84'): 27,
-  (27, '\x85'): 27,
-  (27, '\x86'): 27,
-  (27, '\x87'): 27,
-  (27, '\x88'): 27,
-  (27, '\x89'): 27,
-  (27, '\x8a'): 27,
-  (27, '\x8b'): 27,
-  (27, '\x8c'): 27,
-  (27, '\x8d'): 27,
-  (27, '\x8e'): 27,
-  (27, '\x8f'): 27,
-  (27, '\x90'): 27,
-  (27, '\x91'): 27,
-  (27, '\x92'): 27,
-  (27, '\x93'): 27,
-  (27, '\x94'): 27,
-  (27, '\x95'): 27,
-  (27, '\x96'): 27,
-  (27, '\x97'): 27,
-  (27, '\x98'): 27,
-  (27, '\x99'): 27,
-  (27, '\x9a'): 27,
-  (27, '\x9b'): 27,
-  (27, '\x9c'): 27,
-  (27, '\x9d'): 27,
-  (27, '\x9e'): 27,
-  (27, '\x9f'): 27,
-  (27, '\xa0'): 27,
-  (27, '\xa1'): 27,
-  (27, '\xa2'): 27,
-  (27, '\xa3'): 27,
-  (27, '\xa4'): 27,
-  (27, '\xa5'): 27,
-  (27, '\xa6'): 27,
-  (27, '\xa7'): 27,
-  (27, '\xa8'): 27,
-  (27, '\xa9'): 27,
-  (27, '\xaa'): 27,
-  (27, '\xab'): 27,
-  (27, '\xac'): 27,
-  (27, '\xad'): 27,
-  (27, '\xae'): 27,
-  (27, '\xaf'): 27,
-  (27, '\xb0'): 27,
-  (27, '\xb1'): 27,
-  (27, '\xb2'): 27,
-  (27, '\xb3'): 27,
-  (27, '\xb4'): 27,
-  (27, '\xb5'): 27,
-  (27, '\xb6'): 27,
-  (27, '\xb7'): 27,
-  (27, '\xb8'): 27,
-  (27, '\xb9'): 27,
-  (27, '\xba'): 27,
-  (27, '\xbb'): 27,
-  (27, '\xbc'): 27,
-  (27, '\xbd'): 27,
-  (27, '\xbe'): 27,
-  (27, '\xbf'): 27,
-  (27, '\xc0'): 27,
-  (27, '\xc1'): 27,
-  (27, '\xc2'): 27,
-  (27, '\xc3'): 27,
-  (27, '\xc4'): 27,
-  (27, '\xc5'): 27,
-  (27, '\xc6'): 27,
-  (27, '\xc7'): 27,
-  (27, '\xc8'): 27,
-  (27, '\xc9'): 27,
-  (27, '\xca'): 27,
-  (27, '\xcb'): 27,
-  (27, '\xcc'): 27,
-  (27, '\xcd'): 27,
-  (27, '\xce'): 27,
-  (27, '\xcf'): 27,
-  (27, '\xd0'): 27,
-  (27, '\xd1'): 27,
-  (27, '\xd2'): 27,
-  (27, '\xd3'): 27,
-  (27, '\xd4'): 27,
-  (27, '\xd5'): 27,
-  (27, '\xd6'): 27,
-  (27, '\xd7'): 27,
-  (27, '\xd8'): 27,
-  (27, '\xd9'): 27,
-  (27, '\xda'): 27,
-  (27, '\xdb'): 27,
-  (27, '\xdc'): 27,
-  (27, '\xdd'): 27,
-  (27, '\xde'): 27,
-  (27, '\xdf'): 27,
-  (27, '\xe0'): 27,
-  (27, '\xe1'): 27,
-  (27, '\xe2'): 27,
-  (27, '\xe3'): 27,
-  (27, '\xe4'): 27,
-  (27, '\xe5'): 27,
-  (27, '\xe6'): 27,
-  (27, '\xe7'): 27,
-  (27, '\xe8'): 27,
-  (27, '\xe9'): 27,
-  (27, '\xea'): 27,
-  (27, '\xeb'): 27,
-  (27, '\xec'): 27,
-  (27, '\xed'): 27,
-  (27, '\xee'): 27,
-  (27, '\xef'): 27,
-  (27, '\xf0'): 27,
-  (27, '\xf1'): 27,
-  (27, '\xf2'): 27,
-  (27, '\xf3'): 27,
-  (27, '\xf4'): 27,
-  (27, '\xf5'): 27,
-  (27, '\xf6'): 27,
-  (27, '\xf7'): 27,
-  (27, '\xf8'): 27,
-  (27, '\xf9'): 27,
-  (27, '\xfa'): 27,
-  (27, '\xfb'): 27,
-  (27, '\xfc'): 27,
-  (27, '\xfd'): 27,
-  (27, '\xfe'): 27,
-  (27, '\xff'): 27,
-  (29, '-'): 47,
-  (29, '>'): 48,
-  (30, '.'): 40,
-  (30, ':'): 41,
-  (30, '<'): 38,
-  (30, '='): 39,
-  (30, '@'): 37,
-  (30, '\\'): 42,
-  (32, '0'): 10,
-  (32, '1'): 10,
-  (32, '2'): 10,
-  (32, '3'): 10,
-  (32, '4'): 10,
-  (32, '5'): 10,
-  (32, '6'): 10,
-  (32, '7'): 10,
-  (32, '8'): 10,
-  (32, '9'): 10,
-  (32, 'A'): 10,
-  (32, 'B'): 10,
-  (32, 'C'): 10,
-  (32, 'D'): 10,
-  (32, 'E'): 10,
-  (32, 'F'): 10,
-  (32, 'G'): 10,
-  (32, 'H'): 10,
-  (32, 'I'): 10,
-  (32, 'J'): 10,
-  (32, 'K'): 10,
-  (32, 'L'): 10,
-  (32, 'M'): 10,
-  (32, 'N'): 10,
-  (32, 'O'): 10,
-  (32, 'P'): 10,
-  (32, 'Q'): 10,
-  (32, 'R'): 10,
-  (32, 'S'): 10,
-  (32, 'T'): 10,
-  (32, 'U'): 10,
-  (32, 'V'): 10,
-  (32, 'W'): 10,
-  (32, 'X'): 10,
-  (32, 'Y'): 10,
-  (32, 'Z'): 10,
-  (32, '_'): 10,
-  (32, 'a'): 10,
-  (32, 'b'): 10,
-  (32, 'c'): 10,
-  (32, 'd'): 10,
-  (32, 'e'): 10,
-  (32, 'f'): 10,
-  (32, 'g'): 10,
-  (32, 'h'): 10,
-  (32, 'i'): 10,
-  (32, 'j'): 10,
-  (32, 'k'): 10,
-  (32, 'l'): 10,
-  (32, 'm'): 10,
-  (32, 'n'): 10,
-  (32, 'o'): 10,
-  (32, 'p'): 10,
-  (32, 'q'): 10,
-  (32, 'r'): 10,
-  (32, 's'): 36,
-  (32, 't'): 10,
-  (32, 'u'): 10,
-  (32, 'v'): 10,
-  (32, 'w'): 10,
-  (32, 'x'): 10,
-  (32, 'y'): 10,
-  (32, 'z'): 10,
-  (33, '0'): 10,
-  (33, '1'): 10,
-  (33, '2'): 10,
-  (33, '3'): 10,
-  (33, '4'): 10,
-  (33, '5'): 10,
-  (33, '6'): 10,
-  (33, '7'): 10,
-  (33, '8'): 10,
-  (33, '9'): 10,
-  (33, 'A'): 10,
-  (33, 'B'): 10,
-  (33, 'C'): 10,
-  (33, 'D'): 10,
-  (33, 'E'): 10,
-  (33, 'F'): 10,
-  (33, 'G'): 10,
-  (33, 'H'): 10,
-  (33, 'I'): 10,
-  (33, 'J'): 10,
-  (33, 'K'): 10,
-  (33, 'L'): 10,
-  (33, 'M'): 10,
-  (33, 'N'): 10,
-  (33, 'O'): 10,
-  (33, 'P'): 10,
-  (33, 'Q'): 10,
-  (33, 'R'): 10,
-  (33, 'S'): 10,
-  (33, 'T'): 10,
-  (33, 'U'): 10,
-  (33, 'V'): 10,
-  (33, 'W'): 10,
-  (33, 'X'): 10,
-  (33, 'Y'): 10,
-  (33, 'Z'): 10,
-  (33, '_'): 10,
-  (33, 'a'): 10,
-  (33, 'b'): 10,
-  (33, 'c'): 10,
-  (33, 'd'): 10,
-  (33, 'e'): 10,
-  (33, 'f'): 10,
-  (33, 'g'): 10,
-  (33, 'h'): 10,
-  (33, 'i'): 10,
-  (33, 'j'): 10,
-  (33, 'k'): 10,
-  (33, 'l'): 10,
-  (33, 'm'): 10,
-  (33, 'n'): 10,
-  (33, 'o'): 34,
-  (33, 'p'): 10,
-  (33, 'q'): 10,
-  (33, 'r'): 10,
-  (33, 's'): 10,
-  (33, 't'): 10,
-  (33, 'u'): 10,
-  (33, 'v'): 10,
-  (33, 'w'): 10,
-  (33, 'x'): 10,
-  (33, 'y'): 10,
-  (33, 'z'): 10,
-  (34, '0'): 10,
-  (34, '1'): 10,
-  (34, '2'): 10,
-  (34, '3'): 10,
-  (34, '4'): 10,
-  (34, '5'): 10,
-  (34, '6'): 10,
-  (34, '7'): 10,
-  (34, '8'): 10,
-  (34, '9'): 10,
-  (34, 'A'): 10,
-  (34, 'B'): 10,
-  (34, 'C'): 10,
-  (34, 'D'): 10,
-  (34, 'E'): 10,
-  (34, 'F'): 10,
-  (34, 'G'): 10,
-  (34, 'H'): 10,
-  (34, 'I'): 10,
-  (34, 'J'): 10,
-  (34, 'K'): 10,
-  (34, 'L'): 10,
-  (34, 'M'): 10,
-  (34, 'N'): 10,
-  (34, 'O'): 10,
-  (34, 'P'): 10,
-  (34, 'Q'): 10,
-  (34, 'R'): 10,
-  (34, 'S'): 10,
-  (34, 'T'): 10,
-  (34, 'U'): 10,
-  (34, 'V'): 10,
-  (34, 'W'): 10,
-  (34, 'X'): 10,
-  (34, 'Y'): 10,
-  (34, 'Z'): 10,
-  (34, '_'): 10,
-  (34, 'a'): 10,
-  (34, 'b'): 10,
-  (34, 'c'): 10,
-  (34, 'd'): 35,
-  (34, 'e'): 10,
-  (34, 'f'): 10,
-  (34, 'g'): 10,
-  (34, 'h'): 10,
-  (34, 'i'): 10,
-  (34, 'j'): 10,
-  (34, 'k'): 10,
-  (34, 'l'): 10,
-  (34, 'm'): 10,
-  (34, 'n'): 10,
-  (34, 'o'): 10,
-  (34, 'p'): 10,
-  (34, 'q'): 10,
-  (34, 'r'): 10,
-  (34, 's'): 10,
-  (34, 't'): 10,
-  (34, 'u'): 10,
-  (34, 'v'): 10,
-  (34, 'w'): 10,
-  (34, 'x'): 10,
-  (34, 'y'): 10,
-  (34, 'z'): 10,
+  (15, '*'): 80,
+  (15, '/'): 82,
+  (15, '\\'): 81,
+  (17, '-'): 79,
+  (17, '='): 78,
+  (18, ']'): 29,
+  (19, '}'): 29,
+  (20, '\x00'): 20,
+  (20, '\x01'): 20,
+  (20, '\x02'): 20,
+  (20, '\x03'): 20,
+  (20, '\x04'): 20,
+  (20, '\x05'): 20,
+  (20, '\x06'): 20,
+  (20, '\x07'): 20,
+  (20, '\x08'): 20,
+  (20, '\t'): 20,
+  (20, '\n'): 20,
+  (20, '\x0b'): 20,
+  (20, '\x0c'): 20,
+  (20, '\r'): 20,
+  (20, '\x0e'): 20,
+  (20, '\x0f'): 20,
+  (20, '\x10'): 20,
+  (20, '\x11'): 20,
+  (20, '\x12'): 20,
+  (20, '\x13'): 20,
+  (20, '\x14'): 20,
+  (20, '\x15'): 20,
+  (20, '\x16'): 20,
+  (20, '\x17'): 20,
+  (20, '\x18'): 20,
+  (20, '\x19'): 20,
+  (20, '\x1a'): 20,
+  (20, '\x1b'): 20,
+  (20, '\x1c'): 20,
+  (20, '\x1d'): 20,
+  (20, '\x1e'): 20,
+  (20, '\x1f'): 20,
+  (20, ' '): 20,
+  (20, '!'): 20,
+  (20, '"'): 77,
+  (20, '#'): 20,
+  (20, '$'): 20,
+  (20, '%'): 20,
+  (20, '&'): 20,
+  (20, "'"): 20,
+  (20, '('): 20,
+  (20, ')'): 20,
+  (20, '*'): 20,
+  (20, '+'): 20,
+  (20, ','): 20,
+  (20, '-'): 20,
+  (20, '.'): 20,
+  (20, '/'): 20,
+  (20, '0'): 20,
+  (20, '1'): 20,
+  (20, '2'): 20,
+  (20, '3'): 20,
+  (20, '4'): 20,
+  (20, '5'): 20,
+  (20, '6'): 20,
+  (20, '7'): 20,
+  (20, '8'): 20,
+  (20, '9'): 20,
+  (20, ':'): 20,
+  (20, ';'): 20,
+  (20, '<'): 20,
+  (20, '='): 20,
+  (20, '>'): 20,
+  (20, '?'): 20,
+  (20, '@'): 20,
+  (20, 'A'): 20,
+  (20, 'B'): 20,
+  (20, 'C'): 20,
+  (20, 'D'): 20,
+  (20, 'E'): 20,
+  (20, 'F'): 20,
+  (20, 'G'): 20,
+  (20, 'H'): 20,
+  (20, 'I'): 20,
+  (20, 'J'): 20,
+  (20, 'K'): 20,
+  (20, 'L'): 20,
+  (20, 'M'): 20,
+  (20, 'N'): 20,
+  (20, 'O'): 20,
+  (20, 'P'): 20,
+  (20, 'Q'): 20,
+  (20, 'R'): 20,
+  (20, 'S'): 20,
+  (20, 'T'): 20,
+  (20, 'U'): 20,
+  (20, 'V'): 20,
+  (20, 'W'): 20,
+  (20, 'X'): 20,
+  (20, 'Y'): 20,
+  (20, 'Z'): 20,
+  (20, '['): 20,
+  (20, '\\'): 20,
+  (20, ']'): 20,
+  (20, '^'): 20,
+  (20, '_'): 20,
+  (20, '`'): 20,
+  (20, 'a'): 20,
+  (20, 'b'): 20,
+  (20, 'c'): 20,
+  (20, 'd'): 20,
+  (20, 'e'): 20,
+  (20, 'f'): 20,
+  (20, 'g'): 20,
+  (20, 'h'): 20,
+  (20, 'i'): 20,
+  (20, 'j'): 20,
+  (20, 'k'): 20,
+  (20, 'l'): 20,
+  (20, 'm'): 20,
+  (20, 'n'): 20,
+  (20, 'o'): 20,
+  (20, 'p'): 20,
+  (20, 'q'): 20,
+  (20, 'r'): 20,
+  (20, 's'): 20,
+  (20, 't'): 20,
+  (20, 'u'): 20,
+  (20, 'v'): 20,
+  (20, 'w'): 20,
+  (20, 'x'): 20,
+  (20, 'y'): 20,
+  (20, 'z'): 20,
+  (20, '{'): 20,
+  (20, '|'): 20,
+  (20, '}'): 20,
+  (20, '~'): 20,
+  (20, '\x7f'): 20,
+  (20, '\x80'): 20,
+  (20, '\x81'): 20,
+  (20, '\x82'): 20,
+  (20, '\x83'): 20,
+  (20, '\x84'): 20,
+  (20, '\x85'): 20,
+  (20, '\x86'): 20,
+  (20, '\x87'): 20,
+  (20, '\x88'): 20,
+  (20, '\x89'): 20,
+  (20, '\x8a'): 20,
+  (20, '\x8b'): 20,
+  (20, '\x8c'): 20,
+  (20, '\x8d'): 20,
+  (20, '\x8e'): 20,
+  (20, '\x8f'): 20,
+  (20, '\x90'): 20,
+  (20, '\x91'): 20,
+  (20, '\x92'): 20,
+  (20, '\x93'): 20,
+  (20, '\x94'): 20,
+  (20, '\x95'): 20,
+  (20, '\x96'): 20,
+  (20, '\x97'): 20,
+  (20, '\x98'): 20,
+  (20, '\x99'): 20,
+  (20, '\x9a'): 20,
+  (20, '\x9b'): 20,
+  (20, '\x9c'): 20,
+  (20, '\x9d'): 20,
+  (20, '\x9e'): 20,
+  (20, '\x9f'): 20,
+  (20, '\xa0'): 20,
+  (20, '\xa1'): 20,
+  (20, '\xa2'): 20,
+  (20, '\xa3'): 20,
+  (20, '\xa4'): 20,
+  (20, '\xa5'): 20,
+  (20, '\xa6'): 20,
+  (20, '\xa7'): 20,
+  (20, '\xa8'): 20,
+  (20, '\xa9'): 20,
+  (20, '\xaa'): 20,
+  (20, '\xab'): 20,
+  (20, '\xac'): 20,
+  (20, '\xad'): 20,
+  (20, '\xae'): 20,
+  (20, '\xaf'): 20,
+  (20, '\xb0'): 20,
+  (20, '\xb1'): 20,
+  (20, '\xb2'): 20,
+  (20, '\xb3'): 20,
+  (20, '\xb4'): 20,
+  (20, '\xb5'): 20,
+  (20, '\xb6'): 20,
+  (20, '\xb7'): 20,
+  (20, '\xb8'): 20,
+  (20, '\xb9'): 20,
+  (20, '\xba'): 20,
+  (20, '\xbb'): 20,
+  (20, '\xbc'): 20,
+  (20, '\xbd'): 20,
+  (20, '\xbe'): 20,
+  (20, '\xbf'): 20,
+  (20, '\xc0'): 20,
+  (20, '\xc1'): 20,
+  (20, '\xc2'): 20,
+  (20, '\xc3'): 20,
+  (20, '\xc4'): 20,
+  (20, '\xc5'): 20,
+  (20, '\xc6'): 20,
+  (20, '\xc7'): 20,
+  (20, '\xc8'): 20,
+  (20, '\xc9'): 20,
+  (20, '\xca'): 20,
+  (20, '\xcb'): 20,
+  (20, '\xcc'): 20,
+  (20, '\xcd'): 20,
+  (20, '\xce'): 20,
+  (20, '\xcf'): 20,
+  (20, '\xd0'): 20,
+  (20, '\xd1'): 20,
+  (20, '\xd2'): 20,
+  (20, '\xd3'): 20,
+  (20, '\xd4'): 20,
+  (20, '\xd5'): 20,
+  (20, '\xd6'): 20,
+  (20, '\xd7'): 20,
+  (20, '\xd8'): 20,
+  (20, '\xd9'): 20,
+  (20, '\xda'): 20,
+  (20, '\xdb'): 20,
+  (20, '\xdc'): 20,
+  (20, '\xdd'): 20,
+  (20, '\xde'): 20,
+  (20, '\xdf'): 20,
+  (20, '\xe0'): 20,
+  (20, '\xe1'): 20,
+  (20, '\xe2'): 20,
+  (20, '\xe3'): 20,
+  (20, '\xe4'): 20,
+  (20, '\xe5'): 20,
+  (20, '\xe6'): 20,
+  (20, '\xe7'): 20,
+  (20, '\xe8'): 20,
+  (20, '\xe9'): 20,
+  (20, '\xea'): 20,
+  (20, '\xeb'): 20,
+  (20, '\xec'): 20,
+  (20, '\xed'): 20,
+  (20, '\xee'): 20,
+  (20, '\xef'): 20,
+  (20, '\xf0'): 20,
+  (20, '\xf1'): 20,
+  (20, '\xf2'): 20,
+  (20, '\xf3'): 20,
+  (20, '\xf4'): 20,
+  (20, '\xf5'): 20,
+  (20, '\xf6'): 20,
+  (20, '\xf7'): 20,
+  (20, '\xf8'): 20,
+  (20, '\xf9'): 20,
+  (20, '\xfa'): 20,
+  (20, '\xfb'): 20,
+  (20, '\xfc'): 20,
+  (20, '\xfd'): 20,
+  (20, '\xfe'): 20,
+  (20, '\xff'): 20,
+  (21, '*'): 76,
+  (23, '-'): 75,
+  (24, '='): 73,
+  (24, '>'): 74,
+  (26, '0'): 10,
+  (26, '1'): 10,
+  (26, '2'): 10,
+  (26, '3'): 10,
+  (26, '4'): 10,
+  (26, '5'): 10,
+  (26, '6'): 10,
+  (26, '7'): 10,
+  (26, '8'): 10,
+  (26, '9'): 10,
+  (26, 'A'): 10,
+  (26, 'B'): 10,
+  (26, 'C'): 10,
+  (26, 'D'): 10,
+  (26, 'E'): 10,
+  (26, 'F'): 10,
+  (26, 'G'): 10,
+  (26, 'H'): 10,
+  (26, 'I'): 10,
+  (26, 'J'): 10,
+  (26, 'K'): 10,
+  (26, 'L'): 10,
+  (26, 'M'): 10,
+  (26, 'N'): 10,
+  (26, 'O'): 10,
+  (26, 'P'): 10,
+  (26, 'Q'): 10,
+  (26, 'R'): 10,
+  (26, 'S'): 10,
+  (26, 'T'): 10,
+  (26, 'U'): 10,
+  (26, 'V'): 10,
+  (26, 'W'): 10,
+  (26, 'X'): 10,
+  (26, 'Y'): 10,
+  (26, 'Z'): 10,
+  (26, '_'): 10,
+  (26, 'a'): 10,
+  (26, 'b'): 10,
+  (26, 'c'): 10,
+  (26, 'd'): 10,
+  (26, 'e'): 10,
+  (26, 'f'): 10,
+  (26, 'g'): 10,
+  (26, 'h'): 10,
+  (26, 'i'): 10,
+  (26, 'j'): 10,
+  (26, 'k'): 10,
+  (26, 'l'): 69,
+  (26, 'm'): 10,
+  (26, 'n'): 10,
+  (26, 'o'): 10,
+  (26, 'p'): 10,
+  (26, 'q'): 10,
+  (26, 'r'): 10,
+  (26, 's'): 10,
+  (26, 't'): 10,
+  (26, 'u'): 10,
+  (26, 'v'): 10,
+  (26, 'w'): 10,
+  (26, 'x'): 10,
+  (26, 'y'): 10,
+  (26, 'z'): 10,
+  (27, '0'): 10,
+  (27, '1'): 10,
+  (27, '2'): 10,
+  (27, '3'): 10,
+  (27, '4'): 10,
+  (27, '5'): 10,
+  (27, '6'): 10,
+  (27, '7'): 10,
+  (27, '8'): 10,
+  (27, '9'): 10,
+  (27, 'A'): 10,
+  (27, 'B'): 10,
+  (27, 'C'): 10,
+  (27, 'D'): 10,
+  (27, 'E'): 10,
+  (27, 'F'): 10,
+  (27, 'G'): 10,
+  (27, 'H'): 10,
+  (27, 'I'): 10,
+  (27, 'J'): 10,
+  (27, 'K'): 10,
+  (27, 'L'): 10,
+  (27, 'M'): 10,
+  (27, 'N'): 10,
+  (27, 'O'): 10,
+  (27, 'P'): 10,
+  (27, 'Q'): 10,
+  (27, 'R'): 10,
+  (27, 'S'): 10,
+  (27, 'T'): 10,
+  (27, 'U'): 10,
+  (27, 'V'): 10,
+  (27, 'W'): 10,
+  (27, 'X'): 10,
+  (27, 'Y'): 10,
+  (27, 'Z'): 10,
+  (27, '_'): 10,
+  (27, 'a'): 10,
+  (27, 'b'): 10,
+  (27, 'c'): 10,
+  (27, 'd'): 10,
+  (27, 'e'): 67,
+  (27, 'f'): 10,
+  (27, 'g'): 10,
+  (27, 'h'): 10,
+  (27, 'i'): 10,
+  (27, 'j'): 10,
+  (27, 'k'): 10,
+  (27, 'l'): 10,
+  (27, 'm'): 10,
+  (27, 'n'): 10,
+  (27, 'o'): 10,
+  (27, 'p'): 10,
+  (27, 'q'): 10,
+  (27, 'r'): 10,
+  (27, 's'): 10,
+  (27, 't'): 10,
+  (27, 'u'): 10,
+  (27, 'v'): 10,
+  (27, 'w'): 10,
+  (27, 'x'): 10,
+  (27, 'y'): 10,
+  (27, 'z'): 10,
+  (30, '\x00'): 30,
+  (30, '\x01'): 30,
+  (30, '\x02'): 30,
+  (30, '\x03'): 30,
+  (30, '\x04'): 30,
+  (30, '\x05'): 30,
+  (30, '\x06'): 30,
+  (30, '\x07'): 30,
+  (30, '\x08'): 30,
+  (30, '\t'): 30,
+  (30, '\x0b'): 30,
+  (30, '\x0c'): 30,
+  (30, '\r'): 30,
+  (30, '\x0e'): 30,
+  (30, '\x0f'): 30,
+  (30, '\x10'): 30,
+  (30, '\x11'): 30,
+  (30, '\x12'): 30,
+  (30, '\x13'): 30,
+  (30, '\x14'): 30,
+  (30, '\x15'): 30,
+  (30, '\x16'): 30,
+  (30, '\x17'): 30,
+  (30, '\x18'): 30,
+  (30, '\x19'): 30,
+  (30, '\x1a'): 30,
+  (30, '\x1b'): 30,
+  (30, '\x1c'): 30,
+  (30, '\x1d'): 30,
+  (30, '\x1e'): 30,
+  (30, '\x1f'): 30,
+  (30, ' '): 30,
+  (30, '!'): 30,
+  (30, '"'): 30,
+  (30, '#'): 30,
+  (30, '$'): 30,
+  (30, '%'): 30,
+  (30, '&'): 30,
+  (30, "'"): 30,
+  (30, '('): 30,
+  (30, ')'): 30,
+  (30, '*'): 30,
+  (30, '+'): 30,
+  (30, ','): 30,
+  (30, '-'): 30,
+  (30, '.'): 30,
+  (30, '/'): 30,
+  (30, '0'): 30,
+  (30, '1'): 30,
+  (30, '2'): 30,
+  (30, '3'): 30,
+  (30, '4'): 30,
+  (30, '5'): 30,
+  (30, '6'): 30,
+  (30, '7'): 30,
+  (30, '8'): 30,
+  (30, '9'): 30,
+  (30, ':'): 30,
+  (30, ';'): 30,
+  (30, '<'): 30,
+  (30, '='): 30,
+  (30, '>'): 30,
+  (30, '?'): 30,
+  (30, '@'): 30,
+  (30, 'A'): 30,
+  (30, 'B'): 30,
+  (30, 'C'): 30,
+  (30, 'D'): 30,
+  (30, 'E'): 30,
+  (30, 'F'): 30,
+  (30, 'G'): 30,
+  (30, 'H'): 30,
+  (30, 'I'): 30,
+  (30, 'J'): 30,
+  (30, 'K'): 30,
+  (30, 'L'): 30,
+  (30, 'M'): 30,
+  (30, 'N'): 30,
+  (30, 'O'): 30,
+  (30, 'P'): 30,
+  (30, 'Q'): 30,
+  (30, 'R'): 30,
+  (30, 'S'): 30,
+  (30, 'T'): 30,
+  (30, 'U'): 30,
+  (30, 'V'): 30,
+  (30, 'W'): 30,
+  (30, 'X'): 30,
+  (30, 'Y'): 30,
+  (30, 'Z'): 30,
+  (30, '['): 30,
+  (30, '\\'): 30,
+  (30, ']'): 30,
+  (30, '^'): 30,
+  (30, '_'): 30,
+  (30, '`'): 30,
+  (30, 'a'): 30,
+  (30, 'b'): 30,
+  (30, 'c'): 30,
+  (30, 'd'): 30,
+  (30, 'e'): 30,
+  (30, 'f'): 30,
+  (30, 'g'): 30,
+  (30, 'h'): 30,
+  (30, 'i'): 30,
+  (30, 'j'): 30,
+  (30, 'k'): 30,
+  (30, 'l'): 30,
+  (30, 'm'): 30,
+  (30, 'n'): 30,
+  (30, 'o'): 30,
+  (30, 'p'): 30,
+  (30, 'q'): 30,
+  (30, 'r'): 30,
+  (30, 's'): 30,
+  (30, 't'): 30,
+  (30, 'u'): 30,
+  (30, 'v'): 30,
+  (30, 'w'): 30,
+  (30, 'x'): 30,
+  (30, 'y'): 30,
+  (30, 'z'): 30,
+  (30, '{'): 30,
+  (30, '|'): 30,
+  (30, '}'): 30,
+  (30, '~'): 30,
+  (30, '\x7f'): 30,
+  (30, '\x80'): 30,
+  (30, '\x81'): 30,
+  (30, '\x82'): 30,
+  (30, '\x83'): 30,
+  (30, '\x84'): 30,
+  (30, '\x85'): 30,
+  (30, '\x86'): 30,
+  (30, '\x87'): 30,
+  (30, '\x88'): 30,
+  (30, '\x89'): 30,
+  (30, '\x8a'): 30,
+  (30, '\x8b'): 30,
+  (30, '\x8c'): 30,
+  (30, '\x8d'): 30,
+  (30, '\x8e'): 30,
+  (30, '\x8f'): 30,
+  (30, '\x90'): 30,
+  (30, '\x91'): 30,
+  (30, '\x92'): 30,
+  (30, '\x93'): 30,
+  (30, '\x94'): 30,
+  (30, '\x95'): 30,
+  (30, '\x96'): 30,
+  (30, '\x97'): 30,
+  (30, '\x98'): 30,
+  (30, '\x99'): 30,
+  (30, '\x9a'): 30,
+  (30, '\x9b'): 30,
+  (30, '\x9c'): 30,
+  (30, '\x9d'): 30,
+  (30, '\x9e'): 30,
+  (30, '\x9f'): 30,
+  (30, '\xa0'): 30,
+  (30, '\xa1'): 30,
+  (30, '\xa2'): 30,
+  (30, '\xa3'): 30,
+  (30, '\xa4'): 30,
+  (30, '\xa5'): 30,
+  (30, '\xa6'): 30,
+  (30, '\xa7'): 30,
+  (30, '\xa8'): 30,
+  (30, '\xa9'): 30,
+  (30, '\xaa'): 30,
+  (30, '\xab'): 30,
+  (30, '\xac'): 30,
+  (30, '\xad'): 30,
+  (30, '\xae'): 30,
+  (30, '\xaf'): 30,
+  (30, '\xb0'): 30,
+  (30, '\xb1'): 30,
+  (30, '\xb2'): 30,
+  (30, '\xb3'): 30,
+  (30, '\xb4'): 30,
+  (30, '\xb5'): 30,
+  (30, '\xb6'): 30,
+  (30, '\xb7'): 30,
+  (30, '\xb8'): 30,
+  (30, '\xb9'): 30,
+  (30, '\xba'): 30,
+  (30, '\xbb'): 30,
+  (30, '\xbc'): 30,
+  (30, '\xbd'): 30,
+  (30, '\xbe'): 30,
+  (30, '\xbf'): 30,
+  (30, '\xc0'): 30,
+  (30, '\xc1'): 30,
+  (30, '\xc2'): 30,
+  (30, '\xc3'): 30,
+  (30, '\xc4'): 30,
+  (30, '\xc5'): 30,
+  (30, '\xc6'): 30,
+  (30, '\xc7'): 30,
+  (30, '\xc8'): 30,
+  (30, '\xc9'): 30,
+  (30, '\xca'): 30,
+  (30, '\xcb'): 30,
+  (30, '\xcc'): 30,
+  (30, '\xcd'): 30,
+  (30, '\xce'): 30,
+  (30, '\xcf'): 30,
+  (30, '\xd0'): 30,
+  (30, '\xd1'): 30,
+  (30, '\xd2'): 30,
+  (30, '\xd3'): 30,
+  (30, '\xd4'): 30,
+  (30, '\xd5'): 30,
+  (30, '\xd6'): 30,
+  (30, '\xd7'): 30,
+  (30, '\xd8'): 30,
+  (30, '\xd9'): 30,
+  (30, '\xda'): 30,
+  (30, '\xdb'): 30,
+  (30, '\xdc'): 30,
+  (30, '\xdd'): 30,
+  (30, '\xde'): 30,
+  (30, '\xdf'): 30,
+  (30, '\xe0'): 30,
+  (30, '\xe1'): 30,
+  (30, '\xe2'): 30,
+  (30, '\xe3'): 30,
+  (30, '\xe4'): 30,
+  (30, '\xe5'): 30,
+  (30, '\xe6'): 30,
+  (30, '\xe7'): 30,
+  (30, '\xe8'): 30,
+  (30, '\xe9'): 30,
+  (30, '\xea'): 30,
+  (30, '\xeb'): 30,
+  (30, '\xec'): 30,
+  (30, '\xed'): 30,
+  (30, '\xee'): 30,
+  (30, '\xef'): 30,
+  (30, '\xf0'): 30,
+  (30, '\xf1'): 30,
+  (30, '\xf2'): 30,
+  (30, '\xf3'): 30,
+  (30, '\xf4'): 30,
+  (30, '\xf5'): 30,
+  (30, '\xf6'): 30,
+  (30, '\xf7'): 30,
+  (30, '\xf8'): 30,
+  (30, '\xf9'): 30,
+  (30, '\xfa'): 30,
+  (30, '\xfb'): 30,
+  (30, '\xfc'): 30,
+  (30, '\xfd'): 30,
+  (30, '\xfe'): 30,
+  (30, '\xff'): 30,
+  (32, '-'): 64,
+  (32, '>'): 65,
+  (33, '.'): 55,
+  (33, ':'): 56,
+  (33, '<'): 58,
+  (33, '='): 57,
+  (33, '@'): 54,
+  (33, '\\'): 59,
   (35, '0'): 10,
   (35, '1'): 10,
   (35, '2'): 10,
@@ -2463,7 +3187,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (35, 'p'): 10,
   (35, 'q'): 10,
   (35, 'r'): 10,
-  (35, 's'): 10,
+  (35, 's'): 53,
   (35, 't'): 10,
   (35, 'u'): 10,
   (35, 'v'): 10,
@@ -2512,7 +3236,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (36, 'b'): 10,
   (36, 'c'): 10,
   (36, 'd'): 10,
-  (36, 'e'): 10,
+  (36, 'e'): 38,
   (36, 'f'): 10,
   (36, 'g'): 10,
   (36, 'h'): 10,
@@ -2522,7 +3246,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (36, 'l'): 10,
   (36, 'm'): 10,
   (36, 'n'): 10,
-  (36, 'o'): 10,
+  (36, 'o'): 39,
   (36, 'p'): 10,
   (36, 'q'): 10,
   (36, 'r'): 10,
@@ -2534,11 +3258,762 @@ lexer = DummyLexer(recognize, DFA(75,
   (36, 'x'): 10,
   (36, 'y'): 10,
   (36, 'z'): 10,
-  (37, '='): 46,
-  (40, '.'): 45,
-  (41, '='): 44,
-  (42, '='): 43,
-  (47, '>'): 49,
+  (38, '0'): 10,
+  (38, '1'): 10,
+  (38, '2'): 10,
+  (38, '3'): 10,
+  (38, '4'): 10,
+  (38, '5'): 10,
+  (38, '6'): 10,
+  (38, '7'): 10,
+  (38, '8'): 10,
+  (38, '9'): 10,
+  (38, 'A'): 10,
+  (38, 'B'): 10,
+  (38, 'C'): 10,
+  (38, 'D'): 10,
+  (38, 'E'): 10,
+  (38, 'F'): 10,
+  (38, 'G'): 10,
+  (38, 'H'): 10,
+  (38, 'I'): 10,
+  (38, 'J'): 10,
+  (38, 'K'): 10,
+  (38, 'L'): 10,
+  (38, 'M'): 10,
+  (38, 'N'): 10,
+  (38, 'O'): 10,
+  (38, 'P'): 10,
+  (38, 'Q'): 10,
+  (38, 'R'): 10,
+  (38, 'S'): 10,
+  (38, 'T'): 10,
+  (38, 'U'): 10,
+  (38, 'V'): 10,
+  (38, 'W'): 10,
+  (38, 'X'): 10,
+  (38, 'Y'): 10,
+  (38, 'Z'): 10,
+  (38, '_'): 10,
+  (38, 'a'): 10,
+  (38, 'b'): 10,
+  (38, 'c'): 10,
+  (38, 'd'): 10,
+  (38, 'e'): 10,
+  (38, 'f'): 10,
+  (38, 'g'): 10,
+  (38, 'h'): 10,
+  (38, 'i'): 10,
+  (38, 'j'): 10,
+  (38, 'k'): 10,
+  (38, 'l'): 10,
+  (38, 'm'): 10,
+  (38, 'n'): 10,
+  (38, 'o'): 10,
+  (38, 'p'): 10,
+  (38, 'q'): 10,
+  (38, 'r'): 10,
+  (38, 's'): 10,
+  (38, 't'): 41,
+  (38, 'u'): 10,
+  (38, 'v'): 10,
+  (38, 'w'): 10,
+  (38, 'x'): 10,
+  (38, 'y'): 10,
+  (38, 'z'): 10,
+  (39, '0'): 10,
+  (39, '1'): 10,
+  (39, '2'): 10,
+  (39, '3'): 10,
+  (39, '4'): 10,
+  (39, '5'): 10,
+  (39, '6'): 10,
+  (39, '7'): 10,
+  (39, '8'): 10,
+  (39, '9'): 10,
+  (39, 'A'): 10,
+  (39, 'B'): 10,
+  (39, 'C'): 10,
+  (39, 'D'): 10,
+  (39, 'E'): 10,
+  (39, 'F'): 10,
+  (39, 'G'): 10,
+  (39, 'H'): 10,
+  (39, 'I'): 10,
+  (39, 'J'): 10,
+  (39, 'K'): 10,
+  (39, 'L'): 10,
+  (39, 'M'): 10,
+  (39, 'N'): 10,
+  (39, 'O'): 10,
+  (39, 'P'): 10,
+  (39, 'Q'): 10,
+  (39, 'R'): 10,
+  (39, 'S'): 10,
+  (39, 'T'): 10,
+  (39, 'U'): 10,
+  (39, 'V'): 10,
+  (39, 'W'): 10,
+  (39, 'X'): 10,
+  (39, 'Y'): 10,
+  (39, 'Z'): 10,
+  (39, '_'): 10,
+  (39, 'a'): 10,
+  (39, 'b'): 10,
+  (39, 'c'): 10,
+  (39, 'd'): 40,
+  (39, 'e'): 10,
+  (39, 'f'): 10,
+  (39, 'g'): 10,
+  (39, 'h'): 10,
+  (39, 'i'): 10,
+  (39, 'j'): 10,
+  (39, 'k'): 10,
+  (39, 'l'): 10,
+  (39, 'm'): 10,
+  (39, 'n'): 10,
+  (39, 'o'): 10,
+  (39, 'p'): 10,
+  (39, 'q'): 10,
+  (39, 'r'): 10,
+  (39, 's'): 10,
+  (39, 't'): 10,
+  (39, 'u'): 10,
+  (39, 'v'): 10,
+  (39, 'w'): 10,
+  (39, 'x'): 10,
+  (39, 'y'): 10,
+  (39, 'z'): 10,
+  (40, '0'): 10,
+  (40, '1'): 10,
+  (40, '2'): 10,
+  (40, '3'): 10,
+  (40, '4'): 10,
+  (40, '5'): 10,
+  (40, '6'): 10,
+  (40, '7'): 10,
+  (40, '8'): 10,
+  (40, '9'): 10,
+  (40, 'A'): 10,
+  (40, 'B'): 10,
+  (40, 'C'): 10,
+  (40, 'D'): 10,
+  (40, 'E'): 10,
+  (40, 'F'): 10,
+  (40, 'G'): 10,
+  (40, 'H'): 10,
+  (40, 'I'): 10,
+  (40, 'J'): 10,
+  (40, 'K'): 10,
+  (40, 'L'): 10,
+  (40, 'M'): 10,
+  (40, 'N'): 10,
+  (40, 'O'): 10,
+  (40, 'P'): 10,
+  (40, 'Q'): 10,
+  (40, 'R'): 10,
+  (40, 'S'): 10,
+  (40, 'T'): 10,
+  (40, 'U'): 10,
+  (40, 'V'): 10,
+  (40, 'W'): 10,
+  (40, 'X'): 10,
+  (40, 'Y'): 10,
+  (40, 'Z'): 10,
+  (40, '_'): 10,
+  (40, 'a'): 10,
+  (40, 'b'): 10,
+  (40, 'c'): 10,
+  (40, 'd'): 10,
+  (40, 'e'): 10,
+  (40, 'f'): 10,
+  (40, 'g'): 10,
+  (40, 'h'): 10,
+  (40, 'i'): 10,
+  (40, 'j'): 10,
+  (40, 'k'): 10,
+  (40, 'l'): 10,
+  (40, 'm'): 10,
+  (40, 'n'): 10,
+  (40, 'o'): 10,
+  (40, 'p'): 10,
+  (40, 'q'): 10,
+  (40, 'r'): 10,
+  (40, 's'): 10,
+  (40, 't'): 10,
+  (40, 'u'): 10,
+  (40, 'v'): 10,
+  (40, 'w'): 10,
+  (40, 'x'): 10,
+  (40, 'y'): 10,
+  (40, 'z'): 10,
+  (41, '0'): 10,
+  (41, '1'): 10,
+  (41, '2'): 10,
+  (41, '3'): 10,
+  (41, '4'): 10,
+  (41, '5'): 10,
+  (41, '6'): 10,
+  (41, '7'): 10,
+  (41, '8'): 10,
+  (41, '9'): 10,
+  (41, 'A'): 10,
+  (41, 'B'): 10,
+  (41, 'C'): 10,
+  (41, 'D'): 10,
+  (41, 'E'): 10,
+  (41, 'F'): 10,
+  (41, 'G'): 10,
+  (41, 'H'): 10,
+  (41, 'I'): 10,
+  (41, 'J'): 10,
+  (41, 'K'): 10,
+  (41, 'L'): 10,
+  (41, 'M'): 10,
+  (41, 'N'): 10,
+  (41, 'O'): 10,
+  (41, 'P'): 10,
+  (41, 'Q'): 10,
+  (41, 'R'): 10,
+  (41, 'S'): 10,
+  (41, 'T'): 10,
+  (41, 'U'): 10,
+  (41, 'V'): 10,
+  (41, 'W'): 10,
+  (41, 'X'): 10,
+  (41, 'Y'): 10,
+  (41, 'Z'): 10,
+  (41, '_'): 10,
+  (41, 'a'): 42,
+  (41, 'b'): 10,
+  (41, 'c'): 10,
+  (41, 'd'): 10,
+  (41, 'e'): 10,
+  (41, 'f'): 10,
+  (41, 'g'): 10,
+  (41, 'h'): 10,
+  (41, 'i'): 10,
+  (41, 'j'): 10,
+  (41, 'k'): 10,
+  (41, 'l'): 10,
+  (41, 'm'): 10,
+  (41, 'n'): 10,
+  (41, 'o'): 10,
+  (41, 'p'): 10,
+  (41, 'q'): 10,
+  (41, 'r'): 10,
+  (41, 's'): 10,
+  (41, 't'): 10,
+  (41, 'u'): 10,
+  (41, 'v'): 10,
+  (41, 'w'): 10,
+  (41, 'x'): 10,
+  (41, 'y'): 10,
+  (41, 'z'): 10,
+  (42, '0'): 10,
+  (42, '1'): 10,
+  (42, '2'): 10,
+  (42, '3'): 10,
+  (42, '4'): 10,
+  (42, '5'): 10,
+  (42, '6'): 10,
+  (42, '7'): 10,
+  (42, '8'): 10,
+  (42, '9'): 10,
+  (42, 'A'): 10,
+  (42, 'B'): 10,
+  (42, 'C'): 10,
+  (42, 'D'): 10,
+  (42, 'E'): 10,
+  (42, 'F'): 10,
+  (42, 'G'): 10,
+  (42, 'H'): 10,
+  (42, 'I'): 10,
+  (42, 'J'): 10,
+  (42, 'K'): 10,
+  (42, 'L'): 10,
+  (42, 'M'): 10,
+  (42, 'N'): 10,
+  (42, 'O'): 10,
+  (42, 'P'): 10,
+  (42, 'Q'): 10,
+  (42, 'R'): 10,
+  (42, 'S'): 10,
+  (42, 'T'): 10,
+  (42, 'U'): 10,
+  (42, 'V'): 10,
+  (42, 'W'): 10,
+  (42, 'X'): 10,
+  (42, 'Y'): 10,
+  (42, 'Z'): 10,
+  (42, '_'): 43,
+  (42, 'a'): 10,
+  (42, 'b'): 10,
+  (42, 'c'): 10,
+  (42, 'd'): 10,
+  (42, 'e'): 10,
+  (42, 'f'): 10,
+  (42, 'g'): 10,
+  (42, 'h'): 10,
+  (42, 'i'): 10,
+  (42, 'j'): 10,
+  (42, 'k'): 10,
+  (42, 'l'): 10,
+  (42, 'm'): 10,
+  (42, 'n'): 10,
+  (42, 'o'): 10,
+  (42, 'p'): 10,
+  (42, 'q'): 10,
+  (42, 'r'): 10,
+  (42, 's'): 10,
+  (42, 't'): 10,
+  (42, 'u'): 10,
+  (42, 'v'): 10,
+  (42, 'w'): 10,
+  (42, 'x'): 10,
+  (42, 'y'): 10,
+  (42, 'z'): 10,
+  (43, '0'): 10,
+  (43, '1'): 10,
+  (43, '2'): 10,
+  (43, '3'): 10,
+  (43, '4'): 10,
+  (43, '5'): 10,
+  (43, '6'): 10,
+  (43, '7'): 10,
+  (43, '8'): 10,
+  (43, '9'): 10,
+  (43, 'A'): 10,
+  (43, 'B'): 10,
+  (43, 'C'): 10,
+  (43, 'D'): 10,
+  (43, 'E'): 10,
+  (43, 'F'): 10,
+  (43, 'G'): 10,
+  (43, 'H'): 10,
+  (43, 'I'): 10,
+  (43, 'J'): 10,
+  (43, 'K'): 10,
+  (43, 'L'): 10,
+  (43, 'M'): 10,
+  (43, 'N'): 10,
+  (43, 'O'): 10,
+  (43, 'P'): 10,
+  (43, 'Q'): 10,
+  (43, 'R'): 10,
+  (43, 'S'): 10,
+  (43, 'T'): 10,
+  (43, 'U'): 10,
+  (43, 'V'): 10,
+  (43, 'W'): 10,
+  (43, 'X'): 10,
+  (43, 'Y'): 10,
+  (43, 'Z'): 10,
+  (43, '_'): 10,
+  (43, 'a'): 10,
+  (43, 'b'): 10,
+  (43, 'c'): 10,
+  (43, 'd'): 10,
+  (43, 'e'): 10,
+  (43, 'f'): 10,
+  (43, 'g'): 10,
+  (43, 'h'): 10,
+  (43, 'i'): 10,
+  (43, 'j'): 10,
+  (43, 'k'): 10,
+  (43, 'l'): 10,
+  (43, 'm'): 10,
+  (43, 'n'): 10,
+  (43, 'o'): 10,
+  (43, 'p'): 44,
+  (43, 'q'): 10,
+  (43, 'r'): 10,
+  (43, 's'): 10,
+  (43, 't'): 10,
+  (43, 'u'): 10,
+  (43, 'v'): 10,
+  (43, 'w'): 10,
+  (43, 'x'): 10,
+  (43, 'y'): 10,
+  (43, 'z'): 10,
+  (44, '0'): 10,
+  (44, '1'): 10,
+  (44, '2'): 10,
+  (44, '3'): 10,
+  (44, '4'): 10,
+  (44, '5'): 10,
+  (44, '6'): 10,
+  (44, '7'): 10,
+  (44, '8'): 10,
+  (44, '9'): 10,
+  (44, 'A'): 10,
+  (44, 'B'): 10,
+  (44, 'C'): 10,
+  (44, 'D'): 10,
+  (44, 'E'): 10,
+  (44, 'F'): 10,
+  (44, 'G'): 10,
+  (44, 'H'): 10,
+  (44, 'I'): 10,
+  (44, 'J'): 10,
+  (44, 'K'): 10,
+  (44, 'L'): 10,
+  (44, 'M'): 10,
+  (44, 'N'): 10,
+  (44, 'O'): 10,
+  (44, 'P'): 10,
+  (44, 'Q'): 10,
+  (44, 'R'): 10,
+  (44, 'S'): 10,
+  (44, 'T'): 10,
+  (44, 'U'): 10,
+  (44, 'V'): 10,
+  (44, 'W'): 10,
+  (44, 'X'): 10,
+  (44, 'Y'): 10,
+  (44, 'Z'): 10,
+  (44, '_'): 10,
+  (44, 'a'): 10,
+  (44, 'b'): 10,
+  (44, 'c'): 10,
+  (44, 'd'): 10,
+  (44, 'e'): 10,
+  (44, 'f'): 10,
+  (44, 'g'): 10,
+  (44, 'h'): 10,
+  (44, 'i'): 10,
+  (44, 'j'): 10,
+  (44, 'k'): 10,
+  (44, 'l'): 10,
+  (44, 'm'): 10,
+  (44, 'n'): 10,
+  (44, 'o'): 10,
+  (44, 'p'): 10,
+  (44, 'q'): 10,
+  (44, 'r'): 45,
+  (44, 's'): 10,
+  (44, 't'): 10,
+  (44, 'u'): 10,
+  (44, 'v'): 10,
+  (44, 'w'): 10,
+  (44, 'x'): 10,
+  (44, 'y'): 10,
+  (44, 'z'): 10,
+  (45, '0'): 10,
+  (45, '1'): 10,
+  (45, '2'): 10,
+  (45, '3'): 10,
+  (45, '4'): 10,
+  (45, '5'): 10,
+  (45, '6'): 10,
+  (45, '7'): 10,
+  (45, '8'): 10,
+  (45, '9'): 10,
+  (45, 'A'): 10,
+  (45, 'B'): 10,
+  (45, 'C'): 10,
+  (45, 'D'): 10,
+  (45, 'E'): 10,
+  (45, 'F'): 10,
+  (45, 'G'): 10,
+  (45, 'H'): 10,
+  (45, 'I'): 10,
+  (45, 'J'): 10,
+  (45, 'K'): 10,
+  (45, 'L'): 10,
+  (45, 'M'): 10,
+  (45, 'N'): 10,
+  (45, 'O'): 10,
+  (45, 'P'): 10,
+  (45, 'Q'): 10,
+  (45, 'R'): 10,
+  (45, 'S'): 10,
+  (45, 'T'): 10,
+  (45, 'U'): 10,
+  (45, 'V'): 10,
+  (45, 'W'): 10,
+  (45, 'X'): 10,
+  (45, 'Y'): 10,
+  (45, 'Z'): 10,
+  (45, '_'): 10,
+  (45, 'a'): 10,
+  (45, 'b'): 10,
+  (45, 'c'): 10,
+  (45, 'd'): 10,
+  (45, 'e'): 46,
+  (45, 'f'): 10,
+  (45, 'g'): 10,
+  (45, 'h'): 10,
+  (45, 'i'): 10,
+  (45, 'j'): 10,
+  (45, 'k'): 10,
+  (45, 'l'): 10,
+  (45, 'm'): 10,
+  (45, 'n'): 10,
+  (45, 'o'): 10,
+  (45, 'p'): 10,
+  (45, 'q'): 10,
+  (45, 'r'): 10,
+  (45, 's'): 10,
+  (45, 't'): 10,
+  (45, 'u'): 10,
+  (45, 'v'): 10,
+  (45, 'w'): 10,
+  (45, 'x'): 10,
+  (45, 'y'): 10,
+  (45, 'z'): 10,
+  (46, '0'): 10,
+  (46, '1'): 10,
+  (46, '2'): 10,
+  (46, '3'): 10,
+  (46, '4'): 10,
+  (46, '5'): 10,
+  (46, '6'): 10,
+  (46, '7'): 10,
+  (46, '8'): 10,
+  (46, '9'): 10,
+  (46, 'A'): 10,
+  (46, 'B'): 10,
+  (46, 'C'): 10,
+  (46, 'D'): 10,
+  (46, 'E'): 10,
+  (46, 'F'): 10,
+  (46, 'G'): 10,
+  (46, 'H'): 10,
+  (46, 'I'): 10,
+  (46, 'J'): 10,
+  (46, 'K'): 10,
+  (46, 'L'): 10,
+  (46, 'M'): 10,
+  (46, 'N'): 10,
+  (46, 'O'): 10,
+  (46, 'P'): 10,
+  (46, 'Q'): 10,
+  (46, 'R'): 10,
+  (46, 'S'): 10,
+  (46, 'T'): 10,
+  (46, 'U'): 10,
+  (46, 'V'): 10,
+  (46, 'W'): 10,
+  (46, 'X'): 10,
+  (46, 'Y'): 10,
+  (46, 'Z'): 10,
+  (46, '_'): 10,
+  (46, 'a'): 10,
+  (46, 'b'): 10,
+  (46, 'c'): 10,
+  (46, 'd'): 47,
+  (46, 'e'): 10,
+  (46, 'f'): 10,
+  (46, 'g'): 10,
+  (46, 'h'): 10,
+  (46, 'i'): 10,
+  (46, 'j'): 10,
+  (46, 'k'): 10,
+  (46, 'l'): 10,
+  (46, 'm'): 10,
+  (46, 'n'): 10,
+  (46, 'o'): 10,
+  (46, 'p'): 10,
+  (46, 'q'): 10,
+  (46, 'r'): 10,
+  (46, 's'): 10,
+  (46, 't'): 10,
+  (46, 'u'): 10,
+  (46, 'v'): 10,
+  (46, 'w'): 10,
+  (46, 'x'): 10,
+  (46, 'y'): 10,
+  (46, 'z'): 10,
+  (47, '0'): 10,
+  (47, '1'): 10,
+  (47, '2'): 10,
+  (47, '3'): 10,
+  (47, '4'): 10,
+  (47, '5'): 10,
+  (47, '6'): 10,
+  (47, '7'): 10,
+  (47, '8'): 10,
+  (47, '9'): 10,
+  (47, 'A'): 10,
+  (47, 'B'): 10,
+  (47, 'C'): 10,
+  (47, 'D'): 10,
+  (47, 'E'): 10,
+  (47, 'F'): 10,
+  (47, 'G'): 10,
+  (47, 'H'): 10,
+  (47, 'I'): 10,
+  (47, 'J'): 10,
+  (47, 'K'): 10,
+  (47, 'L'): 10,
+  (47, 'M'): 10,
+  (47, 'N'): 10,
+  (47, 'O'): 10,
+  (47, 'P'): 10,
+  (47, 'Q'): 10,
+  (47, 'R'): 10,
+  (47, 'S'): 10,
+  (47, 'T'): 10,
+  (47, 'U'): 10,
+  (47, 'V'): 10,
+  (47, 'W'): 10,
+  (47, 'X'): 10,
+  (47, 'Y'): 10,
+  (47, 'Z'): 10,
+  (47, '_'): 10,
+  (47, 'a'): 10,
+  (47, 'b'): 10,
+  (47, 'c'): 10,
+  (47, 'd'): 10,
+  (47, 'e'): 10,
+  (47, 'f'): 10,
+  (47, 'g'): 10,
+  (47, 'h'): 10,
+  (47, 'i'): 48,
+  (47, 'j'): 10,
+  (47, 'k'): 10,
+  (47, 'l'): 10,
+  (47, 'm'): 10,
+  (47, 'n'): 10,
+  (47, 'o'): 10,
+  (47, 'p'): 10,
+  (47, 'q'): 10,
+  (47, 'r'): 10,
+  (47, 's'): 10,
+  (47, 't'): 10,
+  (47, 'u'): 10,
+  (47, 'v'): 10,
+  (47, 'w'): 10,
+  (47, 'x'): 10,
+  (47, 'y'): 10,
+  (47, 'z'): 10,
+  (48, '0'): 10,
+  (48, '1'): 10,
+  (48, '2'): 10,
+  (48, '3'): 10,
+  (48, '4'): 10,
+  (48, '5'): 10,
+  (48, '6'): 10,
+  (48, '7'): 10,
+  (48, '8'): 10,
+  (48, '9'): 10,
+  (48, 'A'): 10,
+  (48, 'B'): 10,
+  (48, 'C'): 10,
+  (48, 'D'): 10,
+  (48, 'E'): 10,
+  (48, 'F'): 10,
+  (48, 'G'): 10,
+  (48, 'H'): 10,
+  (48, 'I'): 10,
+  (48, 'J'): 10,
+  (48, 'K'): 10,
+  (48, 'L'): 10,
+  (48, 'M'): 10,
+  (48, 'N'): 10,
+  (48, 'O'): 10,
+  (48, 'P'): 10,
+  (48, 'Q'): 10,
+  (48, 'R'): 10,
+  (48, 'S'): 10,
+  (48, 'T'): 10,
+  (48, 'U'): 10,
+  (48, 'V'): 10,
+  (48, 'W'): 10,
+  (48, 'X'): 10,
+  (48, 'Y'): 10,
+  (48, 'Z'): 10,
+  (48, '_'): 10,
+  (48, 'a'): 10,
+  (48, 'b'): 10,
+  (48, 'c'): 49,
+  (48, 'd'): 10,
+  (48, 'e'): 10,
+  (48, 'f'): 10,
+  (48, 'g'): 10,
+  (48, 'h'): 10,
+  (48, 'i'): 10,
+  (48, 'j'): 10,
+  (48, 'k'): 10,
+  (48, 'l'): 10,
+  (48, 'm'): 10,
+  (48, 'n'): 10,
+  (48, 'o'): 10,
+  (48, 'p'): 10,
+  (48, 'q'): 10,
+  (48, 'r'): 10,
+  (48, 's'): 10,
+  (48, 't'): 10,
+  (48, 'u'): 10,
+  (48, 'v'): 10,
+  (48, 'w'): 10,
+  (48, 'x'): 10,
+  (48, 'y'): 10,
+  (48, 'z'): 10,
+  (49, '0'): 10,
+  (49, '1'): 10,
+  (49, '2'): 10,
+  (49, '3'): 10,
+  (49, '4'): 10,
+  (49, '5'): 10,
+  (49, '6'): 10,
+  (49, '7'): 10,
+  (49, '8'): 10,
+  (49, '9'): 10,
+  (49, 'A'): 10,
+  (49, 'B'): 10,
+  (49, 'C'): 10,
+  (49, 'D'): 10,
+  (49, 'E'): 10,
+  (49, 'F'): 10,
+  (49, 'G'): 10,
+  (49, 'H'): 10,
+  (49, 'I'): 10,
+  (49, 'J'): 10,
+  (49, 'K'): 10,
+  (49, 'L'): 10,
+  (49, 'M'): 10,
+  (49, 'N'): 10,
+  (49, 'O'): 10,
+  (49, 'P'): 10,
+  (49, 'Q'): 10,
+  (49, 'R'): 10,
+  (49, 'S'): 10,
+  (49, 'T'): 10,
+  (49, 'U'): 10,
+  (49, 'V'): 10,
+  (49, 'W'): 10,
+  (49, 'X'): 10,
+  (49, 'Y'): 10,
+  (49, 'Z'): 10,
+  (49, '_'): 10,
+  (49, 'a'): 50,
+  (49, 'b'): 10,
+  (49, 'c'): 10,
+  (49, 'd'): 10,
+  (49, 'e'): 10,
+  (49, 'f'): 10,
+  (49, 'g'): 10,
+  (49, 'h'): 10,
+  (49, 'i'): 10,
+  (49, 'j'): 10,
+  (49, 'k'): 10,
+  (49, 'l'): 10,
+  (49, 'm'): 10,
+  (49, 'n'): 10,
+  (49, 'o'): 10,
+  (49, 'p'): 10,
+  (49, 'q'): 10,
+  (49, 'r'): 10,
+  (49, 's'): 10,
+  (49, 't'): 10,
+  (49, 'u'): 10,
+  (49, 'v'): 10,
+  (49, 'w'): 10,
+  (49, 'x'): 10,
+  (49, 'y'): 10,
+  (49, 'z'): 10,
   (50, '0'): 10,
   (50, '1'): 10,
   (50, '2'): 10,
@@ -2588,14 +4063,14 @@ lexer = DummyLexer(recognize, DFA(75,
   (50, 'j'): 10,
   (50, 'k'): 10,
   (50, 'l'): 10,
-  (50, 'm'): 51,
+  (50, 'm'): 10,
   (50, 'n'): 10,
   (50, 'o'): 10,
   (50, 'p'): 10,
   (50, 'q'): 10,
   (50, 'r'): 10,
   (50, 's'): 10,
-  (50, 't'): 10,
+  (50, 't'): 51,
   (50, 'u'): 10,
   (50, 'v'): 10,
   (50, 'w'): 10,
@@ -2643,7 +4118,7 @@ lexer = DummyLexer(recognize, DFA(75,
   (51, 'b'): 10,
   (51, 'c'): 10,
   (51, 'd'): 10,
-  (51, 'e'): 10,
+  (51, 'e'): 52,
   (51, 'f'): 10,
   (51, 'g'): 10,
   (51, 'h'): 10,
@@ -2665,667 +4140,1176 @@ lexer = DummyLexer(recognize, DFA(75,
   (51, 'x'): 10,
   (51, 'y'): 10,
   (51, 'z'): 10,
-  (57, '\x00'): 57,
-  (57, '\x01'): 57,
-  (57, '\x02'): 57,
-  (57, '\x03'): 57,
-  (57, '\x04'): 57,
-  (57, '\x05'): 57,
-  (57, '\x06'): 57,
-  (57, '\x07'): 57,
-  (57, '\x08'): 57,
-  (57, '\t'): 57,
-  (57, '\n'): 57,
-  (57, '\x0b'): 57,
-  (57, '\x0c'): 57,
-  (57, '\r'): 57,
-  (57, '\x0e'): 57,
-  (57, '\x0f'): 57,
-  (57, '\x10'): 57,
-  (57, '\x11'): 57,
-  (57, '\x12'): 57,
-  (57, '\x13'): 57,
-  (57, '\x14'): 57,
-  (57, '\x15'): 57,
-  (57, '\x16'): 57,
-  (57, '\x17'): 57,
-  (57, '\x18'): 57,
-  (57, '\x19'): 57,
-  (57, '\x1a'): 57,
-  (57, '\x1b'): 57,
-  (57, '\x1c'): 57,
-  (57, '\x1d'): 57,
-  (57, '\x1e'): 57,
-  (57, '\x1f'): 57,
-  (57, ' '): 57,
-  (57, '!'): 57,
-  (57, '"'): 57,
-  (57, '#'): 57,
-  (57, '$'): 57,
-  (57, '%'): 57,
-  (57, '&'): 57,
-  (57, "'"): 57,
-  (57, '('): 57,
-  (57, ')'): 57,
-  (57, '*'): 60,
-  (57, '+'): 57,
-  (57, ','): 57,
-  (57, '-'): 57,
-  (57, '.'): 57,
-  (57, '/'): 57,
-  (57, '0'): 57,
-  (57, '1'): 57,
-  (57, '2'): 57,
-  (57, '3'): 57,
-  (57, '4'): 57,
-  (57, '5'): 57,
-  (57, '6'): 57,
-  (57, '7'): 57,
-  (57, '8'): 57,
-  (57, '9'): 57,
-  (57, ':'): 57,
-  (57, ';'): 57,
-  (57, '<'): 57,
-  (57, '='): 57,
-  (57, '>'): 57,
-  (57, '?'): 57,
-  (57, '@'): 57,
-  (57, 'A'): 57,
-  (57, 'B'): 57,
-  (57, 'C'): 57,
-  (57, 'D'): 57,
-  (57, 'E'): 57,
-  (57, 'F'): 57,
-  (57, 'G'): 57,
-  (57, 'H'): 57,
-  (57, 'I'): 57,
-  (57, 'J'): 57,
-  (57, 'K'): 57,
-  (57, 'L'): 57,
-  (57, 'M'): 57,
-  (57, 'N'): 57,
-  (57, 'O'): 57,
-  (57, 'P'): 57,
-  (57, 'Q'): 57,
-  (57, 'R'): 57,
-  (57, 'S'): 57,
-  (57, 'T'): 57,
-  (57, 'U'): 57,
-  (57, 'V'): 57,
-  (57, 'W'): 57,
-  (57, 'X'): 57,
-  (57, 'Y'): 57,
-  (57, 'Z'): 57,
-  (57, '['): 57,
-  (57, '\\'): 57,
-  (57, ']'): 57,
-  (57, '^'): 57,
-  (57, '_'): 57,
-  (57, '`'): 57,
-  (57, 'a'): 57,
-  (57, 'b'): 57,
-  (57, 'c'): 57,
-  (57, 'd'): 57,
-  (57, 'e'): 57,
-  (57, 'f'): 57,
-  (57, 'g'): 57,
-  (57, 'h'): 57,
-  (57, 'i'): 57,
-  (57, 'j'): 57,
-  (57, 'k'): 57,
-  (57, 'l'): 57,
-  (57, 'm'): 57,
-  (57, 'n'): 57,
-  (57, 'o'): 57,
-  (57, 'p'): 57,
-  (57, 'q'): 57,
-  (57, 'r'): 57,
-  (57, 's'): 57,
-  (57, 't'): 57,
-  (57, 'u'): 57,
-  (57, 'v'): 57,
-  (57, 'w'): 57,
-  (57, 'x'): 57,
-  (57, 'y'): 57,
-  (57, 'z'): 57,
-  (57, '{'): 57,
-  (57, '|'): 57,
-  (57, '}'): 57,
-  (57, '~'): 57,
-  (57, '\x7f'): 57,
-  (57, '\x80'): 57,
-  (57, '\x81'): 57,
-  (57, '\x82'): 57,
-  (57, '\x83'): 57,
-  (57, '\x84'): 57,
-  (57, '\x85'): 57,
-  (57, '\x86'): 57,
-  (57, '\x87'): 57,
-  (57, '\x88'): 57,
-  (57, '\x89'): 57,
-  (57, '\x8a'): 57,
-  (57, '\x8b'): 57,
-  (57, '\x8c'): 57,
-  (57, '\x8d'): 57,
-  (57, '\x8e'): 57,
-  (57, '\x8f'): 57,
-  (57, '\x90'): 57,
-  (57, '\x91'): 57,
-  (57, '\x92'): 57,
-  (57, '\x93'): 57,
-  (57, '\x94'): 57,
-  (57, '\x95'): 57,
-  (57, '\x96'): 57,
-  (57, '\x97'): 57,
-  (57, '\x98'): 57,
-  (57, '\x99'): 57,
-  (57, '\x9a'): 57,
-  (57, '\x9b'): 57,
-  (57, '\x9c'): 57,
-  (57, '\x9d'): 57,
-  (57, '\x9e'): 57,
-  (57, '\x9f'): 57,
-  (57, '\xa0'): 57,
-  (57, '\xa1'): 57,
-  (57, '\xa2'): 57,
-  (57, '\xa3'): 57,
-  (57, '\xa4'): 57,
-  (57, '\xa5'): 57,
-  (57, '\xa6'): 57,
-  (57, '\xa7'): 57,
-  (57, '\xa8'): 57,
-  (57, '\xa9'): 57,
-  (57, '\xaa'): 57,
-  (57, '\xab'): 57,
-  (57, '\xac'): 57,
-  (57, '\xad'): 57,
-  (57, '\xae'): 57,
-  (57, '\xaf'): 57,
-  (57, '\xb0'): 57,
-  (57, '\xb1'): 57,
-  (57, '\xb2'): 57,
-  (57, '\xb3'): 57,
-  (57, '\xb4'): 57,
-  (57, '\xb5'): 57,
-  (57, '\xb6'): 57,
-  (57, '\xb7'): 57,
-  (57, '\xb8'): 57,
-  (57, '\xb9'): 57,
-  (57, '\xba'): 57,
-  (57, '\xbb'): 57,
-  (57, '\xbc'): 57,
-  (57, '\xbd'): 57,
-  (57, '\xbe'): 57,
-  (57, '\xbf'): 57,
-  (57, '\xc0'): 57,
-  (57, '\xc1'): 57,
-  (57, '\xc2'): 57,
-  (57, '\xc3'): 57,
-  (57, '\xc4'): 57,
-  (57, '\xc5'): 57,
-  (57, '\xc6'): 57,
-  (57, '\xc7'): 57,
-  (57, '\xc8'): 57,
-  (57, '\xc9'): 57,
-  (57, '\xca'): 57,
-  (57, '\xcb'): 57,
-  (57, '\xcc'): 57,
-  (57, '\xcd'): 57,
-  (57, '\xce'): 57,
-  (57, '\xcf'): 57,
-  (57, '\xd0'): 57,
-  (57, '\xd1'): 57,
-  (57, '\xd2'): 57,
-  (57, '\xd3'): 57,
-  (57, '\xd4'): 57,
-  (57, '\xd5'): 57,
-  (57, '\xd6'): 57,
-  (57, '\xd7'): 57,
-  (57, '\xd8'): 57,
-  (57, '\xd9'): 57,
-  (57, '\xda'): 57,
-  (57, '\xdb'): 57,
-  (57, '\xdc'): 57,
-  (57, '\xdd'): 57,
-  (57, '\xde'): 57,
-  (57, '\xdf'): 57,
-  (57, '\xe0'): 57,
-  (57, '\xe1'): 57,
-  (57, '\xe2'): 57,
-  (57, '\xe3'): 57,
-  (57, '\xe4'): 57,
-  (57, '\xe5'): 57,
-  (57, '\xe6'): 57,
-  (57, '\xe7'): 57,
-  (57, '\xe8'): 57,
-  (57, '\xe9'): 57,
-  (57, '\xea'): 57,
-  (57, '\xeb'): 57,
-  (57, '\xec'): 57,
-  (57, '\xed'): 57,
-  (57, '\xee'): 57,
-  (57, '\xef'): 57,
-  (57, '\xf0'): 57,
-  (57, '\xf1'): 57,
-  (57, '\xf2'): 57,
-  (57, '\xf3'): 57,
-  (57, '\xf4'): 57,
-  (57, '\xf5'): 57,
-  (57, '\xf6'): 57,
-  (57, '\xf7'): 57,
-  (57, '\xf8'): 57,
-  (57, '\xf9'): 57,
-  (57, '\xfa'): 57,
-  (57, '\xfb'): 57,
-  (57, '\xfc'): 57,
-  (57, '\xfd'): 57,
-  (57, '\xfe'): 57,
-  (57, '\xff'): 57,
-  (60, '\x00'): 57,
-  (60, '\x01'): 57,
-  (60, '\x02'): 57,
-  (60, '\x03'): 57,
-  (60, '\x04'): 57,
-  (60, '\x05'): 57,
-  (60, '\x06'): 57,
-  (60, '\x07'): 57,
-  (60, '\x08'): 57,
-  (60, '\t'): 57,
-  (60, '\n'): 57,
-  (60, '\x0b'): 57,
-  (60, '\x0c'): 57,
-  (60, '\r'): 57,
-  (60, '\x0e'): 57,
-  (60, '\x0f'): 57,
-  (60, '\x10'): 57,
-  (60, '\x11'): 57,
-  (60, '\x12'): 57,
-  (60, '\x13'): 57,
-  (60, '\x14'): 57,
-  (60, '\x15'): 57,
-  (60, '\x16'): 57,
-  (60, '\x17'): 57,
-  (60, '\x18'): 57,
-  (60, '\x19'): 57,
-  (60, '\x1a'): 57,
-  (60, '\x1b'): 57,
-  (60, '\x1c'): 57,
-  (60, '\x1d'): 57,
-  (60, '\x1e'): 57,
-  (60, '\x1f'): 57,
-  (60, ' '): 57,
-  (60, '!'): 57,
-  (60, '"'): 57,
-  (60, '#'): 57,
-  (60, '$'): 57,
-  (60, '%'): 57,
-  (60, '&'): 57,
-  (60, "'"): 57,
-  (60, '('): 57,
-  (60, ')'): 57,
-  (60, '*'): 57,
-  (60, '+'): 57,
-  (60, ','): 57,
-  (60, '-'): 57,
-  (60, '.'): 57,
-  (60, '/'): 1,
-  (60, '0'): 57,
-  (60, '1'): 57,
-  (60, '2'): 57,
-  (60, '3'): 57,
-  (60, '4'): 57,
-  (60, '5'): 57,
-  (60, '6'): 57,
-  (60, '7'): 57,
-  (60, '8'): 57,
-  (60, '9'): 57,
-  (60, ':'): 57,
-  (60, ';'): 57,
-  (60, '<'): 57,
-  (60, '='): 57,
-  (60, '>'): 57,
-  (60, '?'): 57,
-  (60, '@'): 57,
-  (60, 'A'): 57,
-  (60, 'B'): 57,
-  (60, 'C'): 57,
-  (60, 'D'): 57,
-  (60, 'E'): 57,
-  (60, 'F'): 57,
-  (60, 'G'): 57,
-  (60, 'H'): 57,
-  (60, 'I'): 57,
-  (60, 'J'): 57,
-  (60, 'K'): 57,
-  (60, 'L'): 57,
-  (60, 'M'): 57,
-  (60, 'N'): 57,
-  (60, 'O'): 57,
-  (60, 'P'): 57,
-  (60, 'Q'): 57,
-  (60, 'R'): 57,
-  (60, 'S'): 57,
-  (60, 'T'): 57,
-  (60, 'U'): 57,
-  (60, 'V'): 57,
-  (60, 'W'): 57,
-  (60, 'X'): 57,
-  (60, 'Y'): 57,
-  (60, 'Z'): 57,
-  (60, '['): 57,
-  (60, '\\'): 57,
-  (60, ']'): 57,
-  (60, '^'): 57,
-  (60, '_'): 57,
-  (60, '`'): 57,
-  (60, 'a'): 57,
-  (60, 'b'): 57,
-  (60, 'c'): 57,
-  (60, 'd'): 57,
-  (60, 'e'): 57,
-  (60, 'f'): 57,
-  (60, 'g'): 57,
-  (60, 'h'): 57,
-  (60, 'i'): 57,
-  (60, 'j'): 57,
-  (60, 'k'): 57,
-  (60, 'l'): 57,
-  (60, 'm'): 57,
-  (60, 'n'): 57,
-  (60, 'o'): 57,
-  (60, 'p'): 57,
-  (60, 'q'): 57,
-  (60, 'r'): 57,
-  (60, 's'): 57,
-  (60, 't'): 57,
-  (60, 'u'): 57,
-  (60, 'v'): 57,
-  (60, 'w'): 57,
-  (60, 'x'): 57,
-  (60, 'y'): 57,
-  (60, 'z'): 57,
-  (60, '{'): 57,
-  (60, '|'): 57,
-  (60, '}'): 57,
-  (60, '~'): 57,
-  (60, '\x7f'): 57,
-  (60, '\x80'): 57,
-  (60, '\x81'): 57,
-  (60, '\x82'): 57,
-  (60, '\x83'): 57,
-  (60, '\x84'): 57,
-  (60, '\x85'): 57,
-  (60, '\x86'): 57,
-  (60, '\x87'): 57,
-  (60, '\x88'): 57,
-  (60, '\x89'): 57,
-  (60, '\x8a'): 57,
-  (60, '\x8b'): 57,
-  (60, '\x8c'): 57,
-  (60, '\x8d'): 57,
-  (60, '\x8e'): 57,
-  (60, '\x8f'): 57,
-  (60, '\x90'): 57,
-  (60, '\x91'): 57,
-  (60, '\x92'): 57,
-  (60, '\x93'): 57,
-  (60, '\x94'): 57,
-  (60, '\x95'): 57,
-  (60, '\x96'): 57,
-  (60, '\x97'): 57,
-  (60, '\x98'): 57,
-  (60, '\x99'): 57,
-  (60, '\x9a'): 57,
-  (60, '\x9b'): 57,
-  (60, '\x9c'): 57,
-  (60, '\x9d'): 57,
-  (60, '\x9e'): 57,
-  (60, '\x9f'): 57,
-  (60, '\xa0'): 57,
-  (60, '\xa1'): 57,
-  (60, '\xa2'): 57,
-  (60, '\xa3'): 57,
-  (60, '\xa4'): 57,
-  (60, '\xa5'): 57,
-  (60, '\xa6'): 57,
-  (60, '\xa7'): 57,
-  (60, '\xa8'): 57,
-  (60, '\xa9'): 57,
-  (60, '\xaa'): 57,
-  (60, '\xab'): 57,
-  (60, '\xac'): 57,
-  (60, '\xad'): 57,
-  (60, '\xae'): 57,
-  (60, '\xaf'): 57,
-  (60, '\xb0'): 57,
-  (60, '\xb1'): 57,
-  (60, '\xb2'): 57,
-  (60, '\xb3'): 57,
-  (60, '\xb4'): 57,
-  (60, '\xb5'): 57,
-  (60, '\xb6'): 57,
-  (60, '\xb7'): 57,
-  (60, '\xb8'): 57,
-  (60, '\xb9'): 57,
-  (60, '\xba'): 57,
-  (60, '\xbb'): 57,
-  (60, '\xbc'): 57,
-  (60, '\xbd'): 57,
-  (60, '\xbe'): 57,
-  (60, '\xbf'): 57,
-  (60, '\xc0'): 57,
-  (60, '\xc1'): 57,
-  (60, '\xc2'): 57,
-  (60, '\xc3'): 57,
-  (60, '\xc4'): 57,
-  (60, '\xc5'): 57,
-  (60, '\xc6'): 57,
-  (60, '\xc7'): 57,
-  (60, '\xc8'): 57,
-  (60, '\xc9'): 57,
-  (60, '\xca'): 57,
-  (60, '\xcb'): 57,
-  (60, '\xcc'): 57,
-  (60, '\xcd'): 57,
-  (60, '\xce'): 57,
-  (60, '\xcf'): 57,
-  (60, '\xd0'): 57,
-  (60, '\xd1'): 57,
-  (60, '\xd2'): 57,
-  (60, '\xd3'): 57,
-  (60, '\xd4'): 57,
-  (60, '\xd5'): 57,
-  (60, '\xd6'): 57,
-  (60, '\xd7'): 57,
-  (60, '\xd8'): 57,
-  (60, '\xd9'): 57,
-  (60, '\xda'): 57,
-  (60, '\xdb'): 57,
-  (60, '\xdc'): 57,
-  (60, '\xdd'): 57,
-  (60, '\xde'): 57,
-  (60, '\xdf'): 57,
-  (60, '\xe0'): 57,
-  (60, '\xe1'): 57,
-  (60, '\xe2'): 57,
-  (60, '\xe3'): 57,
-  (60, '\xe4'): 57,
-  (60, '\xe5'): 57,
-  (60, '\xe6'): 57,
-  (60, '\xe7'): 57,
-  (60, '\xe8'): 57,
-  (60, '\xe9'): 57,
-  (60, '\xea'): 57,
-  (60, '\xeb'): 57,
-  (60, '\xec'): 57,
-  (60, '\xed'): 57,
-  (60, '\xee'): 57,
-  (60, '\xef'): 57,
-  (60, '\xf0'): 57,
-  (60, '\xf1'): 57,
-  (60, '\xf2'): 57,
-  (60, '\xf3'): 57,
-  (60, '\xf4'): 57,
-  (60, '\xf5'): 57,
-  (60, '\xf6'): 57,
-  (60, '\xf7'): 57,
-  (60, '\xf8'): 57,
-  (60, '\xf9'): 57,
-  (60, '\xfa'): 57,
-  (60, '\xfb'): 57,
-  (60, '\xfc'): 57,
-  (60, '\xfd'): 57,
-  (60, '\xfe'): 57,
-  (60, '\xff'): 57,
-  (61, '0'): 10,
-  (61, '1'): 10,
-  (61, '2'): 10,
-  (61, '3'): 10,
-  (61, '4'): 10,
-  (61, '5'): 10,
-  (61, '6'): 10,
-  (61, '7'): 10,
-  (61, '8'): 10,
-  (61, '9'): 10,
-  (61, 'A'): 10,
-  (61, 'B'): 10,
-  (61, 'C'): 10,
-  (61, 'D'): 10,
-  (61, 'E'): 10,
-  (61, 'F'): 10,
-  (61, 'G'): 10,
-  (61, 'H'): 10,
-  (61, 'I'): 10,
-  (61, 'J'): 10,
-  (61, 'K'): 10,
-  (61, 'L'): 10,
-  (61, 'M'): 10,
-  (61, 'N'): 10,
-  (61, 'O'): 10,
-  (61, 'P'): 10,
-  (61, 'Q'): 10,
-  (61, 'R'): 10,
-  (61, 'S'): 10,
-  (61, 'T'): 10,
-  (61, 'U'): 10,
-  (61, 'V'): 10,
-  (61, 'W'): 10,
-  (61, 'X'): 10,
-  (61, 'Y'): 10,
-  (61, 'Z'): 10,
-  (61, '_'): 10,
-  (61, 'a'): 10,
-  (61, 'b'): 10,
-  (61, 'c'): 10,
-  (61, 'd'): 10,
-  (61, 'e'): 10,
-  (61, 'f'): 10,
-  (61, 'g'): 10,
-  (61, 'h'): 10,
-  (61, 'i'): 10,
-  (61, 'j'): 10,
-  (61, 'k'): 10,
-  (61, 'l'): 10,
-  (61, 'm'): 10,
-  (61, 'n'): 10,
-  (61, 'o'): 10,
-  (61, 'p'): 10,
-  (61, 'q'): 10,
-  (61, 'r'): 62,
-  (61, 's'): 10,
-  (61, 't'): 10,
-  (61, 'u'): 10,
-  (61, 'v'): 10,
-  (61, 'w'): 10,
-  (61, 'x'): 10,
-  (61, 'y'): 10,
-  (61, 'z'): 10,
-  (62, '0'): 10,
-  (62, '1'): 10,
-  (62, '2'): 10,
-  (62, '3'): 10,
-  (62, '4'): 10,
-  (62, '5'): 10,
-  (62, '6'): 10,
-  (62, '7'): 10,
-  (62, '8'): 10,
-  (62, '9'): 10,
-  (62, 'A'): 10,
-  (62, 'B'): 10,
-  (62, 'C'): 10,
-  (62, 'D'): 10,
-  (62, 'E'): 10,
-  (62, 'F'): 10,
-  (62, 'G'): 10,
-  (62, 'H'): 10,
-  (62, 'I'): 10,
-  (62, 'J'): 10,
-  (62, 'K'): 10,
-  (62, 'L'): 10,
-  (62, 'M'): 10,
-  (62, 'N'): 10,
-  (62, 'O'): 10,
-  (62, 'P'): 10,
-  (62, 'Q'): 10,
-  (62, 'R'): 10,
-  (62, 'S'): 10,
-  (62, 'T'): 10,
-  (62, 'U'): 10,
-  (62, 'V'): 10,
-  (62, 'W'): 10,
-  (62, 'X'): 10,
-  (62, 'Y'): 10,
-  (62, 'Z'): 10,
-  (62, '_'): 10,
-  (62, 'a'): 10,
-  (62, 'b'): 10,
-  (62, 'c'): 10,
-  (62, 'd'): 10,
-  (62, 'e'): 10,
-  (62, 'f'): 10,
-  (62, 'g'): 10,
-  (62, 'h'): 10,
-  (62, 'i'): 10,
-  (62, 'j'): 10,
-  (62, 'k'): 10,
-  (62, 'l'): 10,
-  (62, 'm'): 10,
-  (62, 'n'): 10,
-  (62, 'o'): 10,
-  (62, 'p'): 10,
-  (62, 'q'): 10,
-  (62, 'r'): 10,
-  (62, 's'): 10,
-  (62, 't'): 10,
-  (62, 'u'): 10,
-  (62, 'v'): 10,
-  (62, 'w'): 10,
-  (62, 'x'): 10,
-  (62, 'y'): 10,
-  (62, 'z'): 10,
-  (64, '='): 66,
-  (67, '<'): 71,
-  (69, '='): 70,
-  (73, '0'): 74,
-  (73, '1'): 74,
-  (73, '2'): 74,
-  (73, '3'): 74,
-  (73, '4'): 74,
-  (73, '5'): 74,
-  (73, '6'): 74,
-  (73, '7'): 74,
-  (73, '8'): 74,
-  (73, '9'): 74,
-  (74, '0'): 74,
-  (74, '1'): 74,
-  (74, '2'): 74,
-  (74, '3'): 74,
-  (74, '4'): 74,
-  (74, '5'): 74,
-  (74, '6'): 74,
-  (74, '7'): 74,
-  (74, '8'): 74,
-  (74, '9'): 74},
+  (52, '0'): 10,
+  (52, '1'): 10,
+  (52, '2'): 10,
+  (52, '3'): 10,
+  (52, '4'): 10,
+  (52, '5'): 10,
+  (52, '6'): 10,
+  (52, '7'): 10,
+  (52, '8'): 10,
+  (52, '9'): 10,
+  (52, 'A'): 10,
+  (52, 'B'): 10,
+  (52, 'C'): 10,
+  (52, 'D'): 10,
+  (52, 'E'): 10,
+  (52, 'F'): 10,
+  (52, 'G'): 10,
+  (52, 'H'): 10,
+  (52, 'I'): 10,
+  (52, 'J'): 10,
+  (52, 'K'): 10,
+  (52, 'L'): 10,
+  (52, 'M'): 10,
+  (52, 'N'): 10,
+  (52, 'O'): 10,
+  (52, 'P'): 10,
+  (52, 'Q'): 10,
+  (52, 'R'): 10,
+  (52, 'S'): 10,
+  (52, 'T'): 10,
+  (52, 'U'): 10,
+  (52, 'V'): 10,
+  (52, 'W'): 10,
+  (52, 'X'): 10,
+  (52, 'Y'): 10,
+  (52, 'Z'): 10,
+  (52, '_'): 10,
+  (52, 'a'): 10,
+  (52, 'b'): 10,
+  (52, 'c'): 10,
+  (52, 'd'): 10,
+  (52, 'e'): 10,
+  (52, 'f'): 10,
+  (52, 'g'): 10,
+  (52, 'h'): 10,
+  (52, 'i'): 10,
+  (52, 'j'): 10,
+  (52, 'k'): 10,
+  (52, 'l'): 10,
+  (52, 'm'): 10,
+  (52, 'n'): 10,
+  (52, 'o'): 10,
+  (52, 'p'): 10,
+  (52, 'q'): 10,
+  (52, 'r'): 10,
+  (52, 's'): 10,
+  (52, 't'): 10,
+  (52, 'u'): 10,
+  (52, 'v'): 10,
+  (52, 'w'): 10,
+  (52, 'x'): 10,
+  (52, 'y'): 10,
+  (52, 'z'): 10,
+  (53, '0'): 10,
+  (53, '1'): 10,
+  (53, '2'): 10,
+  (53, '3'): 10,
+  (53, '4'): 10,
+  (53, '5'): 10,
+  (53, '6'): 10,
+  (53, '7'): 10,
+  (53, '8'): 10,
+  (53, '9'): 10,
+  (53, 'A'): 10,
+  (53, 'B'): 10,
+  (53, 'C'): 10,
+  (53, 'D'): 10,
+  (53, 'E'): 10,
+  (53, 'F'): 10,
+  (53, 'G'): 10,
+  (53, 'H'): 10,
+  (53, 'I'): 10,
+  (53, 'J'): 10,
+  (53, 'K'): 10,
+  (53, 'L'): 10,
+  (53, 'M'): 10,
+  (53, 'N'): 10,
+  (53, 'O'): 10,
+  (53, 'P'): 10,
+  (53, 'Q'): 10,
+  (53, 'R'): 10,
+  (53, 'S'): 10,
+  (53, 'T'): 10,
+  (53, 'U'): 10,
+  (53, 'V'): 10,
+  (53, 'W'): 10,
+  (53, 'X'): 10,
+  (53, 'Y'): 10,
+  (53, 'Z'): 10,
+  (53, '_'): 10,
+  (53, 'a'): 10,
+  (53, 'b'): 10,
+  (53, 'c'): 10,
+  (53, 'd'): 10,
+  (53, 'e'): 10,
+  (53, 'f'): 10,
+  (53, 'g'): 10,
+  (53, 'h'): 10,
+  (53, 'i'): 10,
+  (53, 'j'): 10,
+  (53, 'k'): 10,
+  (53, 'l'): 10,
+  (53, 'm'): 10,
+  (53, 'n'): 10,
+  (53, 'o'): 10,
+  (53, 'p'): 10,
+  (53, 'q'): 10,
+  (53, 'r'): 10,
+  (53, 's'): 10,
+  (53, 't'): 10,
+  (53, 'u'): 10,
+  (53, 'v'): 10,
+  (53, 'w'): 10,
+  (53, 'x'): 10,
+  (53, 'y'): 10,
+  (53, 'z'): 10,
+  (54, '='): 63,
+  (55, '.'): 62,
+  (56, '='): 61,
+  (59, '='): 60,
+  (64, '>'): 66,
+  (67, '0'): 10,
+  (67, '1'): 10,
+  (67, '2'): 10,
+  (67, '3'): 10,
+  (67, '4'): 10,
+  (67, '5'): 10,
+  (67, '6'): 10,
+  (67, '7'): 10,
+  (67, '8'): 10,
+  (67, '9'): 10,
+  (67, 'A'): 10,
+  (67, 'B'): 10,
+  (67, 'C'): 10,
+  (67, 'D'): 10,
+  (67, 'E'): 10,
+  (67, 'F'): 10,
+  (67, 'G'): 10,
+  (67, 'H'): 10,
+  (67, 'I'): 10,
+  (67, 'J'): 10,
+  (67, 'K'): 10,
+  (67, 'L'): 10,
+  (67, 'M'): 10,
+  (67, 'N'): 10,
+  (67, 'O'): 10,
+  (67, 'P'): 10,
+  (67, 'Q'): 10,
+  (67, 'R'): 10,
+  (67, 'S'): 10,
+  (67, 'T'): 10,
+  (67, 'U'): 10,
+  (67, 'V'): 10,
+  (67, 'W'): 10,
+  (67, 'X'): 10,
+  (67, 'Y'): 10,
+  (67, 'Z'): 10,
+  (67, '_'): 10,
+  (67, 'a'): 10,
+  (67, 'b'): 10,
+  (67, 'c'): 10,
+  (67, 'd'): 10,
+  (67, 'e'): 10,
+  (67, 'f'): 10,
+  (67, 'g'): 10,
+  (67, 'h'): 10,
+  (67, 'i'): 10,
+  (67, 'j'): 10,
+  (67, 'k'): 10,
+  (67, 'l'): 10,
+  (67, 'm'): 68,
+  (67, 'n'): 10,
+  (67, 'o'): 10,
+  (67, 'p'): 10,
+  (67, 'q'): 10,
+  (67, 'r'): 10,
+  (67, 's'): 10,
+  (67, 't'): 10,
+  (67, 'u'): 10,
+  (67, 'v'): 10,
+  (67, 'w'): 10,
+  (67, 'x'): 10,
+  (67, 'y'): 10,
+  (67, 'z'): 10,
+  (68, '0'): 10,
+  (68, '1'): 10,
+  (68, '2'): 10,
+  (68, '3'): 10,
+  (68, '4'): 10,
+  (68, '5'): 10,
+  (68, '6'): 10,
+  (68, '7'): 10,
+  (68, '8'): 10,
+  (68, '9'): 10,
+  (68, 'A'): 10,
+  (68, 'B'): 10,
+  (68, 'C'): 10,
+  (68, 'D'): 10,
+  (68, 'E'): 10,
+  (68, 'F'): 10,
+  (68, 'G'): 10,
+  (68, 'H'): 10,
+  (68, 'I'): 10,
+  (68, 'J'): 10,
+  (68, 'K'): 10,
+  (68, 'L'): 10,
+  (68, 'M'): 10,
+  (68, 'N'): 10,
+  (68, 'O'): 10,
+  (68, 'P'): 10,
+  (68, 'Q'): 10,
+  (68, 'R'): 10,
+  (68, 'S'): 10,
+  (68, 'T'): 10,
+  (68, 'U'): 10,
+  (68, 'V'): 10,
+  (68, 'W'): 10,
+  (68, 'X'): 10,
+  (68, 'Y'): 10,
+  (68, 'Z'): 10,
+  (68, '_'): 10,
+  (68, 'a'): 10,
+  (68, 'b'): 10,
+  (68, 'c'): 10,
+  (68, 'd'): 10,
+  (68, 'e'): 10,
+  (68, 'f'): 10,
+  (68, 'g'): 10,
+  (68, 'h'): 10,
+  (68, 'i'): 10,
+  (68, 'j'): 10,
+  (68, 'k'): 10,
+  (68, 'l'): 10,
+  (68, 'm'): 10,
+  (68, 'n'): 10,
+  (68, 'o'): 10,
+  (68, 'p'): 10,
+  (68, 'q'): 10,
+  (68, 'r'): 10,
+  (68, 's'): 10,
+  (68, 't'): 10,
+  (68, 'u'): 10,
+  (68, 'v'): 10,
+  (68, 'w'): 10,
+  (68, 'x'): 10,
+  (68, 'y'): 10,
+  (68, 'z'): 10,
+  (69, '0'): 10,
+  (69, '1'): 10,
+  (69, '2'): 10,
+  (69, '3'): 10,
+  (69, '4'): 10,
+  (69, '5'): 10,
+  (69, '6'): 10,
+  (69, '7'): 10,
+  (69, '8'): 10,
+  (69, '9'): 10,
+  (69, 'A'): 10,
+  (69, 'B'): 10,
+  (69, 'C'): 10,
+  (69, 'D'): 10,
+  (69, 'E'): 10,
+  (69, 'F'): 10,
+  (69, 'G'): 10,
+  (69, 'H'): 10,
+  (69, 'I'): 10,
+  (69, 'J'): 10,
+  (69, 'K'): 10,
+  (69, 'L'): 10,
+  (69, 'M'): 10,
+  (69, 'N'): 10,
+  (69, 'O'): 10,
+  (69, 'P'): 10,
+  (69, 'Q'): 10,
+  (69, 'R'): 10,
+  (69, 'S'): 10,
+  (69, 'T'): 10,
+  (69, 'U'): 10,
+  (69, 'V'): 10,
+  (69, 'W'): 10,
+  (69, 'X'): 10,
+  (69, 'Y'): 10,
+  (69, 'Z'): 10,
+  (69, '_'): 10,
+  (69, 'a'): 10,
+  (69, 'b'): 10,
+  (69, 'c'): 10,
+  (69, 'd'): 10,
+  (69, 'e'): 10,
+  (69, 'f'): 10,
+  (69, 'g'): 10,
+  (69, 'h'): 10,
+  (69, 'i'): 10,
+  (69, 'j'): 10,
+  (69, 'k'): 10,
+  (69, 'l'): 10,
+  (69, 'm'): 10,
+  (69, 'n'): 10,
+  (69, 'o'): 70,
+  (69, 'p'): 10,
+  (69, 'q'): 10,
+  (69, 'r'): 10,
+  (69, 's'): 10,
+  (69, 't'): 10,
+  (69, 'u'): 10,
+  (69, 'v'): 10,
+  (69, 'w'): 10,
+  (69, 'x'): 10,
+  (69, 'y'): 10,
+  (69, 'z'): 10,
+  (70, '0'): 10,
+  (70, '1'): 10,
+  (70, '2'): 10,
+  (70, '3'): 10,
+  (70, '4'): 10,
+  (70, '5'): 10,
+  (70, '6'): 10,
+  (70, '7'): 10,
+  (70, '8'): 10,
+  (70, '9'): 10,
+  (70, 'A'): 10,
+  (70, 'B'): 10,
+  (70, 'C'): 10,
+  (70, 'D'): 10,
+  (70, 'E'): 10,
+  (70, 'F'): 10,
+  (70, 'G'): 10,
+  (70, 'H'): 10,
+  (70, 'I'): 10,
+  (70, 'J'): 10,
+  (70, 'K'): 10,
+  (70, 'L'): 10,
+  (70, 'M'): 10,
+  (70, 'N'): 10,
+  (70, 'O'): 10,
+  (70, 'P'): 10,
+  (70, 'Q'): 10,
+  (70, 'R'): 10,
+  (70, 'S'): 10,
+  (70, 'T'): 10,
+  (70, 'U'): 10,
+  (70, 'V'): 10,
+  (70, 'W'): 10,
+  (70, 'X'): 10,
+  (70, 'Y'): 10,
+  (70, 'Z'): 10,
+  (70, '_'): 10,
+  (70, 'a'): 10,
+  (70, 'b'): 10,
+  (70, 'c'): 71,
+  (70, 'd'): 10,
+  (70, 'e'): 10,
+  (70, 'f'): 10,
+  (70, 'g'): 10,
+  (70, 'h'): 10,
+  (70, 'i'): 10,
+  (70, 'j'): 10,
+  (70, 'k'): 10,
+  (70, 'l'): 10,
+  (70, 'm'): 10,
+  (70, 'n'): 10,
+  (70, 'o'): 10,
+  (70, 'p'): 10,
+  (70, 'q'): 10,
+  (70, 'r'): 10,
+  (70, 's'): 10,
+  (70, 't'): 10,
+  (70, 'u'): 10,
+  (70, 'v'): 10,
+  (70, 'w'): 10,
+  (70, 'x'): 10,
+  (70, 'y'): 10,
+  (70, 'z'): 10,
+  (71, '0'): 10,
+  (71, '1'): 10,
+  (71, '2'): 10,
+  (71, '3'): 10,
+  (71, '4'): 10,
+  (71, '5'): 10,
+  (71, '6'): 10,
+  (71, '7'): 10,
+  (71, '8'): 10,
+  (71, '9'): 10,
+  (71, 'A'): 10,
+  (71, 'B'): 10,
+  (71, 'C'): 10,
+  (71, 'D'): 10,
+  (71, 'E'): 10,
+  (71, 'F'): 10,
+  (71, 'G'): 10,
+  (71, 'H'): 10,
+  (71, 'I'): 10,
+  (71, 'J'): 10,
+  (71, 'K'): 10,
+  (71, 'L'): 10,
+  (71, 'M'): 10,
+  (71, 'N'): 10,
+  (71, 'O'): 10,
+  (71, 'P'): 10,
+  (71, 'Q'): 10,
+  (71, 'R'): 10,
+  (71, 'S'): 10,
+  (71, 'T'): 10,
+  (71, 'U'): 10,
+  (71, 'V'): 10,
+  (71, 'W'): 10,
+  (71, 'X'): 10,
+  (71, 'Y'): 10,
+  (71, 'Z'): 10,
+  (71, '_'): 10,
+  (71, 'a'): 10,
+  (71, 'b'): 10,
+  (71, 'c'): 10,
+  (71, 'd'): 10,
+  (71, 'e'): 10,
+  (71, 'f'): 10,
+  (71, 'g'): 10,
+  (71, 'h'): 10,
+  (71, 'i'): 10,
+  (71, 'j'): 10,
+  (71, 'k'): 72,
+  (71, 'l'): 10,
+  (71, 'm'): 10,
+  (71, 'n'): 10,
+  (71, 'o'): 10,
+  (71, 'p'): 10,
+  (71, 'q'): 10,
+  (71, 'r'): 10,
+  (71, 's'): 10,
+  (71, 't'): 10,
+  (71, 'u'): 10,
+  (71, 'v'): 10,
+  (71, 'w'): 10,
+  (71, 'x'): 10,
+  (71, 'y'): 10,
+  (71, 'z'): 10,
+  (72, '0'): 10,
+  (72, '1'): 10,
+  (72, '2'): 10,
+  (72, '3'): 10,
+  (72, '4'): 10,
+  (72, '5'): 10,
+  (72, '6'): 10,
+  (72, '7'): 10,
+  (72, '8'): 10,
+  (72, '9'): 10,
+  (72, 'A'): 10,
+  (72, 'B'): 10,
+  (72, 'C'): 10,
+  (72, 'D'): 10,
+  (72, 'E'): 10,
+  (72, 'F'): 10,
+  (72, 'G'): 10,
+  (72, 'H'): 10,
+  (72, 'I'): 10,
+  (72, 'J'): 10,
+  (72, 'K'): 10,
+  (72, 'L'): 10,
+  (72, 'M'): 10,
+  (72, 'N'): 10,
+  (72, 'O'): 10,
+  (72, 'P'): 10,
+  (72, 'Q'): 10,
+  (72, 'R'): 10,
+  (72, 'S'): 10,
+  (72, 'T'): 10,
+  (72, 'U'): 10,
+  (72, 'V'): 10,
+  (72, 'W'): 10,
+  (72, 'X'): 10,
+  (72, 'Y'): 10,
+  (72, 'Z'): 10,
+  (72, '_'): 10,
+  (72, 'a'): 10,
+  (72, 'b'): 10,
+  (72, 'c'): 10,
+  (72, 'd'): 10,
+  (72, 'e'): 10,
+  (72, 'f'): 10,
+  (72, 'g'): 10,
+  (72, 'h'): 10,
+  (72, 'i'): 10,
+  (72, 'j'): 10,
+  (72, 'k'): 10,
+  (72, 'l'): 10,
+  (72, 'm'): 10,
+  (72, 'n'): 10,
+  (72, 'o'): 10,
+  (72, 'p'): 10,
+  (72, 'q'): 10,
+  (72, 'r'): 10,
+  (72, 's'): 10,
+  (72, 't'): 10,
+  (72, 'u'): 10,
+  (72, 'v'): 10,
+  (72, 'w'): 10,
+  (72, 'x'): 10,
+  (72, 'y'): 10,
+  (72, 'z'): 10,
+  (80, '\x00'): 80,
+  (80, '\x01'): 80,
+  (80, '\x02'): 80,
+  (80, '\x03'): 80,
+  (80, '\x04'): 80,
+  (80, '\x05'): 80,
+  (80, '\x06'): 80,
+  (80, '\x07'): 80,
+  (80, '\x08'): 80,
+  (80, '\t'): 80,
+  (80, '\n'): 80,
+  (80, '\x0b'): 80,
+  (80, '\x0c'): 80,
+  (80, '\r'): 80,
+  (80, '\x0e'): 80,
+  (80, '\x0f'): 80,
+  (80, '\x10'): 80,
+  (80, '\x11'): 80,
+  (80, '\x12'): 80,
+  (80, '\x13'): 80,
+  (80, '\x14'): 80,
+  (80, '\x15'): 80,
+  (80, '\x16'): 80,
+  (80, '\x17'): 80,
+  (80, '\x18'): 80,
+  (80, '\x19'): 80,
+  (80, '\x1a'): 80,
+  (80, '\x1b'): 80,
+  (80, '\x1c'): 80,
+  (80, '\x1d'): 80,
+  (80, '\x1e'): 80,
+  (80, '\x1f'): 80,
+  (80, ' '): 80,
+  (80, '!'): 80,
+  (80, '"'): 80,
+  (80, '#'): 80,
+  (80, '$'): 80,
+  (80, '%'): 80,
+  (80, '&'): 80,
+  (80, "'"): 80,
+  (80, '('): 80,
+  (80, ')'): 80,
+  (80, '*'): 83,
+  (80, '+'): 80,
+  (80, ','): 80,
+  (80, '-'): 80,
+  (80, '.'): 80,
+  (80, '/'): 80,
+  (80, '0'): 80,
+  (80, '1'): 80,
+  (80, '2'): 80,
+  (80, '3'): 80,
+  (80, '4'): 80,
+  (80, '5'): 80,
+  (80, '6'): 80,
+  (80, '7'): 80,
+  (80, '8'): 80,
+  (80, '9'): 80,
+  (80, ':'): 80,
+  (80, ';'): 80,
+  (80, '<'): 80,
+  (80, '='): 80,
+  (80, '>'): 80,
+  (80, '?'): 80,
+  (80, '@'): 80,
+  (80, 'A'): 80,
+  (80, 'B'): 80,
+  (80, 'C'): 80,
+  (80, 'D'): 80,
+  (80, 'E'): 80,
+  (80, 'F'): 80,
+  (80, 'G'): 80,
+  (80, 'H'): 80,
+  (80, 'I'): 80,
+  (80, 'J'): 80,
+  (80, 'K'): 80,
+  (80, 'L'): 80,
+  (80, 'M'): 80,
+  (80, 'N'): 80,
+  (80, 'O'): 80,
+  (80, 'P'): 80,
+  (80, 'Q'): 80,
+  (80, 'R'): 80,
+  (80, 'S'): 80,
+  (80, 'T'): 80,
+  (80, 'U'): 80,
+  (80, 'V'): 80,
+  (80, 'W'): 80,
+  (80, 'X'): 80,
+  (80, 'Y'): 80,
+  (80, 'Z'): 80,
+  (80, '['): 80,
+  (80, '\\'): 80,
+  (80, ']'): 80,
+  (80, '^'): 80,
+  (80, '_'): 80,
+  (80, '`'): 80,
+  (80, 'a'): 80,
+  (80, 'b'): 80,
+  (80, 'c'): 80,
+  (80, 'd'): 80,
+  (80, 'e'): 80,
+  (80, 'f'): 80,
+  (80, 'g'): 80,
+  (80, 'h'): 80,
+  (80, 'i'): 80,
+  (80, 'j'): 80,
+  (80, 'k'): 80,
+  (80, 'l'): 80,
+  (80, 'm'): 80,
+  (80, 'n'): 80,
+  (80, 'o'): 80,
+  (80, 'p'): 80,
+  (80, 'q'): 80,
+  (80, 'r'): 80,
+  (80, 's'): 80,
+  (80, 't'): 80,
+  (80, 'u'): 80,
+  (80, 'v'): 80,
+  (80, 'w'): 80,
+  (80, 'x'): 80,
+  (80, 'y'): 80,
+  (80, 'z'): 80,
+  (80, '{'): 80,
+  (80, '|'): 80,
+  (80, '}'): 80,
+  (80, '~'): 80,
+  (80, '\x7f'): 80,
+  (80, '\x80'): 80,
+  (80, '\x81'): 80,
+  (80, '\x82'): 80,
+  (80, '\x83'): 80,
+  (80, '\x84'): 80,
+  (80, '\x85'): 80,
+  (80, '\x86'): 80,
+  (80, '\x87'): 80,
+  (80, '\x88'): 80,
+  (80, '\x89'): 80,
+  (80, '\x8a'): 80,
+  (80, '\x8b'): 80,
+  (80, '\x8c'): 80,
+  (80, '\x8d'): 80,
+  (80, '\x8e'): 80,
+  (80, '\x8f'): 80,
+  (80, '\x90'): 80,
+  (80, '\x91'): 80,
+  (80, '\x92'): 80,
+  (80, '\x93'): 80,
+  (80, '\x94'): 80,
+  (80, '\x95'): 80,
+  (80, '\x96'): 80,
+  (80, '\x97'): 80,
+  (80, '\x98'): 80,
+  (80, '\x99'): 80,
+  (80, '\x9a'): 80,
+  (80, '\x9b'): 80,
+  (80, '\x9c'): 80,
+  (80, '\x9d'): 80,
+  (80, '\x9e'): 80,
+  (80, '\x9f'): 80,
+  (80, '\xa0'): 80,
+  (80, '\xa1'): 80,
+  (80, '\xa2'): 80,
+  (80, '\xa3'): 80,
+  (80, '\xa4'): 80,
+  (80, '\xa5'): 80,
+  (80, '\xa6'): 80,
+  (80, '\xa7'): 80,
+  (80, '\xa8'): 80,
+  (80, '\xa9'): 80,
+  (80, '\xaa'): 80,
+  (80, '\xab'): 80,
+  (80, '\xac'): 80,
+  (80, '\xad'): 80,
+  (80, '\xae'): 80,
+  (80, '\xaf'): 80,
+  (80, '\xb0'): 80,
+  (80, '\xb1'): 80,
+  (80, '\xb2'): 80,
+  (80, '\xb3'): 80,
+  (80, '\xb4'): 80,
+  (80, '\xb5'): 80,
+  (80, '\xb6'): 80,
+  (80, '\xb7'): 80,
+  (80, '\xb8'): 80,
+  (80, '\xb9'): 80,
+  (80, '\xba'): 80,
+  (80, '\xbb'): 80,
+  (80, '\xbc'): 80,
+  (80, '\xbd'): 80,
+  (80, '\xbe'): 80,
+  (80, '\xbf'): 80,
+  (80, '\xc0'): 80,
+  (80, '\xc1'): 80,
+  (80, '\xc2'): 80,
+  (80, '\xc3'): 80,
+  (80, '\xc4'): 80,
+  (80, '\xc5'): 80,
+  (80, '\xc6'): 80,
+  (80, '\xc7'): 80,
+  (80, '\xc8'): 80,
+  (80, '\xc9'): 80,
+  (80, '\xca'): 80,
+  (80, '\xcb'): 80,
+  (80, '\xcc'): 80,
+  (80, '\xcd'): 80,
+  (80, '\xce'): 80,
+  (80, '\xcf'): 80,
+  (80, '\xd0'): 80,
+  (80, '\xd1'): 80,
+  (80, '\xd2'): 80,
+  (80, '\xd3'): 80,
+  (80, '\xd4'): 80,
+  (80, '\xd5'): 80,
+  (80, '\xd6'): 80,
+  (80, '\xd7'): 80,
+  (80, '\xd8'): 80,
+  (80, '\xd9'): 80,
+  (80, '\xda'): 80,
+  (80, '\xdb'): 80,
+  (80, '\xdc'): 80,
+  (80, '\xdd'): 80,
+  (80, '\xde'): 80,
+  (80, '\xdf'): 80,
+  (80, '\xe0'): 80,
+  (80, '\xe1'): 80,
+  (80, '\xe2'): 80,
+  (80, '\xe3'): 80,
+  (80, '\xe4'): 80,
+  (80, '\xe5'): 80,
+  (80, '\xe6'): 80,
+  (80, '\xe7'): 80,
+  (80, '\xe8'): 80,
+  (80, '\xe9'): 80,
+  (80, '\xea'): 80,
+  (80, '\xeb'): 80,
+  (80, '\xec'): 80,
+  (80, '\xed'): 80,
+  (80, '\xee'): 80,
+  (80, '\xef'): 80,
+  (80, '\xf0'): 80,
+  (80, '\xf1'): 80,
+  (80, '\xf2'): 80,
+  (80, '\xf3'): 80,
+  (80, '\xf4'): 80,
+  (80, '\xf5'): 80,
+  (80, '\xf6'): 80,
+  (80, '\xf7'): 80,
+  (80, '\xf8'): 80,
+  (80, '\xf9'): 80,
+  (80, '\xfa'): 80,
+  (80, '\xfb'): 80,
+  (80, '\xfc'): 80,
+  (80, '\xfd'): 80,
+  (80, '\xfe'): 80,
+  (80, '\xff'): 80,
+  (83, '\x00'): 80,
+  (83, '\x01'): 80,
+  (83, '\x02'): 80,
+  (83, '\x03'): 80,
+  (83, '\x04'): 80,
+  (83, '\x05'): 80,
+  (83, '\x06'): 80,
+  (83, '\x07'): 80,
+  (83, '\x08'): 80,
+  (83, '\t'): 80,
+  (83, '\n'): 80,
+  (83, '\x0b'): 80,
+  (83, '\x0c'): 80,
+  (83, '\r'): 80,
+  (83, '\x0e'): 80,
+  (83, '\x0f'): 80,
+  (83, '\x10'): 80,
+  (83, '\x11'): 80,
+  (83, '\x12'): 80,
+  (83, '\x13'): 80,
+  (83, '\x14'): 80,
+  (83, '\x15'): 80,
+  (83, '\x16'): 80,
+  (83, '\x17'): 80,
+  (83, '\x18'): 80,
+  (83, '\x19'): 80,
+  (83, '\x1a'): 80,
+  (83, '\x1b'): 80,
+  (83, '\x1c'): 80,
+  (83, '\x1d'): 80,
+  (83, '\x1e'): 80,
+  (83, '\x1f'): 80,
+  (83, ' '): 80,
+  (83, '!'): 80,
+  (83, '"'): 80,
+  (83, '#'): 80,
+  (83, '$'): 80,
+  (83, '%'): 80,
+  (83, '&'): 80,
+  (83, "'"): 80,
+  (83, '('): 80,
+  (83, ')'): 80,
+  (83, '*'): 80,
+  (83, '+'): 80,
+  (83, ','): 80,
+  (83, '-'): 80,
+  (83, '.'): 80,
+  (83, '/'): 1,
+  (83, '0'): 80,
+  (83, '1'): 80,
+  (83, '2'): 80,
+  (83, '3'): 80,
+  (83, '4'): 80,
+  (83, '5'): 80,
+  (83, '6'): 80,
+  (83, '7'): 80,
+  (83, '8'): 80,
+  (83, '9'): 80,
+  (83, ':'): 80,
+  (83, ';'): 80,
+  (83, '<'): 80,
+  (83, '='): 80,
+  (83, '>'): 80,
+  (83, '?'): 80,
+  (83, '@'): 80,
+  (83, 'A'): 80,
+  (83, 'B'): 80,
+  (83, 'C'): 80,
+  (83, 'D'): 80,
+  (83, 'E'): 80,
+  (83, 'F'): 80,
+  (83, 'G'): 80,
+  (83, 'H'): 80,
+  (83, 'I'): 80,
+  (83, 'J'): 80,
+  (83, 'K'): 80,
+  (83, 'L'): 80,
+  (83, 'M'): 80,
+  (83, 'N'): 80,
+  (83, 'O'): 80,
+  (83, 'P'): 80,
+  (83, 'Q'): 80,
+  (83, 'R'): 80,
+  (83, 'S'): 80,
+  (83, 'T'): 80,
+  (83, 'U'): 80,
+  (83, 'V'): 80,
+  (83, 'W'): 80,
+  (83, 'X'): 80,
+  (83, 'Y'): 80,
+  (83, 'Z'): 80,
+  (83, '['): 80,
+  (83, '\\'): 80,
+  (83, ']'): 80,
+  (83, '^'): 80,
+  (83, '_'): 80,
+  (83, '`'): 80,
+  (83, 'a'): 80,
+  (83, 'b'): 80,
+  (83, 'c'): 80,
+  (83, 'd'): 80,
+  (83, 'e'): 80,
+  (83, 'f'): 80,
+  (83, 'g'): 80,
+  (83, 'h'): 80,
+  (83, 'i'): 80,
+  (83, 'j'): 80,
+  (83, 'k'): 80,
+  (83, 'l'): 80,
+  (83, 'm'): 80,
+  (83, 'n'): 80,
+  (83, 'o'): 80,
+  (83, 'p'): 80,
+  (83, 'q'): 80,
+  (83, 'r'): 80,
+  (83, 's'): 80,
+  (83, 't'): 80,
+  (83, 'u'): 80,
+  (83, 'v'): 80,
+  (83, 'w'): 80,
+  (83, 'x'): 80,
+  (83, 'y'): 80,
+  (83, 'z'): 80,
+  (83, '{'): 80,
+  (83, '|'): 80,
+  (83, '}'): 80,
+  (83, '~'): 80,
+  (83, '\x7f'): 80,
+  (83, '\x80'): 80,
+  (83, '\x81'): 80,
+  (83, '\x82'): 80,
+  (83, '\x83'): 80,
+  (83, '\x84'): 80,
+  (83, '\x85'): 80,
+  (83, '\x86'): 80,
+  (83, '\x87'): 80,
+  (83, '\x88'): 80,
+  (83, '\x89'): 80,
+  (83, '\x8a'): 80,
+  (83, '\x8b'): 80,
+  (83, '\x8c'): 80,
+  (83, '\x8d'): 80,
+  (83, '\x8e'): 80,
+  (83, '\x8f'): 80,
+  (83, '\x90'): 80,
+  (83, '\x91'): 80,
+  (83, '\x92'): 80,
+  (83, '\x93'): 80,
+  (83, '\x94'): 80,
+  (83, '\x95'): 80,
+  (83, '\x96'): 80,
+  (83, '\x97'): 80,
+  (83, '\x98'): 80,
+  (83, '\x99'): 80,
+  (83, '\x9a'): 80,
+  (83, '\x9b'): 80,
+  (83, '\x9c'): 80,
+  (83, '\x9d'): 80,
+  (83, '\x9e'): 80,
+  (83, '\x9f'): 80,
+  (83, '\xa0'): 80,
+  (83, '\xa1'): 80,
+  (83, '\xa2'): 80,
+  (83, '\xa3'): 80,
+  (83, '\xa4'): 80,
+  (83, '\xa5'): 80,
+  (83, '\xa6'): 80,
+  (83, '\xa7'): 80,
+  (83, '\xa8'): 80,
+  (83, '\xa9'): 80,
+  (83, '\xaa'): 80,
+  (83, '\xab'): 80,
+  (83, '\xac'): 80,
+  (83, '\xad'): 80,
+  (83, '\xae'): 80,
+  (83, '\xaf'): 80,
+  (83, '\xb0'): 80,
+  (83, '\xb1'): 80,
+  (83, '\xb2'): 80,
+  (83, '\xb3'): 80,
+  (83, '\xb4'): 80,
+  (83, '\xb5'): 80,
+  (83, '\xb6'): 80,
+  (83, '\xb7'): 80,
+  (83, '\xb8'): 80,
+  (83, '\xb9'): 80,
+  (83, '\xba'): 80,
+  (83, '\xbb'): 80,
+  (83, '\xbc'): 80,
+  (83, '\xbd'): 80,
+  (83, '\xbe'): 80,
+  (83, '\xbf'): 80,
+  (83, '\xc0'): 80,
+  (83, '\xc1'): 80,
+  (83, '\xc2'): 80,
+  (83, '\xc3'): 80,
+  (83, '\xc4'): 80,
+  (83, '\xc5'): 80,
+  (83, '\xc6'): 80,
+  (83, '\xc7'): 80,
+  (83, '\xc8'): 80,
+  (83, '\xc9'): 80,
+  (83, '\xca'): 80,
+  (83, '\xcb'): 80,
+  (83, '\xcc'): 80,
+  (83, '\xcd'): 80,
+  (83, '\xce'): 80,
+  (83, '\xcf'): 80,
+  (83, '\xd0'): 80,
+  (83, '\xd1'): 80,
+  (83, '\xd2'): 80,
+  (83, '\xd3'): 80,
+  (83, '\xd4'): 80,
+  (83, '\xd5'): 80,
+  (83, '\xd6'): 80,
+  (83, '\xd7'): 80,
+  (83, '\xd8'): 80,
+  (83, '\xd9'): 80,
+  (83, '\xda'): 80,
+  (83, '\xdb'): 80,
+  (83, '\xdc'): 80,
+  (83, '\xdd'): 80,
+  (83, '\xde'): 80,
+  (83, '\xdf'): 80,
+  (83, '\xe0'): 80,
+  (83, '\xe1'): 80,
+  (83, '\xe2'): 80,
+  (83, '\xe3'): 80,
+  (83, '\xe4'): 80,
+  (83, '\xe5'): 80,
+  (83, '\xe6'): 80,
+  (83, '\xe7'): 80,
+  (83, '\xe8'): 80,
+  (83, '\xe9'): 80,
+  (83, '\xea'): 80,
+  (83, '\xeb'): 80,
+  (83, '\xec'): 80,
+  (83, '\xed'): 80,
+  (83, '\xee'): 80,
+  (83, '\xef'): 80,
+  (83, '\xf0'): 80,
+  (83, '\xf1'): 80,
+  (83, '\xf2'): 80,
+  (83, '\xf3'): 80,
+  (83, '\xf4'): 80,
+  (83, '\xf5'): 80,
+  (83, '\xf6'): 80,
+  (83, '\xf7'): 80,
+  (83, '\xf8'): 80,
+  (83, '\xf9'): 80,
+  (83, '\xfa'): 80,
+  (83, '\xfb'): 80,
+  (83, '\xfc'): 80,
+  (83, '\xfd'): 80,
+  (83, '\xfe'): 80,
+  (83, '\xff'): 80,
+  (84, '0'): 10,
+  (84, '1'): 10,
+  (84, '2'): 10,
+  (84, '3'): 10,
+  (84, '4'): 10,
+  (84, '5'): 10,
+  (84, '6'): 10,
+  (84, '7'): 10,
+  (84, '8'): 10,
+  (84, '9'): 10,
+  (84, 'A'): 10,
+  (84, 'B'): 10,
+  (84, 'C'): 10,
+  (84, 'D'): 10,
+  (84, 'E'): 10,
+  (84, 'F'): 10,
+  (84, 'G'): 10,
+  (84, 'H'): 10,
+  (84, 'I'): 10,
+  (84, 'J'): 10,
+  (84, 'K'): 10,
+  (84, 'L'): 10,
+  (84, 'M'): 10,
+  (84, 'N'): 10,
+  (84, 'O'): 10,
+  (84, 'P'): 10,
+  (84, 'Q'): 10,
+  (84, 'R'): 10,
+  (84, 'S'): 10,
+  (84, 'T'): 10,
+  (84, 'U'): 10,
+  (84, 'V'): 10,
+  (84, 'W'): 10,
+  (84, 'X'): 10,
+  (84, 'Y'): 10,
+  (84, 'Z'): 10,
+  (84, '_'): 10,
+  (84, 'a'): 10,
+  (84, 'b'): 10,
+  (84, 'c'): 10,
+  (84, 'd'): 10,
+  (84, 'e'): 10,
+  (84, 'f'): 10,
+  (84, 'g'): 10,
+  (84, 'h'): 10,
+  (84, 'i'): 10,
+  (84, 'j'): 10,
+  (84, 'k'): 10,
+  (84, 'l'): 10,
+  (84, 'm'): 10,
+  (84, 'n'): 10,
+  (84, 'o'): 10,
+  (84, 'p'): 10,
+  (84, 'q'): 10,
+  (84, 'r'): 85,
+  (84, 's'): 10,
+  (84, 't'): 10,
+  (84, 'u'): 10,
+  (84, 'v'): 10,
+  (84, 'w'): 10,
+  (84, 'x'): 10,
+  (84, 'y'): 10,
+  (84, 'z'): 10,
+  (85, '0'): 10,
+  (85, '1'): 10,
+  (85, '2'): 10,
+  (85, '3'): 10,
+  (85, '4'): 10,
+  (85, '5'): 10,
+  (85, '6'): 10,
+  (85, '7'): 10,
+  (85, '8'): 10,
+  (85, '9'): 10,
+  (85, 'A'): 10,
+  (85, 'B'): 10,
+  (85, 'C'): 10,
+  (85, 'D'): 10,
+  (85, 'E'): 10,
+  (85, 'F'): 10,
+  (85, 'G'): 10,
+  (85, 'H'): 10,
+  (85, 'I'): 10,
+  (85, 'J'): 10,
+  (85, 'K'): 10,
+  (85, 'L'): 10,
+  (85, 'M'): 10,
+  (85, 'N'): 10,
+  (85, 'O'): 10,
+  (85, 'P'): 10,
+  (85, 'Q'): 10,
+  (85, 'R'): 10,
+  (85, 'S'): 10,
+  (85, 'T'): 10,
+  (85, 'U'): 10,
+  (85, 'V'): 10,
+  (85, 'W'): 10,
+  (85, 'X'): 10,
+  (85, 'Y'): 10,
+  (85, 'Z'): 10,
+  (85, '_'): 10,
+  (85, 'a'): 10,
+  (85, 'b'): 10,
+  (85, 'c'): 10,
+  (85, 'd'): 10,
+  (85, 'e'): 10,
+  (85, 'f'): 10,
+  (85, 'g'): 10,
+  (85, 'h'): 10,
+  (85, 'i'): 10,
+  (85, 'j'): 10,
+  (85, 'k'): 10,
+  (85, 'l'): 10,
+  (85, 'm'): 10,
+  (85, 'n'): 10,
+  (85, 'o'): 10,
+  (85, 'p'): 10,
+  (85, 'q'): 10,
+  (85, 'r'): 10,
+  (85, 's'): 10,
+  (85, 't'): 10,
+  (85, 'u'): 10,
+  (85, 'v'): 10,
+  (85, 'w'): 10,
+  (85, 'x'): 10,
+  (85, 'y'): 10,
+  (85, 'z'): 10,
+  (87, '='): 89,
+  (90, '<'): 94,
+  (92, '='): 93,
+  (96, '0'): 97,
+  (96, '1'): 97,
+  (96, '2'): 97,
+  (96, '3'): 97,
+  (96, '4'): 97,
+  (96, '5'): 97,
+  (96, '6'): 97,
+  (96, '7'): 97,
+  (96, '8'): 97,
+  (96, '9'): 97,
+  (97, '0'): 97,
+  (97, '1'): 97,
+  (97, '2'): 97,
+  (97, '3'): 97,
+  (97, '4'): 97,
+  (97, '5'): 97,
+  (97, '6'): 97,
+  (97, '7'): 97,
+  (97, '8'): 97,
+  (97, '9'): 97},
  set([1,
       2,
       3,
@@ -3343,7 +5327,6 @@ lexer = DummyLexer(recognize, DFA(75,
       17,
       18,
       19,
-      20,
       21,
       22,
       23,
@@ -3360,35 +5343,58 @@ lexer = DummyLexer(recognize, DFA(75,
       34,
       35,
       36,
+      37,
       38,
       39,
+      40,
+      41,
+      42,
       43,
       44,
       45,
       46,
+      47,
       48,
       49,
       50,
       51,
       52,
       53,
-      54,
-      55,
-      56,
+      57,
       58,
-      59,
+      60,
       61,
       62,
       63,
-      64,
       65,
       66,
+      67,
       68,
       69,
       70,
       71,
       72,
-      74]),
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      81,
+      82,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      91,
+      92,
+      93,
+      94,
+      95,
+      97]),
  set([1,
       2,
       3,
@@ -3406,7 +5412,6 @@ lexer = DummyLexer(recognize, DFA(75,
       17,
       18,
       19,
-      20,
       21,
       22,
       23,
@@ -3423,36 +5428,59 @@ lexer = DummyLexer(recognize, DFA(75,
       34,
       35,
       36,
+      37,
       38,
       39,
+      40,
+      41,
+      42,
       43,
       44,
       45,
       46,
+      47,
       48,
       49,
       50,
       51,
       52,
       53,
-      54,
-      55,
-      56,
+      57,
       58,
-      59,
+      60,
       61,
       62,
       63,
-      64,
       65,
       66,
+      67,
       68,
       69,
       70,
       71,
       72,
-      74]),
- ['0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      81,
+      82,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      91,
+      92,
+      93,
+      94,
+      95,
+      97]),
+ ['0, 0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
   'IGNORE',
   '(',
   'ATOM',
@@ -3471,8 +5499,11 @@ lexer = DummyLexer(recognize, DFA(75,
   'ATOM',
   'ATOM',
   '[',
+  '{',
+  '1, final*, 0, start|, 0, final*, start*, 0, final*, 0, final|, start|, 0, 1, final*, start*, 0, final*, 0, 1, final|, start|, 0, final*, start*, 0',
   'ATOM',
   '.',
+  'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
@@ -3486,20 +5517,36 @@ lexer = DummyLexer(recognize, DFA(75,
   ']',
   'ATOM',
   'ATOM',
+  '}',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  '2',
+  '2',
+  '2',
+  'ATOM',
+  'ATOM',
+  '2',
+  'ATOM',
   'ATOM',
   'ATOM',
   'ATOM',
   '2',
   'ATOM',
   'ATOM',
-  '2',
-  '2',
-  '2',
-  'ATOM',
-  'ATOM',
-  'ATOM',
-  'ATOM',
-  '2',
   'ATOM',
   'ATOM',
   'ATOM',
@@ -3507,6 +5554,10 @@ lexer = DummyLexer(recognize, DFA(75,
   'ATOM',
   'ATOM',
   'ATOM',
+  'ATOM',
+  'ATOM',
+  'ATOM',
+  'STRING',
   'ATOM',
   'ATOM',
   '0, final*, start*, 2, final*, 0, start|, 0, final*, start*, final*, 0, final*, start*, 0, final*, 0, final|, start|, 0, 1, final*, start*, final*, 0, final*, start*, 0, final*, 0, 1, final|, start|, 0, final*, start*, final*, 0, final|, 1, final*, 0, start|, 0, final*, start*, final*, start*, 0, final*, 0, final*, 1, final|, final*, 0, start|, 0, final*, start*, final*, start*, 0, final*, 0, final*, final*, 0, final|, start|, 0, 1, final*, start*, final*, start*, 0, final*, 0, final*, 0, 1, final|, start|, 0, final*, start*, final*, start*, 0, final*, 0',
@@ -3526,8 +5577,8 @@ lexer = DummyLexer(recognize, DFA(75,
   'ATOM',
   'ATOM',
   '1, 0',
-  'NUMBER']), {'IGNORE': None})
-basic_rules = [Rule('query', [['toplevel_op_expr', '.', 'EOF']]), Rule('fact', [['toplevel_op_expr', '.']]), Rule('complexterm', [['ATOM', '(', 'toplevel_op_expr', ')'], ['expr']]), Rule('expr', [['VAR'], ['NUMBER'], ['+', 'NUMBER'], ['-', 'NUMBER'], ['ATOM'], ['(', 'toplevel_op_expr', ')'], ['listexpr']]), Rule('listexpr', [['[', 'listbody', ']']]), Rule('listbody', [['toplevel_op_expr', '|', 'toplevel_op_expr'], ['toplevel_op_expr']])]
+  'FLOAT']), {'IGNORE': None})
+
 # generated code between this line and its other occurence
  
 if __name__ == '__main__':
@@ -3538,8 +5589,8 @@ if __name__ == '__main__':
 
     lexer, parser_fact, parser_query, basic_rules = make_all()
     newcontent = ("%s%s\nparser_fact = %r\nparser_query = %r\n%s\n"
-                  "basic_rules = %r\n%s%s") % (
+                  "\n%s%s") % (
             pre, s, parser_fact, parser_query, lexer.get_dummy_repr(),
-            basic_rules, s, after)
+            s, after)
     print newcontent
     f.write(newcontent)

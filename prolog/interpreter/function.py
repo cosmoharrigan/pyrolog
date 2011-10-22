@@ -1,19 +1,22 @@
-from prolog.interpreter.term import Callable
+from prolog.interpreter.term import Callable, Atom, Var
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit, objectmodel, unroll
+from prolog.interpreter.helper import is_callable
 # XXX needs tests
 
 cutsig = Signature.getsignature("!", 0)
+prefixsig = Signature.getsignature(":", 2)
 
 class Rule(object):
     _immutable_ = True
     _immutable_fields_ = ["headargs[*]"]
-    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature']
+    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature', 'module']
     unrolling_attrs = unroll.unrolling_iterable(_attrs_)
     
-    def __init__(self, head, body, next = None):
+    def __init__(self, head, body, module, next = None):
         from prolog.interpreter import helper
+        head = head.dereference(None)
         assert isinstance(head, Callable)
         memo = EnumerationMemo()
         self.head = h = head.enumerate_vars(memo)
@@ -22,6 +25,7 @@ class Rule(object):
         else:
             self.headargs = None
         if body is not None:
+            body = body.dereference(None)
             body = helper.ensure_callable(body)
             self.body = body.enumerate_vars(memo)
         else:
@@ -29,7 +33,7 @@ class Rule(object):
         self.size_env = memo.size()
         self.signature = head.signature()        
         self._does_contain_cut()
-
+        self.module = module
         self.next = next
 
     def _does_contain_cut(self):
@@ -117,8 +121,27 @@ class Rule(object):
 
 
 class Function(object):
+    _immutable_fields_ = ["rulechain?", "meta_args?"]
     def __init__(self):
+        self.meta_args = None
         self.rulechain = self.last = None
+
+    @jit.unroll_safe
+    def add_meta_prefixes(self, query, current_module):
+        if not self.meta_args:
+            return query
+        numargs = query.argument_count()
+        args = [None] * numargs
+        for i in range(numargs):
+            args[i] = self._prefix_argument(query.argument_at(i),
+                    self.meta_args[i], current_module)
+        return Callable.build(query.name(), args)
+
+    def _prefix_argument(self, arg, meta_arg, module):
+        if meta_arg in "0123456789:":
+            if not (isinstance(arg, Callable) and arg.signature().eq(prefixsig)):
+                return Callable.build(":", [module, arg])
+        return arg
 
     def add_rule(self, rule, atend):
         if self.rulechain is None:

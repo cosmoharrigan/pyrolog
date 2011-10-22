@@ -4,6 +4,8 @@ from prolog.interpreter import term
 from prolog.interpreter import error
 from prolog.interpreter.signature import Signature
 from pypy.rlib import jit
+from prolog.interpreter.stream import PrologOutputStream, PrologInputStream,\
+        PrologStream
 
 conssig = Signature.getsignature(".", 2)
 nilsig = Signature.getsignature("[]", 0)
@@ -31,6 +33,7 @@ def unwrap_list(prolog_list):
         result[used] = curr.argument_at(0)
         used += 1
         curr = curr.argument_at(1)
+        curr = curr.dereference(None)
     if isinstance(curr, term.Callable) and curr.signature().eq(nilsig):
         if used != len(result):
             nresult = [None] * used
@@ -58,6 +61,8 @@ def unwrap_int(obj):
         f = obj.floatval; i = int(f)
         if f == i:
             return i
+    elif isinstance(obj, term.Var):
+        error.throw_instantiation_error()
     error.throw_type_error('integer', obj)
 
 def unwrap_atom(obj):
@@ -74,6 +79,51 @@ def unwrap_predicate_indicator(predicate):
     name = unwrap_atom(predicate.argument_at(0))
     arity = unwrap_int(predicate.argument_at(1))
     return name, arity
+
+def unwrap_stream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
+    if isinstance(obj, term.Atom):
+        try:
+            stream = engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+        else:
+            assert isinstance(stream, PrologStream)
+            return stream
+    error.throw_domain_error("stream", obj)
+
+def unwrap_instream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
+    if isinstance(obj, term.Atom):
+        try:
+            stream = engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+        else:
+            if not isinstance(stream, PrologInputStream):
+                error.throw_permission_error("input", "stream",
+                        term.Atom(stream.alias))
+            assert isinstance(stream, PrologInputStream)
+            return stream
+    error.throw_domain_error("stream", obj)
+
+def unwrap_outstream(engine, obj):
+    if isinstance(obj, term.Var):
+        error.throw_instantiation_error()
+    if isinstance(obj, term.Atom):
+        try:
+            stream = engine.streamwrapper.aliases[obj.name()]
+        except KeyError:
+            pass
+        else:
+            if not isinstance(stream, PrologOutputStream):
+                error.throw_permission_error("output", "stream",
+                        term.Atom(stream.alias))
+            assert isinstance(stream, PrologOutputStream)
+            return stream
+    error.throw_domain_error("stream", obj)
 
 def ensure_atomic(obj):
     if not is_atomic(obj):
@@ -96,5 +146,10 @@ def convert_to_str(obj):
         return str(obj.num)
     elif isinstance(obj, term.Float):
         return str(obj.floatval)
-    error.throw_type_error("atomic", obj)
+    elif isinstance(obj, term.BigInt):
+        return obj.value.str()
+    error.throw_type_error("atom", obj)
 
+def is_numeric(obj):
+    return isinstance(obj, term.Number) or isinstance(obj, term.BigInt)\
+            or isinstance(obj, term.Float)

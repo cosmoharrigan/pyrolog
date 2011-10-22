@@ -1,4 +1,4 @@
-from prolog.interpreter.term import Var
+from prolog.interpreter.term import Var, AttVar
 
 from pypy.rlib import jit
 
@@ -8,6 +8,8 @@ class Heap(object):
         self.trail_var = [None] * Heap.INITSIZE
         self.trail_binding = [None] * Heap.INITSIZE
         self.i = 0
+        self.trail_attrs = []
+        self.hooks = HookChain()
         self.prev = prev
         self.discarded = False
 
@@ -18,39 +20,55 @@ class Heap(object):
             self = self.prev
         return self
 
+    def add_trail_atts(self, attvar, attr_name):
+        if self._is_created_in_self(attvar):
+            return
+        value, index = attvar.get_attribute(attr_name)
+        self.trail_attrs.append((attvar, index, value))
+
+    def trail_new_attr(self, attvar, index, value):
+        if self._is_created_in_self(attvar):
+            return
+        self.trail_attrs.append((attvar, index, value))
+
     def add_trail(self, var):
         """ Remember the current state of a variable to be able to backtrack it
         to that state. Usually called just before a variable changes. """
         # if the variable doesn't exist before the last choice point, don't
         # trail it (variable shunting)
-        created_in = var.created_after_choice_point
-        if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
-            var.created_after_choice_point = created_in
-        if self is created_in:
+        if self._is_created_in_self(var):
             return
-        # actually trail the variable
-        i = jit.hint(self.i, promote=True)
+        #i = jit.hint(self.i, promote=True)
+        i = self.i
         if i >= len(self.trail_var):
             self._double_size()
         self.trail_var[i] = var
         self.trail_binding[i] = var.binding
         self.i = i + 1
 
-    @jit.unroll_safe
+    def add_hook(self, attvar):
+        self.hooks.add_hook(attvar)
+
+    def _is_created_in_self(self, var):
+        created_in = var.created_after_choice_point
+        if created_in is not None and created_in.discarded:
+            created_in = created_in._find_not_discarded()
+            var.created_after_choice_point = created_in
+        return self is created_in
+
     def _double_size(self):
-        trail_var = [None] * (len(self.trail_var) * 2)
-        trail_binding = [None] * len(trail_var)
-        for i in range(self.i):
-            trail_var[i] = self.trail_var[i]
-            trail_binding[i] = self.trail_binding[i]
-        self.trail_var = trail_var
-        self.trail_binding = trail_binding
+        self.trail_var = self.trail_var + [None] * len(self.trail_var)
+        self.trail_binding = self.trail_binding + [None] * len(self.trail_var)
 
     def newvar(self):
         """ Make a new variable. Should return a Var instance, possibly with
         interesting attributes set that e.g. add_trail can inspect."""
         result = Var()
+        result.created_after_choice_point = self
+        return result
+
+    def new_attvar(self):
+        result = AttVar()
         result.created_after_choice_point = self
         return result
 
@@ -69,6 +87,8 @@ class Heap(object):
         value is the new heap that should be used."""
         previous = self
         while self is not heap:
+            if self is None:
+                break
             self._revert()
             previous = self
             self = self.prev
@@ -79,10 +99,18 @@ class Heap(object):
     @jit.unroll_safe
     def _revert(self):
         for i in range(self.i-1, -1, -1):
-            self.trail_var[i].binding = self.trail_binding[i]
+            v = self.trail_var[i]
+            assert v is not None
+            v.binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
         self.i = 0
+
+        for attvar, index, value in self.trail_attrs:
+            attvar.reset_field(index, value)
+
+        self.trail_attrs = []
+        self.hooks.clear()
 
     def discard(self, current_heap):
         """ Remove a heap that is no longer needed (usually due to a cut) from
@@ -105,15 +133,30 @@ class Heap(object):
                     targetpos += 1
             current_heap.i = targetpos
 
+            
+            trail_attrs = []
+            targetpos = 0
+            for var, attr, value in current_heap.trail_attrs:
+                if var.created_after_choice_point is self:
+                    var.created_after_choice_point = self.prev
+                else:
+                    trail_attrs[targetpos] = (var, attr, value)
+            current_heap.trail_attrs = trail_attrs
+
             # move the variable bindings from the discarded heap to the current
             # heap
             for i in range(self.i):
                 var = self.trail_var[i]
                 currbinding = var.binding
                 binding = self.trail_binding[i]
+
                 var.binding = binding
                 current_heap.add_trail(var)
                 var.binding = currbinding
+
+            for tup in self.trail_attrs:
+                current_heap.trail_attrs.append(tup)
+
             current_heap.prev = self.prev
             self.trail_var = None
             self.trail_binding = None
@@ -136,3 +179,33 @@ class Heap(object):
             yield "%s -> %s [label=prev]" % (id(self), id(self.prev))
             for line in self.prev._dot(seen):
                 yield line
+
+class HookChain(object):
+    def __init__(self):
+        self.last = None
+
+    def add_hook(self, hook):
+        cell = HookCell(hook)
+        if self.last is None:
+            self.last = cell
+        else:
+            cell.next = self.last
+            self.last = cell
+
+    def clear(self):
+        self.__init__()
+
+    def _size(self):
+        if self.last is None:
+            return 0
+        current = self.last
+        size = 0
+        while current is not None:
+            current = current.next
+            size += 1
+        return size
+
+class HookCell(object):
+    def __init__(self, hook):
+        self.hook = hook
+        self.next = None

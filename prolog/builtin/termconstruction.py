@@ -30,42 +30,29 @@ def impl_functor(engine, heap, t, functor, arity):
                     term.Callable.build(name, [term.Var() for i in range(a)]),
                     heap)
 
-class ArgContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, scont, fcont, heap, first, second, third):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
-        self.undoheap = heap
-        self.orig_fcont = fcont
-        self.first = first
-        self.second = second
-        self.third = third
-        self.i = 0
-    
-    def activate(self, fcont, heap):
-        if self.i < self.second.argument_count():
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            arg = self.second.argument_at(self.i)
-            self.i += 1
-            try:
-                self.third.unify(arg, heap)
-                self.first.unify(term.Number(self.i), heap)
-            except error.UnificationFailed, e:
-                return fcont, self.orig_fcont, heap
-            return self.nextcont, fcont, heap
-        raise error.UnificationFailed()
+@continuation.make_failure_continuation
+def continue_arg(Choice, engine, scont, fcont, heap, varnum, num, temarg, vararg):
+    if num < temarg.argument_count() - 1:
+        fcont = Choice(engine, scont, fcont, heap, varnum, num + 1, temarg, vararg)
+        heap = heap.branch()
+    scont = continuation.BodyContinuation(
+            engine, engine.modulewrapper.user_module, scont, term.Callable.build("=", [vararg, temarg.argument_at(num)]))
+    varnum.unify(term.Number(num + 1), heap)
+    return scont, fcont, heap
 
 @expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
 handles_continuation=True)
 def impl_arg(engine, heap, first, second, third, scont, fcont):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
-    if helper.is_atomic(second):
+    if isinstance(second, term.Atom):
         raise error.UnificationFailed()
+        error.throw_type_error('compound', second)
     if not helper.is_term(second):
         error.throw_type_error("compound", second)
     assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
-        a = ArgContinuation(engine, scont, fcont, heap, first, second, third)
-        return a, fcont, heap
+        return continue_arg(engine, scont, fcont, heap, first, 0, second, third)
     elif isinstance(first, term.Number):
         num = first.num
         if num == 0:

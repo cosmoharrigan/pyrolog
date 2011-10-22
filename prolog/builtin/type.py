@@ -17,7 +17,8 @@ def impl_var(engine, heap, var):
 
 @expose_builtin("integer", unwrap_spec=["obj"])
 def impl_integer(engine, heap, var):
-    if isinstance(var, term.Var) or not isinstance(var, term.Number):
+    if (isinstance(var, term.Var) or not (isinstance(var, term.Number) or
+            isinstance(var, term.BigInt))):
         raise error.UnificationFailed()
 
 @expose_builtin("float", unwrap_spec=["obj"])
@@ -28,7 +29,7 @@ def impl_float(engine, heap, var):
 @expose_builtin("number", unwrap_spec=["obj"])
 def impl_number(engine, heap, var):
     if (isinstance(var, term.Var) or
-        (not isinstance(var, term.Number) and not
+        (not (isinstance(var, term.Number) or isinstance(var, term.BigInt)) and not
          isinstance(var, term.Float))):
         raise error.UnificationFailed()
 
@@ -56,8 +57,9 @@ def impl_callable(engine, heap, var):
     if not helper.is_callable(var, engine):
         raise error.UnificationFailed()
 
-@expose_builtin("ground", unwrap_spec=["concrete"])
+@expose_builtin("ground", unwrap_spec=["raw"])
 def impl_ground(engine, heap, var):
+    var = var.dereference(heap)
     if isinstance(var, term.Var):
         raise error.UnificationFailed()
     if isinstance(var, term.Callable):

@@ -2,40 +2,30 @@ import py
 from prolog.interpreter import helper, term, error
 from prolog.interpreter import continuation
 from prolog.builtin.register import expose_builtin
+from prolog.interpreter.term import specialized_term_classes
+from prolog.interpreter.term import Callable
+import re
 
 # ___________________________________________________________________
 # analysing and construction atoms
 
-
-class AtomConcatContinuation(continuation.ChoiceContinuation):
-    def __init__(self, engine, scont, fcont, heap, var1, var2, result):
-        continuation.ChoiceContinuation.__init__(self, engine, scont)
-        self.undoheap = heap
-        self.orig_fcont = fcont
-        self.var1 = var1
-        self.var2 = var2
-        self.r = helper.convert_to_str(result)
-        self.i = 0
-    
-    def activate(self, fcont, heap):
-        # nondeterministic splitting of result
-        if self.i < len(self.r)+1:
-            fcont, heap = self.prepare_more_solutions(fcont, heap)
-            self.var1.unify(term.Callable.build(self.r[:self.i], cache=False), heap)
-            self.var2.unify(term.Callable.build(self.r[self.i:], cache=False), heap)
-            self.i += 1
-            return self.nextcont, fcont, heap
-        raise error.UnificationFailed()
+@continuation.make_failure_continuation
+def continue_atom_concat(Choice, engine, scont, fcont, heap, var1, var2, result, i):
+    if i < len(result):
+        fcont = Choice(engine, scont, fcont, heap, var1, var2, result, i + 1)
+        heap = heap.branch()
+    var1.unify(term.Callable.build(result[:i], cache=False), heap)
+    var2.unify(term.Callable.build(result[i:], cache=False), heap)
+    return scont, fcont, heap
 
 @expose_builtin("atom_concat", unwrap_spec=["obj", "obj", "obj"], handles_continuation=True)
 def impl_atom_concat(engine, heap, a1, a2, result, scont, fcont):
     if isinstance(a1, term.Var):
+        r = helper.convert_to_str(result)
         if isinstance(a2, term.Var):
-            atom_concat_cont = AtomConcatContinuation(engine, scont, fcont, heap, a1, a2, result)
-            return atom_concat_cont, fcont, heap
+            return continue_atom_concat(engine, scont, fcont, heap, a1, a2, r, 0)
         else:
             s2 = helper.convert_to_str(a2)
-            r = helper.convert_to_str(result)
             if r.endswith(s2):
                 stop = len(r) - len(s2)
                 assert stop > 0
@@ -63,7 +53,7 @@ def impl_atom_length(engine, heap, s, length):
 
 
 
-class SubAtomContinuation(continuation.ChoiceContinuation):
+class SubAtomContinuation(object):
     def __init__(self, engine, scont, fcont, heap, atom, before, length, after, sub):
         continuation.ChoiceContinuation.__init__(self, engine, scont)
         self.undoheap = heap
@@ -186,8 +176,8 @@ class SubAtomElseContinuation(SubAtomContinuation):
             return self.nextcont, fcont, heap
         raise error.UnificationFailed()
 
-@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
-                                                    handles_continuation=True)
+#@expose_builtin("sub_atom", unwrap_spec=["atom", "obj", "obj", "obj", "obj"],
+#                                                    handles_continuation=True)
 def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
     if not isinstance(sub, term.Var):
         cls = SubAtomNonVarSubContinuation
@@ -198,3 +188,33 @@ def impl_sub_atom(engine, heap, s, before, length, after, sub, scont, fcont):
     cont =  cls(engine, scont, fcont, heap, s, before, length, after, sub)
     return cont, fcont, heap
 
+def atom_to_cons(atom):
+    charlist = [term.Callable.build(c) for c in atom.name()]
+    return helper.wrap_list(charlist)
+        
+def cons_to_atom(cons):
+    atomlist = helper.unwrap_list(cons)
+    result = []
+    for atom in atomlist:
+        if not isinstance(atom, term.Atom):
+            error.throw_type_error("text", atom)
+        name = atom.name()
+        if not len(name) == 1:
+            error.throw_type_error("text", atom)
+        result.append(atom.name())
+    return Callable.build("".join(result))
+
+@expose_builtin("atom_chars", unwrap_spec=["obj", "obj"])
+def impl_atom_chars(engine, heap, atom, charlist):
+    if not isinstance(charlist, term.Var):  
+        if isinstance(atom, term.Atom):
+            atom_to_cons(atom).unify(charlist, heap)
+        else:
+            cons_to_atom(charlist).unify(atom, heap)
+    else:
+        if isinstance(atom, term.Var):
+            error.throw_instantiation_error()
+        elif not isinstance(atom, term.Atom):
+            error.throw_type_error("atom", atom)
+        else:
+            atom_to_cons(atom).unify(charlist, heap)
