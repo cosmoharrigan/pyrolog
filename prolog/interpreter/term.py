@@ -573,10 +573,13 @@ class Atom(Callable):
 class Numeric(NonVar):
     __slots__ = ()
 
-class Number(Numeric, UnboxedValue):
+class Number(Numeric):#, UnboxedValue):
     TYPE_STANDARD_ORDER = 3
     __slots__ = ("num", )
     _immutable_fields_ = ["num"]
+
+    def __init__(self, val):
+        self.num = val
 
     @specialize.arg(3)
     def basic_unify(self, other, heap, occurs_check=False):
