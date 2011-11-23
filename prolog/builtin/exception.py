@@ -13,7 +13,7 @@ def impl_catch(engine, heap, module, goal, catcher, recover, scont, fcont):
     scont = continuation.CutScopeNotifier(engine, scont, fcont)
     scont = continuation.BodyContinuation(engine, module, scont, goal)
     #continuation.view(scont, fcont, heap)
-    return scont, fcont, heap.branch()
+    return scont, fcont, heap
 
 @expose_builtin("throw", unwrap_spec=["obj"], handles_continuation=True)
 def impl_throw(engine, heap, exc, scont, fcont):

@@ -265,7 +265,6 @@ class Engine(object):
             except error.UnificationFailed:
                 scont = scont.nextcont
             else:
-                # XXX discard the heap?
                 return self.call(
                     scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc)
