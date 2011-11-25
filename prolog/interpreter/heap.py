@@ -85,6 +85,7 @@ class Heap(object):
 
     def newvar_in_term(self, parent, index):
         from prolog.interpreter.term import var_in_term_classes
+        return self.newvar() # disabled for now
         result = var_in_term_classes[index](parent)
         result.created_after_choice_point = self
         return result

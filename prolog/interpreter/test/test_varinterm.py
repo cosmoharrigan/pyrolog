@@ -3,6 +3,7 @@ from prolog.interpreter.term import Callable, BindingVar, VarInTerm, NumberedVar
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.test.tool import assert_true
+py.test.skip("disabled for now")
 
 def test_copy_standardize_apart():
     h = Heap()
