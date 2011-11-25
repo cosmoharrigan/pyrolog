@@ -10,6 +10,15 @@ class SignatureFactory(object):
         self.init_extra_attrs = lambda self: None
 
     def getsignature(self, name, numargs, cache=True):
+        if cache:
+            return self._getsignature_elidable(name, numargs)
+        return self._getsignature(name, numargs, False)
+
+    @jit.elidable
+    def _getsignature_elidable(self, name, numargs):
+        return self._getsignature(name, numargs, True)
+
+    def _getsignature(self, name, numargs, cache):
         if (name, numargs) in self.cache:
             return self.cache[name, numargs]
         res = Signature(name, numargs, cached=cache, factory=self)
