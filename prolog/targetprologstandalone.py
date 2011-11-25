@@ -11,6 +11,9 @@ from prolog.interpreter.continuation import Engine, jitdriver
 from prolog.interpreter import term
 from prolog.interpreter import arithmetic # for side effects
 from prolog import builtin # for side effects
+
+from pypy.rlib import jit
+
 e = Engine(load_system=True)
 term.DEBUG = False
 
@@ -24,7 +27,7 @@ def entry_point(argv):
                 return 2
             jitarg = argv[i + 1]
             del argv[i:i+2]
-            jitdriver.set_user_param(jitarg)
+            jit.set_user_param(jitdriver, jitarg)
             break
 
     if len(argv) == 2:
