@@ -6,6 +6,7 @@ from pypy.rlib import jit
 # analysing and construction terms
 
 @expose_builtin("functor", unwrap_spec=["obj", "obj", "obj"])
+@jit.unroll_safe
 def impl_functor(engine, heap, t, functor, arity):
     if helper.is_atomic(t):
         functor.unify(t, heap)
@@ -18,16 +19,18 @@ def impl_functor(engine, heap, t, functor, arity):
         if isinstance(functor, term.Var):
             error.throw_instantiation_error()
         a = helper.unwrap_int(arity)
+        jit.promote(a)
         if a < 0:
             error.throw_domain_error("not_less_than_zero", arity)
         else:
             functor = helper.ensure_atomic(functor)
             if a == 0:
-                t.unify(helper.ensure_atomic(functor), heap)
+                t.unify(functor, heap)
             else:
+                jit.promote(functor)
                 name = helper.unwrap_atom(functor)
                 t.unify(
-                    term.Callable.build(name, [term.Var() for i in range(a)]),
+                    term.Callable.build(name, [heap.newvar() for i in range(a)]),
                     heap)
 
 @continuation.make_failure_continuation
