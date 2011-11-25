@@ -78,7 +78,8 @@ def impl_univ(engine, heap, first, second):
     if not isinstance(first, term.Var):
         if helper.is_term(first):
             assert isinstance(first, term.Callable)
-            l = [term.Callable.build(first.name())] + first.arguments()
+            sig = first.signature().atom_signature
+            l = [term.Callable.build(first.name(), signature=sig)] + first.arguments()
         else:
             l = [first]
         u1 = helper.wrap_list(l)
