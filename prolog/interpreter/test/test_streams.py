@@ -338,9 +338,9 @@ def test_put_byte_below_zero():
         delete_file(target)
 
 def test_current_input():
-    X = term.Var()
     e = Engine()
     h = Heap()
+    X = h.newvar()
     impl_current_input(e, h, X)
     assert X.dereference(h).name() == e.streamwrapper.current_instream.alias
 
@@ -357,9 +357,9 @@ def test_current_input_2():
         delete_file(src)
     
 def test_current_output():
-    X = term.Var()
     e = Engine()
     h = Heap()
+    X = h.newvar()
     impl_current_output(e, h, X)
     assert X.dereference(h).name() == e.streamwrapper.current_outstream.alias
 

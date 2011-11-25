@@ -1,7 +1,7 @@
 import py
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.term import Atom, Var, Number, Callable, Term
-from prolog.interpreter.term import NumberedVar
+from prolog.interpreter.term import NumberedVar, BindingVar
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter.helper import is_term
 from prolog.interpreter.stream import PrologStream, PrologInputStream, \
@@ -16,32 +16,32 @@ def test_atom():
     py.test.raises(UnificationFailed, "a.unify(Callable.build('xxx'), None)")
 
 def test_var():
-    b = Var()
+    b = BindingVar()
     heap = Heap()
     b.unify(Callable.build("hallo"), heap)
     assert b.dereference(heap).name()== "hallo"
-    a = Var()
-    b = Var()
+    a = BindingVar()
+    b = BindingVar()
     a.unify(b, heap)
     a.unify(Callable.build("hallo"), heap)
     assert a.dereference(heap).name()== "hallo"
     assert b.dereference(heap).name()== "hallo"
 
 def test_unify_var():
-    b = Var()
+    b = BindingVar()
     heap = Heap()
     b.unify(b, heap)
     b.unify(Callable.build("hallo"), heap)
     py.test.raises(UnificationFailed, b.unify, Callable.build("bye"), heap)
 
 def test_recursive():
-    b = Var()
+    b = BindingVar()
     heap = Heap()
     b.unify(Callable.build("hallo", [b]), heap)
 
 def test_term():
-    X = Var()
-    Y = Var()
+    X = BindingVar()
+    Y = BindingVar()
     t1 = Callable.build("f", [Callable.build("hallo"), X])
     t2 = Callable.build("f", [Y, Callable.build("HALLO")])
     heap = Heap()
@@ -52,8 +52,8 @@ def test_term():
 
 def test_enumerate_vars():
     from prolog.interpreter.memo import EnumerationMemo
-    X = Var()
-    Y = Var()
+    X = BindingVar()
+    Y = BindingVar()
     t1 = Callable.build("f", [X, X, Callable.build("g", [Y, X])])
     memo = EnumerationMemo()
     t2 = t1.enumerate_vars(memo)
@@ -77,9 +77,9 @@ def test_enumerate_vars_of_bound_var():
 
 def test_enumerate_vars_var_occurs_once():
     from prolog.interpreter.memo import EnumerationMemo
-    X = Var()
-    Y = Var()
-    Z = Var()
+    X = BindingVar()
+    Y = BindingVar()
+    Z = BindingVar()
     t1 = Callable.build("f", [X, Y, Y, Z, Z])
     memo = EnumerationMemo()
     t2 = t1.enumerate_vars(memo)
@@ -91,8 +91,8 @@ def test_enumerate_vars_var_occurs_once():
 
 def test_unify_and_standardize_apart():
     heap = Heap()
-    X = Var()
-    Y = Var()
+    X = BindingVar()
+    Y = BindingVar()
     Z = NumberedVar(0)
     t1 = Callable.build("f", [Z, Callable.build("g", [Z, Callable.build("h")]), Z])
     t2 = Callable.build("f", [Callable.build("i"), X, Y])
@@ -103,6 +103,28 @@ def test_unify_and_standardize_apart():
     Z.unify_and_standardize_apart(t2, heap, [])
 
 def test_copy_standardize_apart():
+    heap = Heap()
+    Z = NumberedVar(0)
+    env = [None]
+    t1 = Z.copy_standardize_apart(heap, env)
+    t2 = Z.copy_standardize_apart(heap, env)
+    assert isinstance(t1, Var)
+    assert t1 is t2
+
+    env = [Number(1)]
+    t1 = Z.copy_standardize_apart(heap, env)
+    assert isinstance(t1, Number)
+    t2 = Z.copy_standardize_apart(heap, env)
+    assert t1 is t2
+
+    Z = NumberedVar(-1)
+    t1 = Z.copy_standardize_apart(heap, [None])
+    t2 = Z.copy_standardize_apart(heap, [None])
+    assert isinstance(t1, Var)
+    assert isinstance(t2, Var)
+    assert t1 is not t2
+
+def test_copy_standardize_apart_term():
     heap = Heap()
     Z = NumberedVar(0)
     t = Callable.build("f", [Z, Z])
@@ -124,8 +146,8 @@ def test_copy_standardize_apart():
 def test_run():
     e = Engine()
     e.add_rule(Callable.build("f", [Callable.build("a"), Callable.build("b")]))
-    X = Var()
-    Y = Var()
+    X = BindingVar()
+    Y = BindingVar()
     c = Callable.build("f", [X, X])
     e.add_rule(c)
     c2 = Callable.build(":-", [Callable.build("f", [X, Y]),
@@ -142,7 +164,7 @@ def test_run():
 
 def test_quick_unify_check():
     a = Callable.build("hallo", [NumberedVar(0), Number(10), Number(11)])
-    b = Callable.build("hallo", [Callable.build("a"), Number(10), Var()])
+    b = Callable.build("hallo", [Callable.build("a"), Number(10), BindingVar()])
     assert a.quick_unify_check(b)
 
     a = Callable.build("hallo", [NumberedVar(0), Number(10), Callable.build("b")])
@@ -150,14 +172,14 @@ def test_quick_unify_check():
     assert not a.quick_unify_check(b)
 
     a = Callable.build("hallo", [Callable.build("a"), Number(10), Number(11)])
-    b = Callable.build("hallo", [Var(), Number(10), Callable.build("b")])
+    b = Callable.build("hallo", [BindingVar(), Number(10), Callable.build("b")])
     assert a.quick_unify_check(a)
     assert b.quick_unify_check(b)
     assert not a.quick_unify_check(b)
 
 def test_copy_dereferences():
     from prolog.interpreter.memo import CopyMemo
-    v1 = Var()
+    v1 = BindingVar()
     v1.binding = Number(10)
     v2 = v1.copy(None, CopyMemo())
     assert v2.num == 10

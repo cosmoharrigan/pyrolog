@@ -4,7 +4,7 @@ from pypy.rlib import jit
 from pypy.rlib.objectmodel import we_are_translated, specialize
 from prolog.interpreter import error
 from prolog.interpreter import helper
-from prolog.interpreter.term import Term, Atom, Var, Callable
+from prolog.interpreter.term import Term, Atom, BindingVar, Callable, Var
 from prolog.interpreter.function import Function, Rule
 from prolog.interpreter.heap import Heap
 from prolog.interpreter.signature import Signature
@@ -77,28 +77,28 @@ def driver(scont, fcont, heap):
 
 @jit.unroll_safe
 def _process_hooks(scont, fcont, heap):
-    if heap.hooks.last:
+    if heap.hook:
         e = scont.engine
-        hookcell = heap.hooks.last
-        heap.hooks.clear()
+        hookcell = heap.hook
+        heap.hook = None
         while hookcell:
-            hook = hookcell.hook
-            attmap = jit.hint(hook.attmap, promote=True)
-            for i in range(len(hook.value_list)):
-                val = hook.value_list[i]
+            attvar = hookcell.attvar
+            attmap = jit.hint(attvar.attmap, promote=True)
+            for i in range(len(attvar.value_list)):
+                val = attvar.value_list[i]
                 if val is None:
                     continue
                 module = attmap.get_attname_at_index(i)
-                query = Callable.build("attr_unify_hook", [val, hook])
+                query = Callable.build("attr_unify_hook", [val, attvar])
                 try:
                     mod = e.modulewrapper.get_module(module, query)
                 except error.CatchableError, err:
                     scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
                     break
                 scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
-                heap.add_trail_atts(hook, module)
+                heap.add_trail_atts(attvar, module)
             hookcell = hookcell.next
-            hook.value_list = None
+            attvar.value_list = None # XXX?
     return scont, fcont, heap
 
 class Engine(object):
@@ -166,12 +166,12 @@ class Engine(object):
 
     def _term_expand(self, term):
         if self.modulewrapper.system is not None:
-            v = Var()
+            v = BindingVar()
             call = Callable.build("term_expand", [term, v])
             try:
                 self.run(call, self.modulewrapper.current_module)
             except error.UnificationFailed:
-                v = Var()
+                v = BindingVar()
                 call = Callable.build("term_expand", [term, v])
                 self.run(call, self.modulewrapper.system)
             term = v.dereference(None)

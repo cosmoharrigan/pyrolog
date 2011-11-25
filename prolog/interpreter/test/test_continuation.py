@@ -84,7 +84,7 @@ def test_failure_continuation():
                      3, 'c', 2, 'c', 1, 'c', 0, 'c']
 
 def test_full():
-    from prolog.interpreter.term import Var, Atom, Term
+    from prolog.interpreter.term import BindingVar, Atom, Term
     all = []
     e = Engine()
     class CollectContinuation(object):
@@ -102,8 +102,8 @@ def test_full():
     e.add_rule(Callable.build("g", [Callable.build("a")]), True)
     e.add_rule(Callable.build("g", [Callable.build("b")]), True)
 
-    X = Var()
-    Y = Var()
+    X = BindingVar()
+    Y = BindingVar()
     query = Callable.build(",", [Callable.build("f", [X]), Callable.build("g", [Y])])
     py.test.raises(error.UnificationFailed,
                    e.run_query, query, e.modulewrapper.user_module, CollectContinuation())

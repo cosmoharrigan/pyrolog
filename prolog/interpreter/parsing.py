@@ -376,13 +376,13 @@ class TermBuilder(RPythonVisitor):
         return Callable.build(name)
 
     def visit_VAR(self, node):
-        from prolog.interpreter.term import Var
+        from prolog.interpreter.term import BindingVar
         varname = node.additional_info
         if varname == "_":
-            return Var()
+            return BindingVar()
         if varname in self.varname_to_var:
             return self.varname_to_var[varname]
-        res = Var()
+        res = BindingVar()
         self.varname_to_var[varname] = res
         return res
 
