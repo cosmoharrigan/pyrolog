@@ -476,8 +476,8 @@ class Callable(NonVar):
                     args[i] = arg.binding
         if len(args) == 0:
             if cache:
-                return Atom.newatom(term_name)
-            return Atom(term_name)
+                return Atom.newatom(term_name, signature)
+            return Atom(term_name, signature)
         else:
             if signature is None:
                 if cache:
@@ -539,12 +539,14 @@ class Atom(Callable):
         return "Atom(%r)" % (self.name(),)
     
     @staticmethod
-    def newatom(name):
-        result = Atom.cache.get(name, None)
+    @jit.elidable
+    def newatom(name, signature=None):
+        if signature is None:
+            signature = Signature.getsignature(name, 0)
+        result = Atom.cache.get(signature, None)
         if result is not None:
             return result
-        signature = Signature.getsignature(name, 0)
-        Atom.cache[name] = result = Atom(name, signature)
+        Atom.cache[signature] = result = Atom(name, signature)
         return result
     
     def eval_arithmetic(self, engine):
