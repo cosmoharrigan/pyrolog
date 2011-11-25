@@ -13,7 +13,9 @@ def impl_functor(engine, heap, t, functor, arity):
         arity.unify(term.Number(0), heap)
     elif helper.is_term(t):
         assert isinstance(t, term.Callable)
-        functor.unify(term.Callable.build(t.name()), heap)
+        sig = t.signature()
+        atom = term.Callable.build(t.name(), signature=sig.atom_signature)
+        functor.unify(atom, heap)
         arity.unify(term.Number(t.argument_count()), heap)
     elif isinstance(t, term.Var):
         if isinstance(functor, term.Var):

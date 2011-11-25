@@ -62,7 +62,7 @@ class Signature(object):
 
     _cache = SignatureFactory()
 
-    _immutable_fields_ = ["name", "numargs", "factory"]
+    _immutable_fields_ = ["name", "numargs", "atom_signature", "factory"]
 
     def __init__(self, name, numargs, cached=False, factory=None):
         assert name is not None
@@ -73,6 +73,11 @@ class Signature(object):
         if factory is None:
             factory = self._cache
         self.factory = factory
+        if numargs:
+            atom_signature = factory.getsignature(name, 0, cached)
+        else:
+            atom_signature = self
+        self.atom_signature = atom_signature
         factory.init_extra_attrs(self)
 
     def eq(self, other):

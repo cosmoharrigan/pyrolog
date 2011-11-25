@@ -59,3 +59,11 @@ def test_extra_attr_engine():
     assert sig1.get_extra_engine_local("foo", e1) is None
     sig1.set_extra_engine_local("foo", 8, e2)
     assert sig1.get_extra_engine_local("foo", e2) == 8
+
+def test_atom_signature():
+    factory = SignatureFactory()
+    factory.register_extr_attr("foo", engine=True)
+    sig1 = factory.getsignature("a", 0)
+    assert sig1.atom_signature is sig1
+    sig2 = factory.getsignature("a", 5)
+    assert sig2.atom_signature is sig1
