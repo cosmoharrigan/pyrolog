@@ -6,6 +6,8 @@ from pypy.rlib import jit
 INIT_TRAIL_VAR = []
 INIT_TRAIL_BINDING = []
 
+UNROLL_SIZE = 6
+
 class Heap(object):
     def __init__(self, prev=None):
         self.trail_var = INIT_TRAIL_VAR
@@ -136,15 +138,13 @@ class Heap(object):
         a chain of frames. """
         self.discarded = True
         if current_heap.prev is self:
-            if current_heap.i:
-                self._discard_try_remove_current_trail(current_heap)
+            self._discard_try_remove_current_trail(current_heap)
             if current_heap.trail_attrs is not None:
                 self._discard_try_remove_current_trail_attvars(current_heap)
 
             # move the variable bindings from the discarded heap to the current
             # heap
-            if self.i:
-                self._discard_move_bindings_to_current(current_heap)
+            self._discard_move_bindings_to_current(current_heap)
 
             if self.trail_attrs is not None:
                 if current_heap.trail_attrs is not None:
@@ -163,6 +163,8 @@ class Heap(object):
         return current_heap
 
 
+    @jit.look_inside_iff(lambda self, current_heap:
+            current_heap.i < UNROLL_SIZE)
     def _discard_try_remove_current_trail(self, current_heap):
         targetpos = 0
         # check whether variables in the current heap no longer need to be
@@ -193,6 +195,8 @@ class Heap(object):
         current_heap.trail_attrs = trail_attrs
 
 
+    @jit.look_inside_iff(lambda self, current_heap:
+            self.i < UNROLL_SIZE)
     def _discard_move_bindings_to_current(self, current_heap):
         for i in range(self.i):
             var = self.trail_var[i]
