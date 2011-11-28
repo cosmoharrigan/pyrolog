@@ -77,7 +77,6 @@ class Heap(object):
         if l == 0:
             self.trail_var = [None, None]
             self.trail_binding = [None, None]
-            self.i = 0
         elif l == 1:
             assert 0, "cannot happen"
         else:
@@ -127,14 +126,16 @@ class Heap(object):
             return heap
         return previous
 
-    @jit.unroll_safe
+    @jit.look_inside_iff(lambda self: self.i < UNROLL_SIZE)
     def _revert(self):
-        for i in range(self.i-1, -1, -1):
+        i = self.i - 1
+        while i >= 0:
             v = self.trail_var[i]
             assert v is not None
             v.binding = self.trail_binding[i]
             self.trail_var[i] = None
             self.trail_binding[i] = None
+            i -= 1
         self.i = 0
 
         if self.trail_attrs is not None:
