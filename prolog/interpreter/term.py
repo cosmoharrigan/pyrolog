@@ -416,7 +416,7 @@ class NonVar(PrologObject):
         return self._unify_derefed(other, heap, occurs_check)
     
     @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
+    def basic_unify(self, other, heap, occurs_check):
         raise NotImplementedError("abstract base class")
     
     @specialize.arg(3)
@@ -470,7 +470,7 @@ class Callable(NonVar):
         raise NotImplementedError("abstract base")
     
     @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
+    def basic_unify(self, other, heap, occurs_check):
         if (isinstance(other, Callable) and
                 self.signature().eq(other.signature())):
             for i in range(self.argument_count()):
@@ -676,7 +676,7 @@ class Number(Numeric):#, UnboxedValue):
         self.num = val
 
     @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
+    def basic_unify(self, other, heap, occurs_check):
         if isinstance(other, Number) and other.num == self.num:
             return
         raise UnificationFailed
@@ -722,7 +722,7 @@ class BigInt(Numeric):
     def __init__(self, value):
         self.value = value
 
-    def basic_unify(self, other, heap, occurs_check=False):
+    def basic_unify(self, other, heap, occurs_check):
         if isinstance(other, BigInt) and other.value.eq(self.value):
             return
         raise UnificationFailed
@@ -756,7 +756,7 @@ class Float(Numeric):
         self.floatval = floatval
     
     @specialize.arg(3)
-    def basic_unify(self, other, heap, occurs_check=False):
+    def basic_unify(self, other, heap, occurs_check):
         if isinstance(other, Float) and other.floatval == self.floatval:
             return
         raise UnificationFailed
@@ -992,8 +992,9 @@ def generate_abstract_class(n_args, immutable=True):
                 return self
 
         @specialize.arg(3)
-        @jit.dont_look_inside
-        def basic_unify(self, other, heap, occurs_check=False):
+        @jit.look_inside_iff(lambda self, other, heap, occurs_check:
+                jit.isvirtual(self) or jit.isvirtual(other))
+        def basic_unify(self, other, heap, occurs_check):
             if not isinstance(other, abstract_callable):
                 return Callable.basic_unify(self, other, heap, occurs_check)
             if self.signature().eq(other.signature()):
