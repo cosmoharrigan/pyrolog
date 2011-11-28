@@ -993,7 +993,8 @@ def generate_abstract_class(n_args, immutable=True):
 
         @specialize.arg(3)
         @jit.look_inside_iff(lambda self, other, heap, occurs_check:
-                jit.isvirtual(self) or jit.isvirtual(other))
+                jit.isvirtual(self) or jit.isvirtual(other) or
+                jit.isconstant(self) or jit.isconstant(other))
         def basic_unify(self, other, heap, occurs_check):
             if not isinstance(other, abstract_callable):
                 return Callable.basic_unify(self, other, heap, occurs_check)
