@@ -100,7 +100,7 @@ def test_heap_discard_variable_shunting():
     assert h2.prev is h0
     assert h2 is h
     assert h1.discarded
-    assert h1.prev is h2                                                                                                                                
+    assert h1.prev is h2
 
     h2.add_trail(v1b)
     v1b.binding = 3
