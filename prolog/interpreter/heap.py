@@ -65,7 +65,10 @@ class Heap(object):
         if self is created_in: # fast path
             return True
         if created_in is not None and created_in.discarded:
-            created_in = created_in._find_not_discarded()
+            # unroll _find_not_discarded once for better jittability
+            created_in = created_in.prev
+            if created_in is not None and created_in.discarded:
+                created_in = created_in._find_not_discarded()
             var.created_after_choice_point = created_in
         return self is created_in
 
