@@ -150,9 +150,9 @@ class Heap(object):
         a chain of frames. """
         self.discarded = True
         if current_heap.prev is self:
-            self._discard_try_remove_current_trail(current_heap)
+            current_heap._discard_try_remove_current_trail(self)
             if current_heap.trail_attrs is not None:
-                self._discard_try_remove_current_trail_attvars(current_heap)
+                current_heap._discard_try_remove_current_trail_attvars(self)
 
             # move the variable bindings from the discarded heap to the current
             # heap
@@ -175,36 +175,36 @@ class Heap(object):
         return current_heap
 
 
-    @jit.look_inside_iff(lambda self, current_heap:
-            current_heap.i < UNROLL_SIZE)
-    def _discard_try_remove_current_trail(self, current_heap):
+    @jit.look_inside_iff(lambda self, discarded_heap:
+            self.i < UNROLL_SIZE)
+    def _discard_try_remove_current_trail(self, discarded_heap):
         targetpos = 0
         # check whether variables in the current heap no longer need to be
         # traced, because they originate in the discarded heap
-        for i in range(jit.promote(current_heap.i)):
-            var = current_heap.trail_var[i]
-            binding = current_heap.trail_binding[i]
-            if var.created_after_choice_point is self:
-                var.created_after_choice_point = self.prev
-                current_heap.trail_var[i] = None
-                current_heap.trail_binding[i] = None
+        for i in range(jit.promote(self.i)):
+            var = self.trail_var[i]
+            binding = self.trail_binding[i]
+            if var.created_after_choice_point is discarded_heap:
+                var.created_after_choice_point = discarded_heap.prev
+                self.trail_var[i] = None
+                self.trail_binding[i] = None
             else:
-                current_heap.trail_var[targetpos] = var
-                current_heap.trail_binding[targetpos] = binding
+                self.trail_var[targetpos] = var
+                self.trail_binding[targetpos] = binding
                 targetpos += 1
-        current_heap.i = targetpos
+        self.i = targetpos
 
-    def _discard_try_remove_current_trail_attvars(self, current_heap):
+    def _discard_try_remove_current_trail_attvars(self, discarded_heap):
         trail_attrs = []
         targetpos = 0
-        for var, attr, value in current_heap.trail_attrs:
-            if var.created_after_choice_point is self:
-                var.created_after_choice_point = self.prev
+        for var, attr, value in self.trail_attrs:
+            if var.created_after_choice_point is discarded_heap:
+                var.created_after_choice_point = discarded_heap.prev
             else:
                 trail_attrs[targetpos] = (var, attr, value)
         if not trail_attrs:
             trail_attrs = None
-        current_heap.trail_attrs = trail_attrs
+        self.trail_attrs = trail_attrs
 
 
     @jit.look_inside_iff(lambda self, current_heap:
