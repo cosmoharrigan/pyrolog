@@ -128,7 +128,7 @@ class Heap(object):
 
     @jit.look_inside_iff(lambda self: self.i < UNROLL_SIZE)
     def _revert(self):
-        i = self.i - 1
+        i = jit.promote(self.i) - 1
         while i >= 0:
             v = self.trail_var[i]
             assert v is not None
@@ -181,7 +181,7 @@ class Heap(object):
         targetpos = 0
         # check whether variables in the current heap no longer need to be
         # traced, because they originate in the discarded heap
-        for i in range(current_heap.i):
+        for i in range(jit.promote(current_heap.i)):
             var = current_heap.trail_var[i]
             binding = current_heap.trail_binding[i]
             if var.created_after_choice_point is self:
@@ -210,7 +210,7 @@ class Heap(object):
     @jit.look_inside_iff(lambda self, current_heap:
             self.i < UNROLL_SIZE)
     def _discard_move_bindings_to_current(self, current_heap):
-        for i in range(self.i):
+        for i in range(jit.promote(self.i)):
             var = self.trail_var[i]
             currbinding = var.binding
             binding = self.trail_binding[i]
