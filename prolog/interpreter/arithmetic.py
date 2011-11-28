@@ -60,6 +60,7 @@ simple_functions = [
     ("-", 2, "sub"),
     ("*", 2, "mul"),
     ("/", 2, "div"),
+    ("//", 2, "floordiv"),
     ("**", 2, "pow"),
     (">>", 2, "shr"),
     ("<<", 2, "shl"),
@@ -171,6 +172,23 @@ class __extend__(term.Number):
 
     def arith_div_float(self, other_float):
         return term.Float(other_float / float(self.num))
+
+    def arith_floordiv(self, other):
+        return other.arith_floordiv_number(self.num)
+
+    def arith_floordiv_number(self, other_num):
+        try:
+            res = rarithmetic.ovfcheck(other_num // self.num)
+        except OverflowError:
+            return self.arith_floordiv_bigint(rbigint.fromint(other_num))
+        return term.Number(res)
+
+    def arith_floordiv_bigint(self, other_value):
+        return make_int(term.BigInt(other_value.floordiv(rbigint.fromint(self.num))))
+
+    def arith_floordiv_float(self, other_float):
+        error.throw_type_error("integer", other_float)
+
 
     # ------------------ power ------------------ 
     def arith_pow(self, other):
@@ -362,6 +380,15 @@ class __extend__(term.Float):
     def arith_div_float(self, other_float):
         return term.Float(other_float / self.floatval)
 
+    def arith_floordiv(self, other_float):
+        error.throw_type_error("integer", self)
+    def arith_floordiv_number(self, other_num):
+        error.throw_type_error("integer", self)
+    def arith_floordiv_bigint(self, other_value):
+        error.throw_type_error("integer", self)
+    def arith_floordiv_float(self, other_float):
+        error.throw_type_error("integer", other_float)
+
     # ------------------ power ------------------ 
     def arith_pow(self, other):
         return other.arith_pow_float(self.floatval)
@@ -502,7 +529,18 @@ class __extend__(term.BigInt):
     def arith_div_float(self, other_float):
         return term.Float(other_float / self.value.tofloat())
 
-    # ------------------ power ------------------ 
+    def arith_floordiv(self, other):
+        return other.arith_floordiv_bigint(self.value)
+
+    def arith_floordiv_number(self, other_num):
+        return make_int(term.BigInt(rbigint.fromint(other_num).div(self.value)))
+
+    def arith_floordiv_bigint(self, other_value):
+        return make_int(term.BigInt(other_value.div(self.value)))
+
+    def arith_floordiv_float(self, other_float):
+        error.throw_type_error("integer", other_float)
+    # ------------------ power ------------------
     def arith_pow(self, other):
         return other.arith_pow_bigint(self.value)
 

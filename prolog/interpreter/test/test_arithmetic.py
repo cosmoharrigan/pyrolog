@@ -96,6 +96,22 @@ class TestArithmeticMethod(object):
         py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Number(0))')
         py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Float(0))')
 
+    def test_floordiv(self):
+        assert Number(5).arith_floordiv(Number(2)).num == 2
+        assert Number(15).arith_floordiv(Number(5)).num == 3
+        py.test.raises(error.CatchableError, "Number(5).arith_floordiv(Float(2.5))")
+        py.test.raises(error.CatchableError, "Float(2.5).arith_floordiv(Number(5))")
+        py.test.raises(error.CatchableError, "Float(-10).arith_floordiv(Float(2.5))")
+        assert BigInt(rbigint.fromdecimalstr('50000000000000000')).arith_floordiv(BigInt(rbigint.fromdecimalstr('25000000000000000'))).num == 2
+        py.test.raises(error.CatchableError, "BigInt(rbigint.fromdecimalstr('100000000000000000000')).arith_floordiv(Float(100000000000000000000.0))")
+        py.test.raises(error.CatchableError, "Float(100000000000000000000).arith_floordiv(BigInt(rbigint.fromdecimalstr('100000000000000000000')))")
+        assert Number(5).arith_floordiv(BigInt(rbigint.fromdecimalstr('5'))).num == 1
+        assert BigInt(rbigint.fromdecimalstr('5')).arith_floordiv(Number(5)).num == 1
+
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(BigInt(rbigint.fromdecimalstr(\'0\')))')
+        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(Number(0))')
+        py.test.raises(ZeroDivisionError, 'Number(1).arith_floordiv(Number(0))')
+
     def test_power(self):
         assert Number(5).arith_pow(Number(2)).num == 25
         assert Float(2.3).arith_pow(Float(3.1)).floatval == 13.223800591254721
