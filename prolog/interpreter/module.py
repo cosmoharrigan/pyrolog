@@ -52,6 +52,7 @@ class ModuleWrapper(object):
 
 
 class Module(object):
+    _immutable_fields_ = ["name", "nameatom"]
     def __init__(self, name):
         self.name = name
         self.nameatom = Atom(name)
