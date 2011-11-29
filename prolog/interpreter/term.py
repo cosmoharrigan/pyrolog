@@ -918,7 +918,7 @@ def generate_abstract_class(n_args, immutable=True):
             for x in arg_iter:
                 setattr(self, 'val_%d' % x, args[x])
 
-        def _make_new(self, name, signature, mutable=False):
+        def _make_new(self, name, signature):
             raise NotImplementedError("abstract base class")
         _make_new_mutable = _make_new
 
@@ -1046,12 +1046,12 @@ def generate_generic_class(n_args, immutable=True):
             assert args is None or len(args) == n_args
             assert self.name() == term_name
 
-        def _make_new(self, name, signature, mutable=False):
+        def _make_new(self, name, signature):
             cls = generic_callable
             return cls(name, None, signature)
 
         if immutable:
-            def _make_new_mutable(self, name, signature, mutable=False):
+            def _make_new_mutable(self, name, signature):
                 cls = mutable_version
                 return cls(name, None, signature)
         else:
