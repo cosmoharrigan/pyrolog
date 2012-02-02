@@ -627,6 +627,9 @@ def test_findall():
     """)
     assert_true("findall(X+Y, app(X, Y, [1, 2, 3]), L), L == [[]+[1, 2, 3], [1]+[2, 3], [1, 2]+[3], [1, 2, 3]+[]].", e)
 
+def test_findall_and_exception_bug():
+    prolog_raises("instantiation_error", "findall(1, 0 is X, _)")
+
 
 def test_ifthenelse():
     assert_false("true -> fail.")

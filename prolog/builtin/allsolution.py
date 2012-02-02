@@ -6,8 +6,9 @@ from prolog.builtin.register import expose_builtin
 # finding all solutions to a goal
 
 class FindallContinuation(continuation.Continuation):
-    def __init__(self, engine, template, heap):
-        continuation.Continuation.__init__(self, engine, None)
+    def __init__(self, engine, template, heap, scont):
+        # nextcont still needs to be set, for correct exception propagation
+        continuation.Continuation.__init__(self, engine, scont)
         self.resultvar = self.fullsolution = heap.newvar()
         self.template = template
         self.heap = heap
@@ -41,7 +42,7 @@ class DoneWithFindallContinuation(continuation.FailureContinuation):
                 handles_continuation=True, needs_module=True)
 def impl_findall(engine, heap, module, template, goal, bag, scont, fcont):
     newheap = heap.branch()
-    collector = FindallContinuation(engine, template, heap)
+    collector = FindallContinuation(engine, template, heap, scont)
     newscont = continuation.BodyContinuation(engine, module, collector, goal)
     fcont = DoneWithFindallContinuation(engine, scont, fcont, heap, collector, bag)
     return newscont, fcont, newheap
