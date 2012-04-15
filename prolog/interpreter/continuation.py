@@ -253,7 +253,10 @@ class Engine(object):
 
     @jit.unroll_safe
     def throw(self, exc, scont, fcont, heap):
-        # XXX write tests for catching non-ground things
+        from prolog.interpreter import memo
+        # copy to make sure that variables in the exception that are
+        # backtracked by the revert_upto below have the right value.
+        exc = exc.copy(heap, memo.CopyMemo())
         while not scont.is_done():
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont

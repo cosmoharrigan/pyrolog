@@ -463,7 +463,6 @@ def test_repeat():
     e = get_engine('f :- repeat, !, fail.')
     assert_false('f.', e)
     assert_true('f; true.', e)
-    
 
 def test_exception_handling():
     assert_true("catch(f, E, true).")
@@ -472,6 +471,9 @@ def test_exception_handling():
     prolog_raises("_", "catch(throw(error(x)), error(failure), fail)")
     assert_true("catch(catch(throw(error), failure, fail), error, true).")
     assert_true("catch((X = y, throw(X)), E, E == y).")
+
+def test_exception_forces_backtracking():
+    assert_true("catch((X = 1, throw(f(X))), Y, (var(X), Y == f(1))), var(X).")
 
 def test_between():
     assert_true("between(12, 15, 12).")
