@@ -1,5 +1,5 @@
-from pypy.translator.interactive import Translation
-from pypy.rpython.test.test_llinterp import interpret
+from rpython.translator.interactive import Translation
+from rpython.rpython.test.test_llinterp import interpret
 from prolog.interpreter import parsing
 from prolog.interpreter.term import Atom
 from prolog.interpreter.test.tool import *

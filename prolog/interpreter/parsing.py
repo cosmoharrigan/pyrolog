@@ -1,15 +1,15 @@
 import py
-from pypy.rlib.parsing.ebnfparse import parse_ebnf
-from pypy.rlib.parsing.regexparse import parse_regex
-from pypy.rlib.parsing.lexer import Lexer, DummyLexer
-from pypy.rlib.parsing.deterministic import DFA
-from pypy.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
-from pypy.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
-from pypy.rlib.parsing.regex import StringExpression
+from rpython.rlib.parsing.ebnfparse import parse_ebnf
+from rpython.rlib.parsing.regexparse import parse_regex
+from rpython.rlib.parsing.lexer import Lexer, DummyLexer
+from rpython.rlib.parsing.deterministic import DFA
+from rpython.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
+from rpython.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
+from rpython.rlib.parsing.regex import StringExpression
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError, ParseStringError
-from pypy.rlib.rarithmetic import ovfcheck
+from rpython.rlib.rarithmetic import ovfcheck
 from pypy.objspace.std.strutil import string_to_int
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.rbigint import rbigint
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.module import Module
 
@@ -403,7 +403,7 @@ class TermBuilder(RPythonVisitor):
     def visit_STRING(self, node):
         from prolog.interpreter import helper
         from prolog.interpreter.term import Callable, Number
-        from pypy.rlib.runicode import str_decode_utf_8
+        from rpython.rlib.runicode import str_decode_utf_8
         info = node.additional_info
         s = info.strip('"')
         s, _ = str_decode_utf_8(s, len(s), 'strict')

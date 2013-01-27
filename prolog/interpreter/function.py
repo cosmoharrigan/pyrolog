@@ -1,7 +1,7 @@
 from prolog.interpreter.term import Callable, Atom, Var
 from prolog.interpreter.memo import EnumerationMemo
 from prolog.interpreter.signature import Signature
-from pypy.rlib import jit, objectmodel, unroll
+from rpython.rlib import jit, objectmodel, unroll
 from prolog.interpreter.helper import is_callable
 # XXX needs tests
 

@@ -1,7 +1,7 @@
 import py
 from prolog.interpreter import helper, term, error, continuation
 from prolog.builtin.register import expose_builtin
-from pypy.rlib import jit
+from rpython.rlib import jit
 # ___________________________________________________________________
 # analysing and construction terms
 

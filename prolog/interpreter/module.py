@@ -1,5 +1,5 @@
 import py
-from pypy.rlib import jit
+from rpython.rlib import jit
 from prolog.interpreter.signature import Signature
 from prolog.interpreter import error
 from prolog.interpreter.term import Callable, Atom

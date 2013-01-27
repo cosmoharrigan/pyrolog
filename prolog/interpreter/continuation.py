@@ -1,7 +1,7 @@
 import py
 import time
-from pypy.rlib import jit
-from pypy.rlib.objectmodel import we_are_translated, specialize
+from rpython.rlib import jit
+from rpython.rlib.objectmodel import we_are_translated, specialize
 from prolog.interpreter import error
 from prolog.interpreter import helper
 from prolog.interpreter.term import Term, Atom, BindingVar, Callable, Var

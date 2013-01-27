@@ -4,8 +4,8 @@ from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.arithmetic import eval_arithmetic
 
-from pypy.rlib.objectmodel import we_are_translated
-from pypy.rlib import jit
+from rpython.rlib.objectmodel import we_are_translated
+from rpython.rlib import jit
 
 import inspect
 

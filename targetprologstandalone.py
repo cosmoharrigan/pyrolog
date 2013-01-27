@@ -12,7 +12,7 @@ from prolog.interpreter import term
 from prolog.interpreter import arithmetic # for side effects
 from prolog import builtin # for side effects
 
-from pypy.rlib import jit
+from rpython.rlib import jit
 
 e = Engine(load_system=True)
 term.DEBUG = False
@@ -53,7 +53,7 @@ def portal(driver):
     return get_portal(driver)
 
 def jitpolicy(self):
-    from pypy.jit.codewriter.policy import JitPolicy
+    from rpython.jit.codewriter.policy import JitPolicy
     return JitPolicy()
 
 if __name__ == '__main__':

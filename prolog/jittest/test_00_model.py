@@ -4,9 +4,9 @@ import types
 import subprocess
 import py
 from lib_pypy import disassembler
-from pypy.tool.udir import udir
-from pypy.tool import logparser
-from pypy.jit.tool.jitoutput import parse_prof
+from rpython.tool.udir import udir
+from rpython.tool import logparser
+from rpython.jit.tool.jitoutput import parse_prof
 from prolog.jittest.model import Log, \
     OpMatcher
 
@@ -82,7 +82,7 @@ class BaseTestPyrologC(object):
 class TestOpMatcher(object):
 
     def match(self, src1, src2, **kwds):
-        from pypy.tool.jitlogparser.parser import SimpleParser
+        from rpython.tool.jitlogparser.parser import SimpleParser
         loop = SimpleParser.parse_from_input(src1)
         matcher = OpMatcher(loop.operations, src=src1)
         return matcher.match(src2, **kwds)

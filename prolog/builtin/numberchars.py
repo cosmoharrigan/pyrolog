@@ -3,8 +3,8 @@ from prolog.interpreter import term, error
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.term import Callable
 from prolog.interpreter.term import specialized_term_classes
-from pypy.rlib.rarithmetic import ovfcheck
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.rarithmetic import ovfcheck
+from rpython.rlib.rbigint import rbigint
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.helper import wrap_list
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError

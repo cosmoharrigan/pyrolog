@@ -1,7 +1,7 @@
 from __future__ import with_statement
 import py
 import sys, os, re
-from pypy.tool.udir import udir
+from rpython.tool.udir import udir
 
 app_main = py.path.local(__file__).dirpath().dirpath().join("translatedmain.py")
 app_main.check()

@@ -9,7 +9,7 @@ from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
 from prolog.interpreter.term import Number, Float, BigInt
 import prolog.interpreter.arithmetic # has side-effects, changes Number etc
 
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.rbigint import rbigint
 
 def is_64_bit():
     return sys.maxint > 2147483647

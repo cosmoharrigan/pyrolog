@@ -1,4 +1,4 @@
-from pypy.rlib.streamio import fdopen_as_stream
+from rpython.rlib.streamio import fdopen_as_stream
 from prolog.interpreter.term import NonVar
 from prolog.interpreter.error import UnificationFailed
 

@@ -74,7 +74,7 @@ class TermFormatter(object):
             return '?'
 
     def format_atom(self, s):
-        from pypy.rlib.parsing.deterministic import LexerError
+        from rpython.rlib.parsing.deterministic import LexerError
         if self.quoted:
             try:
                 tokens = parsing.lexer.tokenize(s)

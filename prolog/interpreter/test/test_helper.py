@@ -2,7 +2,7 @@ import py
 from prolog.interpreter.helper import convert_to_str, unwrap_list
 from prolog.interpreter.term import Callable, BigInt, BindingVar, Atom
 from prolog.interpreter.heap import Heap
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.rbigint import rbigint
 
 def test_convert_to_str():
     assert "a" == convert_to_str(Callable.build("a"))

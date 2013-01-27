@@ -1,5 +1,5 @@
 import py
-from pypy.rlib.objectmodel import specialize
+from rpython.rlib.objectmodel import specialize
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter import term
 from prolog.interpreter.helper import wrap_list, is_term

@@ -1,10 +1,10 @@
 import sys
-from pypy import conftest
+from rpython import conftest
 class o:
     view = False
     viewloops = True
 conftest.option = o
-from pypy.jit.metainterp.test.test_ajit import LLJitMixin
+from rpython.jit.metainterp.test.test_ajit import LLJitMixin
 
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.parsing import get_query_and_vars

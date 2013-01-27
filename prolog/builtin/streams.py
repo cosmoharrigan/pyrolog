@@ -4,7 +4,7 @@ from prolog.interpreter.continuation import Engine
 from prolog.interpreter.heap import Heap
 from prolog.interpreter import error
 from prolog.interpreter import term
-from pypy.rlib.streamio import fdopen_as_stream, open_file_as_stream
+from rpython.rlib.streamio import fdopen_as_stream, open_file_as_stream
 from prolog.interpreter.stream import PrologStream, PrologInputStream, \
 PrologOutputStream
 from prolog.interpreter import helper

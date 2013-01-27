@@ -2,13 +2,13 @@ import math
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter import error
 from prolog.interpreter.signature import Signature
-from pypy.rlib.objectmodel import we_are_translated, UnboxedValue
-from pypy.rlib.objectmodel import compute_unique_id
-from pypy.rlib.objectmodel import specialize
-from pypy.rlib.debug import make_sure_not_resized
-from pypy.rlib import jit, debug
-from pypy.tool.pairtype import extendabletype
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.objectmodel import we_are_translated, UnboxedValue
+from rpython.rlib.objectmodel import compute_unique_id
+from rpython.rlib.objectmodel import specialize
+from rpython.rlib.debug import make_sure_not_resized
+from rpython.rlib import jit, debug
+from rpython.tool.pairtype import extendabletype
+from rpython.rlib.rbigint import rbigint
 
 DEBUG = False
 OPTIMIZED_TERM_SIZE_MAX = 10
@@ -856,7 +856,7 @@ def cmp_standard_order(obj1, obj2, heap):
     return obj1.cmp_standard_order(obj2, heap)
 
 def generate_class(cname, fname, n_args, immutable=True):
-    from pypy.rlib.unroll import unrolling_iterable
+    from rpython.rlib.unroll import unrolling_iterable
     arg_iter = unrolling_iterable(range(n_args))
     parent = callables['Abstract', n_args]
     if not immutable:
@@ -898,7 +898,7 @@ def generate_class(cname, fname, n_args, immutable=True):
     return specific_class
 
 def generate_abstract_class(n_args, immutable=True):
-    from pypy.rlib.unroll import unrolling_iterable
+    from rpython.rlib.unroll import unrolling_iterable
     arg_iter = unrolling_iterable(range(n_args))
     if immutable:
         base = Callable

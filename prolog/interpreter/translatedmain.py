@@ -1,6 +1,6 @@
 import os, sys
-from pypy.rlib.parsing.parsing import ParseError
-from pypy.rlib.parsing.deterministic import LexerError
+from rpython.rlib.parsing.parsing import ParseError
+from rpython.rlib.parsing.deterministic import LexerError
 from prolog.interpreter.parsing import parse_file, get_query_and_vars
 from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.continuation import Continuation, Engine, \

@@ -3,7 +3,7 @@
 from prolog.interpreter import term
 from prolog.interpreter import error
 from prolog.interpreter.signature import Signature
-from pypy.rlib import jit
+from rpython.rlib import jit
 from prolog.interpreter.stream import PrologOutputStream, PrologInputStream,\
         PrologStream
 

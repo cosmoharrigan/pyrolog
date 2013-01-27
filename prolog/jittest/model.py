@@ -7,8 +7,8 @@ try:
 except ImportError:   # e.g. Python 2.5
     newinterpret = None
 
-from pypy.tool.jitlogparser.parser import SimpleParser, Function, TraceForOpcode
-from pypy.tool.jitlogparser.storage import LoopStorage
+from rpython.tool.jitlogparser.parser import SimpleParser, Function, TraceForOpcode
+from rpython.tool.jitlogparser.storage import LoopStorage
 
 
 class Log(object):

@@ -4,10 +4,10 @@ from prolog.interpreter.parsing import parse_file, TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.error import UnificationFailed
-from pypy.rlib.rarithmetic import intmask, ovfcheck_float_to_int
-from pypy.rlib.unroll import unrolling_iterable
-from pypy.rlib import jit, rarithmetic
-from pypy.rlib.rbigint import rbigint
+from rpython.rlib.rarithmetic import intmask, ovfcheck_float_to_int
+from rpython.rlib.unroll import unrolling_iterable
+from rpython.rlib import jit, rarithmetic
+from rpython.rlib.rbigint import rbigint
 
 Signature.register_extr_attr("arithmetic")
 

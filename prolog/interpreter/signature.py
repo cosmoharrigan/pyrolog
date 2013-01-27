@@ -1,6 +1,6 @@
-from pypy.rlib import jit
-from pypy.rlib.objectmodel import specialize, we_are_translated
-from pypy.rlib.unroll import unrolling_iterable
+from rpython.rlib import jit
+from rpython.rlib.objectmodel import specialize, we_are_translated
+from rpython.rlib.unroll import unrolling_iterable
 
 class SignatureFactory(object):
     def __init__(self):

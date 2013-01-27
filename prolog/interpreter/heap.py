@@ -1,7 +1,7 @@
-from pypy.rlib import debug
+from rpython.rlib import debug
 from prolog.interpreter.term import BindingVar, AttVar
 
-from pypy.rlib import jit
+from rpython.rlib import jit
 
 INIT_TRAIL_VAR = []
 INIT_TRAIL_BINDING = []
