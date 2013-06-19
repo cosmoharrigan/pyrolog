@@ -1,6 +1,7 @@
+import py
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.parsing import parse_file, TermBuilder, OrderTransformer
-from prolog.interpreter.parsing import parse_query_term
+from prolog.interpreter.parsing import parse_query_term, ParseError
 from prolog.interpreter.heap import Heap
 
 
@@ -236,4 +237,6 @@ def test_many_block_comments():
     assert facts[2].name() == "a3"
     assert facts[3].name() == "a4"
 
-
+def test_missing_dot():
+    with py.test.raises(ParseError):
+        parse_file("g. f(x)")
