@@ -5,7 +5,7 @@ from rpython.rlib.parsing.lexer import Lexer, DummyLexer
 from rpython.rlib.parsing.deterministic import DFA
 from rpython.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from rpython.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
-from rpython.rlib.parsing.parsing import ParseError
+from rpython.rlib.parsing.parsing import ParseError, ErrorInformation
 from rpython.rlib.parsing.regex import StringExpression
 from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError, ParseStringError
 from rpython.rlib.rarithmetic import ovfcheck
@@ -215,7 +215,8 @@ def parse_file(s, parser=None, callback=_dummyfunc, arg=None):
             lines.append(line)
             line = []
     if line:
-        raise ParseError(tokens[-1].source_pos, "expected '.'")
+        pos = tokens[-1].source_pos
+        raise ParseError(pos, ErrorInformation(pos, ["."]))
     if parser is None:
         parser = parser_fact
     trees = []

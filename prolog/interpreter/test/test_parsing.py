@@ -240,3 +240,5 @@ def test_many_block_comments():
 def test_missing_dot():
     with py.test.raises(ParseError):
         parse_file("g. f(x)")
+    info = py.test.raises(ParseError, parse_file, "g. f(X)")
+    assert "ParseError: expected ." in info.value.nice_error_message()
