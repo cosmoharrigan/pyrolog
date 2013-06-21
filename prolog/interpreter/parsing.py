@@ -216,7 +216,7 @@ def parse_file(s, parser=None, callback=_dummyfunc, arg=None):
             line = []
     if line:
         pos = tokens[-1].source_pos
-        raise ParseError(pos, ErrorInformation(pos, ["."]))
+        raise ParseError(pos, ErrorInformation(len(tokens) - 1, ["."]))
     if parser is None:
         parser = parser_fact
     trees = []
