@@ -7,9 +7,8 @@ from rpython.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from rpython.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from rpython.rlib.parsing.parsing import ParseError, ErrorInformation
 from rpython.rlib.parsing.regex import StringExpression
-from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError, ParseStringError
-from rpython.rlib.rarithmetic import ovfcheck
-from pypy.objspace.std.strutil import string_to_int
+from rpython.rlib.rstring import ParseStringOverflowError, ParseStringError
+from rpython.rlib.rarithmetic import ovfcheck, string_to_int
 from rpython.rlib.rbigint import rbigint
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.module import Module

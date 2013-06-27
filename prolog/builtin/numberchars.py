@@ -3,11 +3,11 @@ from prolog.interpreter import term, error
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.term import Callable
 from prolog.interpreter.term import specialized_term_classes
-from rpython.rlib.rarithmetic import ovfcheck
+from rpython.rlib.rstring import ParseStringOverflowError
+from rpython.rlib.rarithmetic import ovfcheck, string_to_int
 from rpython.rlib.rbigint import rbigint
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.helper import wrap_list
-from pypy.objspace.std.strutil import string_to_int, ParseStringOverflowError
 
 conssig = Signature.getsignature(".", 2)
 num_atom_names = [str(i) for i in range(10)]
