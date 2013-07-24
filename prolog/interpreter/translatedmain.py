@@ -82,8 +82,8 @@ def readline():
     return "".join(result)
 
 def run(query, var_to_pos, engine):
-    from prolog.builtin import formatting
-    f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
+    #from prolog.builtin import formatting
+    #f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
     try:
         if query is None:
             return
@@ -92,60 +92,7 @@ def run(query, var_to_pos, engine):
     except error.UnificationFailed:
         printmessage("no\n")
     except (error.UncaughtError, error.CatchableError), e:
-        f._make_reverse_op_mapping()
-        printmessage("ERROR: ")
-        t = e.term
-        if isinstance(t, term.Callable):
-            errorterm = t.argument_at(0)
-            if isinstance(errorterm, term.Callable):
-                if errorterm.name() == "instantiation_error":
-                    printmessage("arguments not sufficiently instantiated\n")
-                    return
-                elif errorterm.name()== "existence_error":
-                    if isinstance(errorterm, term.Callable):
-                        printmessage("Undefined %s: %s\n" % (
-                            f.format(errorterm.argument_at(0)),
-                            f.format(errorterm.argument_at(1))))
-                        return
-                elif errorterm.name()== "domain_error":
-                    if isinstance(errorterm, term.Callable):
-                        printmessage(
-                            "Domain error: '%s' expected, found '%s'\n" % (
-                            f.format(errorterm.argument_at(0)),
-                            f.format(errorterm.argument_at(1))))
-                        return
-                elif errorterm.name()== "type_error":
-                    if isinstance(errorterm, term.Callable):
-                        printmessage(
-                            "Type error: '%s' expected, found '%s'\n" % (
-                            f.format(errorterm.argument_at(0)),
-                            f.format(errorterm.argument_at(1))))
-                        return
-                elif errorterm.name() == "syntax_error":
-                    if isinstance(errorterm, term.Callable):    
-                        printmessage("Syntax error: '%s'\n" % \
-                        f.format(errorterm.argument_at(0)))
-                        return
-                elif errorterm.name() == "permission_error":
-                    if isinstance(errorterm, term.Callable):    
-                        printmessage("Permission error: '%s', '%s', '%s'\n" % (
-                        f.format(errorterm.argument_at(0)),
-                        f.format(errorterm.argument_at(1)),
-                        f.format(errorterm.argument_at(2))))
-                        return
-                elif errorterm.name() == "representation_error":
-                    if isinstance(errorterm, term.Callable):
-                        printmessage("%s: Cannot represent: %s\n" % (
-                        f.format(errorterm.argument_at(0)),
-                        f.format(errorterm.argument_at(1))))
-                        return
-                elif errorterm.name() == "import_error":
-                    if isinstance(errorterm, term.Callable):
-                        printmessage("Exported procedure %s:%s is not defined\n" % (
-                        f.format(errorterm.argument_at(0)),
-                        f.format(errorterm.argument_at(1))))
-                        return
-
+        printmessage("ERROR: %s\n" % e.get_errstr(engine))
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
     except StopItNow:
