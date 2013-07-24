@@ -16,3 +16,26 @@ def test_all_members():
     heaps = collect_all(e, "member(X, %s)." % (str(data)))
     nums = [ h["X"].num for h in heaps ]
     assert nums == data
+
+def test_select():
+    assert_true("select(1, [1, 2, 3, 1], [2, 3, 1]).", e)
+    assert_true("select(1, [1, 2, 3, 1], [1, 2, 3]).", e)
+    assert_false("select(1, [1, 2, 3, 1], [1, 2, 3, 1]).", e)
+    assert_false("select(1, [1, 2, 3, 1], [2, 3]).", e)
+    assert_false("select(2, [], []).", e)
+    assert_false("select(2, [], [X]).", e)
+
+def test_nextto():
+    assert_true("nextto(666, 1024, [1, 2, 3, 4, 666, 1024, 8, 8, 8]).", e)
+    assert_false("nextto(8, 4, [1, 2, 3, 4, 666, 1024, 8, 8, 8]).", e)
+    assert_false("nextto(1, 2, [2, 1]).", e)
+
+def test_memberchk():
+    assert_true("memberchk(432, [1, 2, 432, 432, 1]).", e)
+    assert_false("memberchk(0, [1, 2, 432, 432, 1]).", e)
+
+def test_subtract():
+    assert_true("subtract([1, 2, 3, 4], [2], [1, 3, 4]).", e)
+    assert_true("subtract([a, c, d], [b], [a, c, d]).", e)
+    assert_true("subtract([a, b, c], [], [a, b, c]).", e)
+    assert_true("subtract([1, 1, 6], [1, 6], []).", e)
