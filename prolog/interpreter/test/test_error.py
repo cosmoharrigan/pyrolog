@@ -12,12 +12,5 @@ def test_errstr():
 
     m = e.modulewrapper
 
-    # I don't know how to get at the exception itself via:
-    # info = pytest.raises(UncaughtError, e.run, t, m.user_module)
-
-    try:
-        e.run(t, m.user_module)
-        assert False # should not happen
-    except UncaughtError as ex:
-        assert ex.get_errstr(e) == "Undefined procedure: drumandbass/1"
-
+    info = pytest.raises(UncaughtError, e.run, t, m.user_module)
+    info.value.get_errstr(e) == "Undefined procedure: drumandbass/1"
