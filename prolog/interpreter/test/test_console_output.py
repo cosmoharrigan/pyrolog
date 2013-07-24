@@ -6,6 +6,7 @@ from rpython.tool.udir import udir
 app_main = py.path.local(__file__).dirpath().dirpath().join("translatedmain.py")
 app_main.check()
 path = str(app_main.dirpath().dirpath().dirpath()) + ":" + os.environ["PYTHONPATH"]
+path += ":" + str(py.path.local(sys.modules['rpython'].__file__).dirpath().dirpath())
 app_main = str(app_main)
 
 
