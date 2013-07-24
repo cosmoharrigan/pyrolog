@@ -20,40 +20,40 @@ class TermedError(PrologError):
 
         if isinstance(errorterm, term.Callable):
             if errorterm.name() == "instantiation_error":
-                return "arguments not sufficiently instantiated\n"
+                return "arguments not sufficiently instantiated"
             elif errorterm.name()== "existence_error":
                 if isinstance(errorterm, term.Callable):
-                     return "Undefined %s: %s\n" % (
+                     return "Undefined %s: %s" % (
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1)))
             elif errorterm.name()== "domain_error":
                 if isinstance(errorterm, term.Callable):
-                    return "Domain error: '%s' expected, found '%s'\n" % (
+                    return "Domain error: '%s' expected, found '%s'" % (
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1)))
             elif errorterm.name()== "type_error":
                 if isinstance(errorterm, term.Callable):
-                    return "Type error: '%s' expected, found '%s'\n" % (
+                    return "Type error: '%s' expected, found '%s'" % (
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1)))
             elif errorterm.name() == "syntax_error":
                 if isinstance(errorterm, term.Callable):
-                    return "Syntax error: '%s'\n" % \
+                    return "Syntax error: '%s'" % \
                     f.format(errorterm.argument_at(0))
             elif errorterm.name() == "permission_error":
                 if isinstance(errorterm, term.Callable):
-                    return "Permission error: '%s', '%s', '%s'\n" % (
+                    return "Permission error: '%s', '%s', '%s'" % (
                     f.format(errorterm.argument_at(0)),
                     f.format(errorterm.argument_at(1)),
                     f.format(errorterm.argument_at(2)))
             elif errorterm.name() == "representation_error":
                 if isinstance(errorterm, term.Callable):
-                    return "%s: Cannot represent: %s\n" % (
+                    return "%s: Cannot represent: %s" % (
                     f.format(errorterm.argument_at(0)),
                     f.format(errorterm.argument_at(1)))
             elif errorterm.name() == "import_error":
                 if isinstance(errorterm, term.Callable):
-                    return "Exported procedure %s:%s is not defined\n" % (
+                    return "Exported procedure %s:%s is not defined" % (
                     f.format(errorterm.argument_at(0)),
                     f.format(errorterm.argument_at(1)))
             else:
