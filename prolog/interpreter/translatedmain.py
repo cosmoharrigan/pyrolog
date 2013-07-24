@@ -92,7 +92,7 @@ def run(query, var_to_pos, engine):
     except error.UnificationFailed:
         printmessage("no\n")
     except (error.UncaughtError, error.CatchableError), e:
-        printmessage("ERROR: %s" % e.get_errstr(engine))
+        printmessage("ERROR: %s\n" % e.get_errstr(engine))
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
     except StopItNow:
