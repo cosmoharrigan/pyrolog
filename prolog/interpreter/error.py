@@ -5,13 +5,62 @@ class UncatchableError(PrologError):
     def __init__(self, message):
         self.message = message
 
-class CatchableError(PrologError):
+class TermedError(PrologError):
     def __init__(self, term):
         self.term = term
 
-class UncaughtError(PrologError):
-    def __init__(self, term):
-        self.term = term
+    def get_errstr(self, engine):
+        from prolog.builtin import formatting
+        from prolog.interpreter import term
+
+        f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
+        f._make_reverse_op_mapping()
+
+        errorterm = self.term.argument_at(0)
+
+        if isinstance(errorterm, term.Callable):
+            if errorterm.name() == "instantiation_error":
+                return "arguments not sufficiently instantiated\n"
+            elif errorterm.name()== "existence_error":
+                if isinstance(errorterm, term.Callable):
+                     return "Undefined %s: %s\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1)))
+            elif errorterm.name()== "domain_error":
+                if isinstance(errorterm, term.Callable):
+                    return "Domain error: '%s' expected, found '%s'\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1)))
+            elif errorterm.name()== "type_error":
+                if isinstance(errorterm, term.Callable):
+                    return "Type error: '%s' expected, found '%s'\n" % (
+                        f.format(errorterm.argument_at(0)),
+                        f.format(errorterm.argument_at(1)))
+            elif errorterm.name() == "syntax_error":
+                if isinstance(errorterm, term.Callable):
+                    return "Syntax error: '%s'\n" % \
+                    f.format(errorterm.argument_at(0))
+            elif errorterm.name() == "permission_error":
+                if isinstance(errorterm, term.Callable):
+                    return "Permission error: '%s', '%s', '%s'\n" % (
+                    f.format(errorterm.argument_at(0)),
+                    f.format(errorterm.argument_at(1)),
+                    f.format(errorterm.argument_at(2)))
+            elif errorterm.name() == "representation_error":
+                if isinstance(errorterm, term.Callable):
+                    return "%s: Cannot represent: %s\n" % (
+                    f.format(errorterm.argument_at(0)),
+                    f.format(errorterm.argument_at(1)))
+            elif errorterm.name() == "import_error":
+                if isinstance(errorterm, term.Callable):
+                    return "Exported procedure %s:%s is not defined\n" % (
+                    f.format(errorterm.argument_at(0)),
+                    f.format(errorterm.argument_at(1)))
+            else:
+                return "Internal error" # AKA, I have no clue what went wrong.
+
+class CatchableError(TermedError): pass
+class UncaughtError(TermedError): pass
 
 def wrap_error(t):
     from prolog.interpreter import term
