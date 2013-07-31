@@ -39,3 +39,59 @@ def test_subtract():
     assert_true("subtract([a, c, d], [b], [a, c, d]).", e)
     assert_true("subtract([a, b, c], [], [a, b, c]).", e)
     assert_true("subtract([1, 1, 6], [1, 6], []).", e)
+
+def test_min_member_var():
+    assert_true("min_member(X, [TEA,UNIVERSE, SHIRT]), " + \
+            "X @=< TEA, X @=< UNIVERSE, X @=< SHIRT.", e)
+
+def test_min_member_number():
+    assert_true("min_member(444, [444,445,999]).", e)
+
+def test_min_member_atom():
+    assert_true("min_member(fox, [kamikaze,pebble,fox]).", e)
+
+def test_min_member_string():
+    assert_true('min_member("fox", ["pebble","fox","foxy","zzz"]).', e)
+
+def test_min_member_term():
+    assert_true('min_member(f(x, 3), [g("0", "1", "999"), a(-9, -9, -9), f(x, 3), f(x, 4)]).', e)
+
+def test_min_member_cmp_var_num():
+    assert_true('min_member(X, [-999, 10, 20, X]).', e)
+
+def test_min_member_cmp_num_atom():
+    assert_true('min_member(1, [a,b,c,1]).', e)
+
+def test_min_member_cmp_atom_string():
+    assert_true('min_member(z, ["yeehaw", "blob", z]).', e)
+
+def test_min_member_cmp_string_compund():
+    assert_true('min_member("yeehaw", ["yeehaw", flibble(x, b, b), flibble(y, z)]).', e)
+
+def test_max_member_var():
+    assert_true("max_member(X, [TEA,UNIVERSE, SHIRT]), " + \
+            "X @>= TEA, X @>= UNIVERSE, X @>= SHIRT.", e)
+
+def test_max_member_number():
+    assert_true("max_member(999, [444,445,999]).", e)
+
+def test_max_member_atom():
+    assert_true("max_member(pebble, [kamikaze,pebble,fox]).", e)
+
+def test_max_member_string():
+    assert_true('max_member("zzz", ["pebble","fox","foxy","zzz"]).', e)
+
+def test_max_member_term():
+    assert_true('max_member(g("0", "1", "999"), [g("0", "1", a), g("0", "1", "999"), a(-9, -9, -9)]).', e)
+
+def test_max_member_cmp_var_num():
+    assert_true('max_member(20, [-999, 10, 20, X]).', e)
+
+def test_max_member_cmp_num_atom():
+    assert_true('max_member(c, [a,b,c,1]).', e)
+
+def test_max_member_cmp_atom_string():
+    assert_true('max_member("yeehaw", ["yeehaw", "blob", z]).', e)
+
+def test_max_member_cmp_string_compund():
+    assert_true('max_member(flibble(x, b, b), ["yeehaw", flibble(x, b, b), flibble(y, z)]).', e)

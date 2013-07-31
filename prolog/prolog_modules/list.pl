@@ -1,4 +1,4 @@
-:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3]).
+:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3, min_member/2, max_member/2]).
 
 append([], L, L).
 append([H|T], L, [H|R]) :- append(T, L, R).
@@ -29,3 +29,19 @@ subtract([E|T], D, R) :-
 	subtract(T, D, R).                                                      
 subtract([H|T], D, [H|R]) :-                                                    
 	subtract(T, D, R).
+
+min_member(X, [X]).
+min_member(X, [H|T]) :-
+        min_member(X, T),
+        X @< H.
+min_member(H, [H|T]) :-
+        min_member(X, T),
+        X @>= H.
+
+max_member(X, [X]).
+max_member(X, [H|T]) :-
+        max_member(X, T),
+        X @> H.
+max_member(H, [H|T]) :-
+        max_member(X, T),
+        X @=< H.
