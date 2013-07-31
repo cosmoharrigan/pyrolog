@@ -30,18 +30,20 @@ subtract([E|T], D, R) :-
 subtract([H|T], D, [H|R]) :-                                                    
 	subtract(T, D, R).
 
-min_member(X, [X]).
-min_member(X, [H|T]) :-
-        min_member(X, T),
-        X @< H.
-min_member(H, [H|T]) :-
-        min_member(X, T),
-        X @>= H.
+% min_member/2
+min_member(Result, [H | T]) :-
+	min_member(H, T, Result).
 
-max_member(X, [X]).
-max_member(X, [H|T]) :-
-        max_member(X, T),
-        X @> H.
-max_member(H, [H|T]) :-
-        max_member(X, T),
-        X @=< H.
+min_member(Result, [], Result).
+min_member(BestIn, [H | T], BestOut) :-
+	(BestIn @< H -> BestDown = BestIn; BestDown = H),
+	min_member(BestDown, T, BestOut).
+
+% max_member/2
+max_member(Result, [H | T]) :-
+	max_member(H, T, Result).
+
+max_member(Result, [], Result).
+max_member(BestIn, [H | T], BestOut) :-
+	(BestIn @> H -> BestDown = BestIn; BestDown = H),
+	max_member(BestDown, T, BestOut).

@@ -40,9 +40,13 @@ def test_subtract():
     assert_true("subtract([a, b, c], [], [a, b, c]).", e)
     assert_true("subtract([1, 1, 6], [1, 6], []).", e)
 
-def test_min_member_var():
-    assert_true("min_member(X, [TEA,UNIVERSE, SHIRT]), " + \
-            "X @=< TEA, X @=< UNIVERSE, X @=< SHIRT.", e)
+# This is really hard to test as variable addresses can change as their
+# binding changes. This is really a problem with @<. See the test for
+# this for a counter-example (../interpreter/test/test_standard_order.py).
+#
+#def test_min_member_var():
+#    assert_true("min_member(X, [TEA, UNIVERSE, SHIRT]), " + \
+#            "X @=< TEA, X @=< UNIVERSE, X @=< SHIRT.", e)
 
 def test_min_member_number():
     assert_true("min_member(444, [444,445,999]).", e)
@@ -71,9 +75,10 @@ def test_min_member_cmp_string_compund():
 def test_min_member_empty():
     assert_false('min_member(X, []).', e)
 
-def test_max_member_var():
-    assert_true("max_member(X, [TEA,UNIVERSE, SHIRT]), " + \
-            "X @>= TEA, X @>= UNIVERSE, X @>= SHIRT.", e)
+# Same issue as test_min_member_var. See above.
+#def test_max_member_var():
+#    assert_true("max_member(X, [TEA,UNIVERSE, SHIRT]), " + \
+#            "X @>= TEA, X @>= UNIVERSE, X @>= SHIRT.", e)
 
 def test_max_member_number():
     assert_true("max_member(999, [444,445,999]).", e)
