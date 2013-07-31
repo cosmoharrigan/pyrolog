@@ -613,7 +613,7 @@ class MutableCallable(Callable):
 
 
 class Atom(Callable):
-    TYPE_STANDARD_ORDER = 1
+    TYPE_STANDARD_ORDER = 2
     __slots__ = ('_name', '_signature')
     cache = {}
     _immutable_fields_ = ["_signature"]
@@ -668,7 +668,7 @@ class Numeric(NonVar):
     __slots__ = ()
 
 class Number(Numeric):#, UnboxedValue):
-    TYPE_STANDARD_ORDER = 3
+    TYPE_STANDARD_ORDER = 1
     __slots__ = ("num", )
     _immutable_fields_ = ["num"]
 
@@ -701,8 +701,8 @@ class Number(Numeric):#, UnboxedValue):
         if isinstance(other, Number):
             return rcmp(self.num, other.num)
         elif isinstance(other, Float):
-            # return rcmp(self.num, other.floatval)
-            return 1
+            # int/float mixed are always compared as floats
+            return rcmp(float(self.num), other.floatval)
         elif isinstance(other, BigInt):
             return bigint_cmp(rbigint.fromint(self.num), other.value)
         assert 0
@@ -715,7 +715,7 @@ class Number(Numeric):#, UnboxedValue):
 
 
 class BigInt(Numeric):
-    TYPE_STANDARD_ORDER = 3
+    TYPE_STANDARD_ORDER = 1
     __slots__ = ("value", )
     _immutable_fields_ = ["value"] # ?correct?
     # value is an instance of rbigint
@@ -742,14 +742,15 @@ class BigInt(Numeric):
         if isinstance(other, Number):
             return bigint_cmp(self.value, rbigint.fromint(other.num))
         elif isinstance(other, Float):
-            return 1
+            # int/float mixed are always compared as floats
+            return rcmp(self.value.tofloat(), other.floatval)
         elif isinstance(other, BigInt):
             return bigint_cmp(self.value, other.value)
         assert 0
 
     
 class Float(Numeric):
-    TYPE_STANDARD_ORDER = 2
+    TYPE_STANDARD_ORDER = 1
     _immutable_fields_ = ["floatval"]
     __slots__ = ("floatval", )
     def __init__(self, floatval):
@@ -779,12 +780,12 @@ class Float(Numeric):
     def cmp_standard_order(self, other, heap):
         # XXX looks a bit terrible
         if isinstance(other, Number):
-            # return rcmp(self.floatval, other.num)
-            return -1
+            # int/float mixed are always compared as floats
+            return rcmp(self.floatval, float(other.num))
         elif isinstance(other, Float):
             return rcmp(self.floatval, other.floatval)
         elif isinstance(other, BigInt):
-            return -1
+            return rcmp(self.floatval, other.value.tofloat())
         assert 0
 
 
@@ -806,7 +807,7 @@ def _term_unify_and_standardize_apart(obj, i, heap, other, memo):
     obj.unify_and_standardize_apart(other.argument_at(i), heap, memo)
 
 class Term(Callable):
-    TYPE_STANDARD_ORDER = 4
+    TYPE_STANDARD_ORDER = 3
     _immutable_fields_ = ["_args[*]", "_name", "_signature"]
     __slots__ = ('_name', '_signature', '_args')
     

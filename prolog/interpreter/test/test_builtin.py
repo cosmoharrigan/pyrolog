@@ -519,56 +519,6 @@ def test_functor():
     assert_true("functor(F, g, 1), F=g(asdf).")
     assert_true("functor(F, g, 3), F=g(X, Y, 1), X = 12, Y = 34, ground(F).")
 
-def test_standard_comparison():
-    assert_true("X = Y, f(X, Y, X, Y) == f(X, X, Y, Y).")
-    assert_true("X = Y, f(X, Y, X, Z) \\== f(X, X, Y, Y).")
-    assert_true("""X \\== Y, ((X @< Y, X @=< X, X @=< Y, Y @> X);
-                              (X @> Y, X @>= X, X @>= Y, Y @< X)).""")
-    assert_true("'\\\\=='(f(X, Y), 12).")
-    assert_true("X = f(a), Y = f(b), Y @> X.")
-
-def test_structural_comparison():
-    assert_true("1.0 @< 1.")
-    assert_true("2.0 @< 1.")
-    assert_true("10000000000000000000000000000000000.0 @< 1.")
-    assert_true("1.0 @< 10000000000000000000000000000000000000000.")
-    assert_true("1000000000000000000000000000000 @< 1000000000000000000000000000001.")
-    assert_true("@<(1.0, 1).")
-
-    assert_false("1.0 @> 1.")
-    assert_false("2.0 @> 1.")
-    assert_false("10000000000000000000000000000000000.0 @> 1.")
-    assert_false("1.0 @> 10000000000000000000000000000000000000000.")
-    assert_false("1000000000000000000000000000000 @> 1000000000000000000000000000001.")
-    assert_false("@>(1.0, 1).")
-
-    assert_false("1.0 @>= 1.")
-    assert_false("2.0 @>= 1.")
-    assert_false("10000000000000000000000000000000000.0 @>= 1.")
-    assert_false("1.0 @>= 10000000000000000000000000000000000000000.")
-    assert_false("1000000000000000000000000000000 @>= 1000000000000000000000000000001.")
-    assert_false("@>=(1.0, 1).")
-
-    assert_true("1.0 @=< 1.")
-    assert_true("2.0 @=< 1.")
-    assert_true("10000000000000000000000000000000000.0 @=< 1.")
-    assert_true("1.0 @=< 10000000000000000000000000000000000000000.")
-    assert_true("1000000000000000000000000000000 @=< 1000000000000000000000000000001.")
-    assert_true("@=<(1.0, 1).")
-
-def test_structural_comparison_2():
-    e = Engine(load_system=True)
-    assert_true("1 =@= 1.", e)
-    assert_true("f(X) =@= f(A).", e)
-    assert_false("f(X) =@= X.", e)
-    assert_false("f(X, Y) =@= f(X, X).", e)
-    assert_true("f(X, Y) =@= f(A, B).", e)
-    assert_false("'=@='(1, 1.0).", e)
-    assert_false("'=@='(a, b).", e)
-    assert_true("'=@='(f(A, B), f(B, A)).", e)
-    assert_true("'=@='(f(A, B), f(C, A)).", e)
-    assert_false("a =@= A.", e)
-
 def test_compare():
     assert_true("X = Y, compare(R, f(X, Y, X, Y), f(X, X, Y, Y)), R == '='.")
     assert_true("X = f(a), Y = f(b), compare(R, Y, X), R == '>'.")
