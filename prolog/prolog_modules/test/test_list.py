@@ -68,6 +68,9 @@ def test_min_member_cmp_atom_string():
 def test_min_member_cmp_string_compund():
     assert_true('min_member("yeehaw", ["yeehaw", flibble(x, b, b), flibble(y, z)]).', e)
 
+def test_min_member_empty():
+    assert_false('min_member(X, []).', e)
+
 def test_max_member_var():
     assert_true("max_member(X, [TEA,UNIVERSE, SHIRT]), " + \
             "X @>= TEA, X @>= UNIVERSE, X @>= SHIRT.", e)
@@ -95,3 +98,6 @@ def test_max_member_cmp_atom_string():
 
 def test_max_member_cmp_string_compund():
     assert_true('max_member(flibble(x, b, b), ["yeehaw", flibble(x, b, b), flibble(y, z)]).', e)
+
+def test_max_member_empty():
+    assert_false('max_member(X, []).', e)
