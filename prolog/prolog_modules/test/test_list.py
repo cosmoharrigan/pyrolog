@@ -30,6 +30,9 @@ def test_nextto():
     assert_false("nextto(8, 4, [1, 2, 3, 4, 666, 1024, 8, 8, 8]).", e)
     assert_false("nextto(1, 2, [2, 1]).", e)
 
+    heaps = collect_all(e, "nextto(A, B, [1, 2, 3]).")
+    assert(len(heaps) == 2)
+
 def test_memberchk():
     assert_true("memberchk(432, [1, 2, 432, 432, 1]).", e)
     assert_false("memberchk(0, [1, 2, 432, 432, 1]).", e)
@@ -106,3 +109,7 @@ def test_max_member_cmp_string_compund():
 
 def test_max_member_empty():
     assert_false('max_member(X, []).', e)
+
+def test_delete():
+    assert_true('delete([1, 3, 9, 3, 1, 2, 9], 9, [1, 3, 3, 1, 2]).', e)
+
