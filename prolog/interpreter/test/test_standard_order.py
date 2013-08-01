@@ -124,9 +124,17 @@ def test_float_vs_bigint_order():
     assert_false("1.0 @> %s." % big, e)
 
 # ---[ Inter-var comparisons ]---
-def var_vs_var_order():
-    # XXX needs min_member
-    pass
+
+# Really hard to test, as hte variable binding can change the address.
+# e.g. The following may pass or fail...
+
+#def test_var_vs_var_order():
+#    query = """
+#            X @=< TREE, X @=< MARSHMALLOW, X @=< COMPACT_DISC,
+#            TREE @>= X,  MARSHMALLOW @>= X, COMPACT_DISC @>= X,
+#            (X =@= TREE; X =@= MARSHMALLOW; X =@= COMPACT_DISC).
+#            """
+#    assert_true(query, e)
 
 # ---[ Inter-atom comparisons ]---
 
