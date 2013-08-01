@@ -37,12 +37,10 @@ subtract(Set, [Elem | Delete], Result) :-
 
 % delete/3
 delete([], _, []).
-delete([Elem | List1], Elem, List2) :-
-	delete(List1, Elem, List3), !,
-	List2 = List3.
-delete([Head | List1], Elem, List2) :-
-	delete(List1, Elem, List3),
-	List2 = [Head | List3].
+delete([Elem | List1], Elem, List3) :-
+	delete(List1, Elem, List3), !.
+delete([Head | List1], Elem, [Head | List3]) :-
+	delete(List1, Elem, List3).
 
 % memberchk/3
 memberchk(Elem, [Elem | _]) :- !.
@@ -50,10 +48,9 @@ memberchk(Elem, [_ | List]) :-
 	memberchk(Elem, List).
 
 % nextto/3
-nextto(X, Y, [A, B | _]) :-
-	X = A, Y = B, true.
-nextto(X, Y, [_, B | List]) :-
-	nextto(X, Y, [B | List]).
+nextto(A, B, [A, B | _]).
+nextto(A, B, [_ | List]) :-
+	nextto(A, B, List).
 
 % select/3
 select(Elem, [Elem | List1], List1).
