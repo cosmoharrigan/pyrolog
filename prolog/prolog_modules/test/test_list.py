@@ -113,3 +113,9 @@ def test_max_member_empty():
 def test_delete():
     assert_true('delete([1, 3, 9, 3, 1, 2, 9], 9, [1, 3, 3, 1, 2]).', e)
 
+def test_length():
+    assert_true('length([1, a, f(h)], 3).', e)
+    assert_true('length([], 0).', e)
+    assert_true('length(List, 6), is_list(List), length(List, 6).', e)
+    assert_false('length(X, -1).', e)
+    assert_false('length(a, Y).', e)

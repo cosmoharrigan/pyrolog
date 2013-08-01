@@ -1,4 +1,4 @@
-:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3, min_member/2, max_member/2, delete/3]).
+:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3, min_member/2, max_member/2, delete/3, length/2]).
 
 append([], L, L).
 append([H|T], L, [H|R]) :- append(T, L, R).
@@ -8,6 +8,17 @@ member(E, [_|T]) :- member(E, T).
 
 is_list([]).
 is_list([_|T]) :- is_list(T).
+
+% length/2
+length(List, Len) :-
+	(nonvar(Len) -> Len > -1; true),
+	is_list(List),
+	length(List, 0, Len).
+
+length([], Len, Len).
+length([Head | Tail], LenIn, LenOut) :-
+	LenDown is LenIn + 1,
+	length(Tail, LenDown, LenOut).
 
 % min_member/2
 min_member(Result, [H | T]) :-
