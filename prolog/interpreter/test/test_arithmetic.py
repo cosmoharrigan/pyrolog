@@ -294,6 +294,13 @@ def test_simple():
     assert_true("X is 100 ** 0.0, X = 1.0.")
     assert_true("X is 0 ** 0, X = 1.")
 
+    assert_true("X = 3, Y is +X, Y == 3.")
+    assert_true("X = 3.1, Y is +X, Y == 3.1.")
+
+    assert_true("X = -3, Y is -X, Y == 3.")
+    assert_true("X = -3.1, Y is -X, Y == 3.1.")
+    assert_true("X = %s, Y is -X, Y == %s." % (-sys.maxint-1, sys.maxint + 1))
+
 def test_comparison():
     assert_true("1 =:= 1.0.")
     assert_true("1 + 1 > 1.")

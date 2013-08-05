@@ -57,7 +57,9 @@ def wrap_builtin_operation(name, num_args):
 # remove unneeded parts, use sane names for operations
 simple_functions = [
     ("+", 2, "add"),
+    ("+", 1, "unaryadd"),
     ("-", 2, "sub"),
+    ("-", 1, "unarysub"),
     ("*", 2, "mul"),
     ("/", 2, "div"),
     ("//", 2, "floordiv"),
@@ -122,6 +124,9 @@ class __extend__(term.Number):
     def arith_add_float(self, other_float):
         return term.Float(other_float + float(self.num))
 
+    def arith_unaryadd(self):
+        return self
+
     # ------------------ subtraction ------------------ 
     def arith_sub(self, other):
         return other.arith_sub_number(self.num)
@@ -138,6 +143,14 @@ class __extend__(term.Number):
 
     def arith_sub_float(self, other_float):
         return term.Float(other_float - float(self.num))
+
+    def arith_unarysub(self):
+        try:
+            res = rarithmetic.ovfcheck(-self.num)
+        except OverflowError:
+            return term.BigInt(rbigint.fromint(self.num).neg())
+        return term.Number(res)
+
 
     # ------------------ multiplication ------------------ 
     def arith_mul(self, other):
@@ -341,6 +354,9 @@ class __extend__(term.Float):
     def arith_add_float(self, other_float):
         return term.Float(other_float + self.floatval)
 
+    def arith_unaryadd(self):
+        return self
+
     # ------------------ subtraction ------------------ 
     def arith_sub(self, other):
         return other.arith_sub_float(self.floatval)
@@ -353,6 +369,9 @@ class __extend__(term.Float):
 
     def arith_sub_float(self, other_float):
         return term.Float(other_float - self.floatval)
+
+    def arith_unarysub(self):
+        return term.Float(-self.floatval)
 
     # ------------------ multiplication ------------------ 
     def arith_mul(self, other):
@@ -490,6 +509,9 @@ class __extend__(term.BigInt):
     def arith_add_float(self, other_float):
         return term.Float(other_float + self.value.tofloat())
 
+    def arith_unaryadd(self):
+        return self
+
     # ------------------ subtraction ------------------ 
     def arith_sub(self, other):
         return other.arith_sub_bigint(self.value)
@@ -502,6 +524,9 @@ class __extend__(term.BigInt):
 
     def arith_sub_float(self, other_float):
         return term.Float(other_float - self.value.tofloat())
+
+    def arith_unarysub(self):
+        return term.BigInt(self.value.neg())
 
     # ------------------ multiplication ------------------ 
     def arith_mul(self, other):

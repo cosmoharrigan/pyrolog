@@ -667,6 +667,10 @@ class Atom(Callable):
 class Numeric(NonVar):
     __slots__ = ()
 
+    def eval_arithmetic(self, engine):
+        return self
+
+
 class Number(Numeric):#, UnboxedValue):
     TYPE_STANDARD_ORDER = 1
     __slots__ = ("num", )
@@ -692,9 +696,6 @@ class Number(Numeric):#, UnboxedValue):
     
     def __repr__(self):
         return "Number(%r)" % (self.num, )
-    
-    def eval_arithmetic(self, engine):
-        return self
     
     def cmp_standard_order(self, other, heap):
         # XXX looks a bit terrible
