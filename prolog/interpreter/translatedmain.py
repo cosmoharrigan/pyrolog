@@ -90,7 +90,7 @@ def run(query, var_to_pos, engine):
         engine.run(query, engine.modulewrapper.current_module, 
                 ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
-        printmessage("no\n")
+        printmessage("Nein\n")
     except (error.UncaughtError, error.CatchableError), e:
         printmessage("ERROR: %s\n" % e.get_errstr(engine))
     # except error.UncatchableError, e:
