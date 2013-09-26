@@ -26,24 +26,17 @@ def get_source(filename):
     return file_content
 
 def get_filehandle(filename, stdlib=False):
-    assert isinstance(filename, str)
-    try:
-        return os.open(filename, os.O_RDONLY, 0777)
-    except OSError, e:
+    filename_with_pl =  filename + '.pl'
+    candidates = [
+        filename,
+        filename_with_pl,
+        os.path.join(path, filename),
+        os.path.join(path, filename_with_pl)]
+    e = None
+    for cand in candidates:
         try:
-            temppath = filename + ".pl"
-            assert isinstance(temppath, str)
-            return os.open(temppath, os.O_RDONLY, 0777)
+            return os.open(cand, os.O_RDONLY, 0777)
         except OSError, e:
-            if stdlib:
-                try:
-                    fname = os.path.join(path, filename)
-                    assert isinstance(fname, str)
-                    return os.open(fname, os.O_RDONLY, 0777)
-                except OSError, e:
-                    assert isinstance(temppath, str)
-                    fname = os.path.join(path, temppath)
-                    assert isinstance(fname, str)
-                    return os.open(fname, os.O_RDONLY, 0777)
-            raise e
-            assert 0, "unreachable"
+            pass
+    assert e is not None
+    raise e
