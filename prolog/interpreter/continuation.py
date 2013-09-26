@@ -51,10 +51,11 @@ def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
         #view(scont=scont, fcont=fcont, heap=heap)
-        if isinstance(scont, RuleContinuation) and scont._rule.body is not None:
+        if isinstance(scont, RuleContinuation):
             rule = scont._rule
-            jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
-                                    heap=heap)
+            if scont._rule.body is not None:
+                jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+                                        heap=heap)
         try:
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
@@ -67,7 +68,7 @@ def driver(scont, fcont, heap):
                     raise
             scont, fcont, heap = fcont.fail(heap)
         except error.CatchableError, e:
-            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap)
+            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap, rule)
         else:
             scont, fcont, heap = _process_hooks(scont, fcont, heap)
     assert isinstance(scont, DoneSuccessContinuation)
@@ -252,7 +253,7 @@ class Engine(object):
     # error handling
 
     @jit.unroll_safe
-    def throw(self, exc, scont, fcont, heap):
+    def throw(self, exc, scont, fcont, heap, rule_likely_source=None):
         from prolog.interpreter import memo
         # copy to make sure that variables in the exception that are
         # backtracked by the revert_upto below have the right value.
@@ -270,7 +271,7 @@ class Engine(object):
             else:
                 return self.call(
                     scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
-        raise error.UncaughtError(exc)
+        raise error.UncaughtError(exc, rule_likely_source)
 
 
 

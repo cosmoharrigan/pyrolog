@@ -60,7 +60,10 @@ class TermedError(PrologError):
                 return "Internal error" # AKA, I have no clue what went wrong.
 
 class CatchableError(TermedError): pass
-class UncaughtError(TermedError): pass
+class UncaughtError(TermedError):
+    def __init__(self, term, rule_likely_source=None):
+        TermedError.__init__(self, term)
+        self.rule = rule_likely_source
 
 def wrap_error(t):
     from prolog.interpreter import term
