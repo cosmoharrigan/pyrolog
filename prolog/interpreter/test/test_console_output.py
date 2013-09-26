@@ -55,7 +55,7 @@ class TestInteraction:
         child.expect(">?- ")
 
         child.sendline("X = 1, X = 2.")
-        child.expect("no")
+        child.expect("Nein")
         child.expect(">?- ")
 
         child.sendline("X = [a, b, Y], Y = [1, 2], Z = Y.")
