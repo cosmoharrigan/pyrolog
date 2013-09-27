@@ -52,9 +52,8 @@ def parse(inp):
     return builder.build(t)
 
 def create_file(name, content):
-    fd = os.open(name, os.O_CREAT|os.O_RDWR, 0666)
-    os.write(fd, content)
-    os.close(fd)
+    with open(name, "w") as f:
+        f.write(content)
 
 def delete_file(name):
     os.unlink(name)
@@ -74,8 +73,6 @@ def delete_dir(name):
     os.rmdir(current_dir)
 
 def file_content(src):
-    f = open(src)
-    data = f.read()
-    f.close()
-    return data
+    with open(src) as f:
+        return f.read()
 
