@@ -180,12 +180,12 @@ class Engine(object):
 
     def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
-        parse_file(s, self.parser, Engine._build_and_run, self)
+        parse_file(s, self.parser, Engine._build_and_run, self, file_name=file_name)
 
-    def parse(self, s):
+    def parse(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file, TermBuilder
         builder = TermBuilder()
-        trees = parse_file(s, self.parser)
+        trees = parse_file(s, self.parser, file_name=file_name)
         terms = builder.build_many(trees)
         return terms, builder.varname_to_var
 

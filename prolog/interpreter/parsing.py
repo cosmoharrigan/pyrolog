@@ -2,7 +2,7 @@ import py
 from rpython.rlib.parsing.ebnfparse import parse_ebnf
 from rpython.rlib.parsing.regexparse import parse_regex
 from rpython.rlib.parsing.lexer import Lexer, DummyLexer
-from rpython.rlib.parsing.deterministic import DFA
+from rpython.rlib.parsing.deterministic import DFA, LexerError
 from rpython.rlib.parsing.tree import Nonterminal, Symbol, RPythonVisitor
 from rpython.rlib.parsing.parsing import PackratParser, LazyParseTable, Rule
 from rpython.rlib.parsing.parsing import ParseError, ErrorInformation
@@ -12,6 +12,7 @@ from rpython.rlib.rarithmetic import ovfcheck, string_to_int
 from rpython.rlib.rbigint import rbigint
 from prolog.interpreter.continuation import Engine
 from prolog.interpreter.module import Module
+from prolog.interpreter import error
 
 def make_regexes():
     regexs = [
@@ -204,7 +205,21 @@ def make_parser_at_runtime(operations):
 def _dummyfunc(arg, tree):
     return parser_fact
 
-def parse_file(s, parser=None, callback=_dummyfunc, arg=None):
+def parse_file(s, parser=None, callback=_dummyfunc, arg=None, file_name=None):
+    if file_name is None:
+        file_name = "<unknown>" # for error messages only
+    try:
+        return _parse_file(s, parser, callback, arg)
+    except ParseError, exc:
+        message = exc.nice_error_message(file_name, s)
+        lineno = exc.source_pos.lineno
+    except LexerError, exc:
+        message = exc.nice_error_message(file_name)
+        lineno = exc.source_pos.lineno
+    raise error.PrologParseError(file_name, lineno, message)
+
+
+def _parse_file(s, parser, callback, arg):
     tokens = lexer.tokenize(s)
     lines = []
     line = []

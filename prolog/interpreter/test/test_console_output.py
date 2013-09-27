@@ -95,3 +95,22 @@ class TestInteraction:
         child.expect("B = ''")
         child.sendline(";")
         child.expect(">?- ")
+
+    def test_parse_error(self):
+        child = self.spawn([])
+        child.expect("welcome!")
+        child.expect(">?- ")
+        child.sendline("X = $.")
+        child.expect("  File <stdin>, line 1")
+        child.expect(re.escape("X = $."))
+        child.expect(re.escape("    ^"))
+        child.expect("LexerError")
+
+        child = self.spawn([])
+        child.expect("welcome!")
+        child.expect(">?- ")
+        child.sendline("X = a b c.")
+        child.expect("  File <stdin>, line 1")
+        child.expect(re.escape("X = a b c."))
+        child.expect(re.escape("      ^"))
+        child.expect(re.escape("ParseError: expected ."))

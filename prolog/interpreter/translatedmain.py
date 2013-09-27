@@ -93,6 +93,8 @@ def run(query, var_to_pos, engine):
         printmessage("Nein\n")
     except (error.UncaughtError, error.CatchableError), e:
         printmessage("ERROR: %s\n" % e.get_errstr(engine))
+    except error.PrologParseError, exc:
+        printmessage(exc.message + "\n")
     # except error.UncatchableError, e:
     #     printmessage("INTERNAL ERROR: %s\n" % (e.message, ))
     except StopItNow:
@@ -111,19 +113,15 @@ def repl(engine):
         if line == "halt.\n":
             break
         try:
-            goals, var_to_pos = engine.parse(line)
-        except ParseError, exc:
-            printmessage(exc.nice_error_message("<stdin>", line) + "\n")
-            continue
-        except LexerError, exc:
-            printmessage(exc.nice_error_message("<stdin>") + "\n")
+            goals, var_to_pos = engine.parse(line, file_name="<stdin>")
+        except error.PrologParseError, exc:
+            printmessage(exc.message + "\n")
             continue
         for goal in goals:
             run(goal, var_to_pos, engine)
- 
+
 def execute(e, filename):
-    e.run(term.Callable.build("consult", [term.Callable.build(filename)]),
-            e.modulewrapper.user_module)
+    run(term.Callable.build("consult", [term.Callable.build(filename)]), {}, e)
 
 if __name__ == '__main__':
     from sys import argv

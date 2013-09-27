@@ -5,6 +5,12 @@ class UncatchableError(PrologError):
     def __init__(self, message):
         self.message = message
 
+class PrologParseError(PrologError):
+    def __init__(self, file_name, line_number, message):
+        self.file_name = file_name
+        self.line_number = line_number
+        self.message = message
+
 class TermedError(PrologError):
     def __init__(self, term):
         self.term = term
@@ -26,12 +32,12 @@ class TermedError(PrologError):
                      return "Undefined %s: %s" % (
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1)))
-            elif errorterm.name()== "domain_error":
+            elif errorterm.name() == "domain_error":
                 if isinstance(errorterm, term.Callable):
                     return "Domain error: '%s' expected, found '%s'" % (
                         f.format(errorterm.argument_at(0)),
                         f.format(errorterm.argument_at(1)))
-            elif errorterm.name()== "type_error":
+            elif errorterm.name() == "type_error":
                 if isinstance(errorterm, term.Callable):
                     return "Type error: '%s' expected, found '%s'" % (
                         f.format(errorterm.argument_at(0)),
