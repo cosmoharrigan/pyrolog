@@ -24,8 +24,8 @@ class ModuleWrapper(object):
 
     def init_system_module(self):
         from prolog.builtin.sourcehelper import get_source
-        source = get_source("system.pl")
-        self.engine.runstring(source)
+        source, file_name = get_source("system.pl")
+        self.engine.runstring(source, file_name)
         self.system = self.modules["system"]
         self.current_module = self.user_module
 

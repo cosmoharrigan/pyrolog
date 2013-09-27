@@ -30,7 +30,7 @@ def handle_use_module_with_library(engine, heap, module, path, imports=None):
             temppath = os.path.join(libpath, modulename)
             try:
                 assert isinstance(temppath, str)
-                fd = get_filehandle(temppath)
+                fd, _ = get_filehandle(temppath)
             except OSError:
                 continue
                 assert 0, "unreachable"
@@ -57,8 +57,8 @@ def handle_use_module(engine, heap, module, path, imports=None):
     if modulename not in m.modules and modulename not in m.seen_modules: # prevent recursive imports
         m.seen_modules[modulename] = None
         current_module = m.current_module
-        file_content = get_source(path)
-        engine.runstring(file_content)
+        file_content, file_name = get_source(path)
+        engine.runstring(file_content, file_name)
         for sig in m.current_module.exports:
             if sig not in m.current_module.functions:
                 m.current_module = current_module

@@ -178,9 +178,9 @@ class Engine(object):
             term = v.dereference(None)
         self.add_rule(term)
 
-    def runstring(self, s):
+    def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
-        trees = parse_file(s, self.parser, Engine._build_and_run, self)
+        parse_file(s, self.parser, Engine._build_and_run, self)
 
     def parse(self, s):
         from prolog.interpreter.parsing import parse_file, TermBuilder

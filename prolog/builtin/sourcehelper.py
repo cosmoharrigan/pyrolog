@@ -9,7 +9,7 @@ path = os.path.join(path, "..", "prolog_modules")
 def get_source(filename):
     try:
         assert isinstance(filename, str)
-        fd = get_filehandle(filename, True)
+        fd, actual_filename = get_filehandle(filename, True)
     except OSError:
         throw_existence_error("source_sink", Callable.build(filename))
         assert 0, "unreachable" # make the flow space happy
@@ -23,7 +23,7 @@ def get_source(filename):
         file_content = "".join(content)
     finally:
         os.close(fd)
-    return file_content
+    return file_content, actual_filename
 
 def get_filehandle(filename, stdlib=False):
     filename_with_pl =  filename + '.pl'
@@ -35,7 +35,7 @@ def get_filehandle(filename, stdlib=False):
     e = None
     for cand in candidates:
         try:
-            return os.open(cand, os.O_RDONLY, 0777)
+            return os.open(cand, os.O_RDONLY, 0777), os.path.abspath(cand)
         except OSError, e:
             pass
     assert e is not None
