@@ -1,6 +1,6 @@
 import py
 from prolog.interpreter import arithmetic
-from prolog.interpreter.parsing import parse_file, TermBuilder
+from prolog.interpreter.parsing import TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.builtin.register import expose_builtin
 from prolog.interpreter.memo import CopyMemo

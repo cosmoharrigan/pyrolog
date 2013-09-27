@@ -1,6 +1,6 @@
 import py
 import math
-from prolog.interpreter.parsing import parse_file, TermBuilder
+from prolog.interpreter.parsing import TermBuilder
 from prolog.interpreter import helper, term, error
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.error import UnificationFailed

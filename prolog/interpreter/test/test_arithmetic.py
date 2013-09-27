@@ -1,6 +1,6 @@
 import py
 import sys
-from prolog.interpreter.parsing import parse_file, TermBuilder
+from prolog.interpreter.parsing import TermBuilder
 from prolog.interpreter.parsing import parse_query_term, get_engine
 from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.continuation import Heap, Engine
