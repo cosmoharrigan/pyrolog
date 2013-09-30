@@ -15,7 +15,7 @@ def impl_catch(engine, heap, rule, goal, catcher, recover, scont, fcont):
     #continuation.view(scont, fcont, heap)
     return scont, fcont, heap.branch()
 
-@expose_builtin("throw", unwrap_spec=["obj"], handles_continuation=True)
-def impl_throw(engine, heap, exc, scont, fcont):
-    return engine.throw(exc, scont, fcont, heap)
+@expose_builtin("throw", unwrap_spec=["obj"], needs_rule=True)
+def impl_throw(engine, heap, rule, exc):
+    raise error.CatchableError(exc, rule)
 
