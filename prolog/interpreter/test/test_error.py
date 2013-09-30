@@ -4,16 +4,18 @@ from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.parsing import get_query_and_vars
 from prolog.interpreter.error import UncaughtError
 
+def get_uncaught_error(query, e):
+    if isinstance(query, str):
+        (query, _) = get_query_and_vars(query)
+    return pytest.raises(UncaughtError, e.run_query_in_current, query).value
+
+
 def test_errstr():
     e = get_engine("""
         f(X) :- drumandbass(X).
     """)
-    (t, vs) = get_query_and_vars("f(X).")
-
-    m = e.modulewrapper
-
-    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
-    assert info.value.get_errstr(e) == "Undefined procedure: drumandbass/1"
+    error = get_uncaught_error("f(X).", e)
+    assert error.get_errstr(e) == "Undefined procedure: drumandbass/1"
 
 def test_exception_knows_rule():
     e = get_engine("""
@@ -25,17 +27,15 @@ def test_exception_knows_rule():
     m = e.modulewrapper
     sig = t.argument_at(0).signature()
     rule = m.user_module.lookup(sig).rulechain.next
+    error = get_uncaught_error(t, e)
+    assert error.rule is rule
 
-    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
-    assert info.value.rule is rule
-
+def test_exception_knows_rule_toplevel():
     # toplevel rule
-    (t, vs) = get_query_and_vars("drumandbass(X).")
-
+    e = get_engine("")
     m = e.modulewrapper
-
-    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
-    assert info.value.rule is m.current_module._toplevel_rule
+    error = get_uncaught_error("drumandbass(X).", e)
+    assert error.rule is m.current_module._toplevel_rule
 
 def test_exception_knows_rule_change_back_to_earlier_rule():
     e = get_engine("""
@@ -48,5 +48,6 @@ def test_exception_knows_rule_change_back_to_earlier_rule():
     sig = t.signature()
     rule = m.user_module.lookup(sig).rulechain
 
-    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
-    assert info.value.rule is rule
+    error = get_uncaught_error(t, e)
+    assert error.rule is rule
+
