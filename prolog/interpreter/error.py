@@ -18,17 +18,22 @@ class TermedError(PrologError):
 
     def get_errstr(self, engine):
         from prolog.builtin import formatting
-        from prolog.interpreter import term
+        from prolog.interpreter import term, signature
+        errorsig = signature.Signature.getsignature("error", 1)
 
         f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
         f._make_reverse_op_mapping()
 
-        errorterm = self.term.argument_at(0)
+        t = self.term
+        if not isinstance(t, term.Callable) or not t.signature().eq(errorsig):
+            return "Unhandled exception: %s" % (f.format(t), )
+
+        errorterm = t.argument_at(0)
 
         if isinstance(errorterm, term.Callable):
             if errorterm.name() == "instantiation_error":
                 return "arguments not sufficiently instantiated"
-            elif errorterm.name()== "existence_error":
+            elif errorterm.name() == "existence_error":
                 if isinstance(errorterm, term.Callable):
                      return "Undefined %s: %s" % (
                         f.format(errorterm.argument_at(0)),

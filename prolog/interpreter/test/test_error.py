@@ -18,6 +18,13 @@ def test_errstr():
     error = get_uncaught_error("f(X).", e)
     assert error.get_errstr(e) == "Undefined procedure: drumandbass/1"
 
+def test_errstr_user():
+    e = get_engine("""
+        f(X) :- throw(foo).
+    """)
+    error = get_uncaught_error("f(X).", e)
+    assert error.get_errstr(e) == "Unhandled exception: foo"
+
 def test_exception_knows_rule():
     e = get_engine("""
         f(1).
