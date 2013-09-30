@@ -36,3 +36,17 @@ def test_exception_knows_rule():
 
     info = pytest.raises(UncaughtError, e.run_query_in_current, t)
     assert info.value.rule is m.current_module._toplevel_rule
+
+def test_exception_knows_rule_change_back_to_earlier_rule():
+    e = get_engine("""
+        g(a).
+        f(X) :- g(X), drumandbass(X).
+    """)
+    (t, vs) = get_query_and_vars("f(X).")
+
+    m = e.modulewrapper
+    sig = t.signature()
+    rule = m.user_module.lookup(sig).rulechain
+
+    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
+    assert info.value.rule is rule
