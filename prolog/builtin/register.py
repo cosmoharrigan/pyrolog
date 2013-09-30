@@ -110,7 +110,8 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         code.append("    return scont, fcont, heap")
     else:
         code.append("    return result")
-    miniglobals = globals().copy()
+    used_globals = ["helper", "error", "term", "eval_arithmetic"]
+    miniglobals = {key: globals()[key] for key in used_globals}
     miniglobals[func.func_name] = func
     #if func.__module__[len("prolog.builtin."):] not in jit_modules:
     #    jit.dont_look_inside(func)
