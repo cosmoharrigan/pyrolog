@@ -67,8 +67,8 @@ def driver(scont, fcont, heap):
                 if fcont.is_done():
                     raise
             scont, fcont, heap = fcont.fail(heap)
-        except error.CatchableError, e:
-            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap, rule)
+        except error.CatchableError, exc:
+            scont, fcont, heap = scont.engine.throw(exc, scont, fcont, heap, rule)
         else:
             scont, fcont, heap = _process_hooks(scont, fcont, heap)
     assert isinstance(scont, DoneSuccessContinuation)
@@ -94,7 +94,7 @@ def _process_hooks(scont, fcont, heap):
                 try:
                     mod = e.modulewrapper.get_module(module, query)
                 except error.CatchableError, err:
-                    scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
+                    scont, fcont, heap = scont.engine.throw(err, scont, fcont, heap)
                     break
                 scont, fcont, heap = e.call_in_module(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(attvar, module)
@@ -264,9 +264,10 @@ class Engine(object):
     @jit.unroll_safe
     def throw(self, exc, scont, fcont, heap, rule_likely_source=None):
         from prolog.interpreter import memo
+        exc_term = exc.term
         # copy to make sure that variables in the exception that are
         # backtracked by the revert_upto below have the right value.
-        exc = exc.copy(heap, memo.CopyMemo())
+        exc_term = exc.term.copy(heap, memo.CopyMemo())
         while not scont.is_done():
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont
@@ -274,13 +275,13 @@ class Engine(object):
             discard_heap = scont.heap
             heap = heap.revert_upto(discard_heap)
             try:
-                scont.catcher.unify(exc, heap)
+                scont.catcher.unify(exc_term, heap)
             except error.UnificationFailed:
                 scont = scont.nextcont
             else:
                 return self.call(
                     scont.recover, scont.rule, scont.nextcont, scont.fcont, heap)
-        raise error.UncaughtError(exc, rule_likely_source)
+        raise error.UncaughtError(exc_term, exc.sig_context, rule_likely_source)
 
 
 

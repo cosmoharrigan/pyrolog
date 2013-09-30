@@ -3,6 +3,7 @@ import py, pytest
 from prolog.interpreter.parsing import get_engine
 from prolog.interpreter.parsing import get_query_and_vars
 from prolog.interpreter.error import UncaughtError
+from prolog.interpreter.signature import Signature
 
 def get_uncaught_error(query, e):
     if isinstance(query, str):
@@ -51,3 +52,9 @@ def test_exception_knows_rule_change_back_to_earlier_rule():
     error = get_uncaught_error(t, e)
     assert error.rule is rule
 
+def test_exception_knows_builtin_signature():
+    e = get_engine("""
+        f(X, Y) :- atom_length(X, Y).
+    """)
+    error = get_uncaught_error("f(1, Y).", e)
+    assert error.sig_context == Signature.getsignature("atom_length", 2)

@@ -22,8 +22,12 @@ class Builtin(object):
         self.signature = signature
 
     def call(self, engine, query, rule, scont, fcont, heap):
-        return self.function(engine, query, rule, scont, fcont, heap)
-        
+        try:
+            return self.function(engine, query, rule, scont, fcont, heap)
+        except error.CatchableError as e:
+            e.sig_context = self.signature
+            raise
+
     def _freeze_(self):
         return True
 
@@ -111,6 +115,7 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         code.append("    return scont, fcont, heap")
     else:
         code.append("    return result")
+
     used_globals = ["helper", "error", "term", "eval_arithmetic"]
     miniglobals = {key: globals()[key] for key in used_globals}
     miniglobals[func.func_name] = func

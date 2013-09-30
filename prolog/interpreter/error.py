@@ -12,8 +12,9 @@ class PrologParseError(PrologError):
         self.message = message
 
 class TermedError(PrologError):
-    def __init__(self, term):
+    def __init__(self, term, sig_context=None):
         self.term = term
+        self.sig_context = sig_context
 
     def get_errstr(self, engine):
         from prolog.builtin import formatting
@@ -67,8 +68,8 @@ class TermedError(PrologError):
 
 class CatchableError(TermedError): pass
 class UncaughtError(TermedError):
-    def __init__(self, term, rule_likely_source=None):
-        TermedError.__init__(self, term)
+    def __init__(self, term, sig_context=None, rule_likely_source=None):
+        TermedError.__init__(self, term, sig_context)
         self.rule = rule_likely_source
 
 def wrap_error(t):
