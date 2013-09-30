@@ -123,8 +123,7 @@ def _make_toplevel_rule(module):
     # this is a rule object that is used for error messages when running
     # toplevel goals
     head = Callable.build("<%s toplevel>" % (module.name, ))
-    body = Callable.build("true")
-    return Rule(head, body, module)
+    return Rule(head, None, module)
 
 class Function(object):
     _immutable_fields_ = ["rulechain?", "meta_args?"]

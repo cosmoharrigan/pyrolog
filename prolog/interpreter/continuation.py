@@ -51,11 +51,11 @@ def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
         #view(scont=scont, fcont=fcont, heap=heap)
-        if isinstance(scont, RuleContinuation):
+        if isinstance(scont, ContinuationWithRule):
             rule = scont.rule
-            if scont.rule.body is not None:
-                jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
-                                        heap=heap)
+        if isinstance(scont, RuleContinuation) and rule.body is not None:
+            jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+                                    heap=heap)
         try:
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
@@ -204,7 +204,8 @@ class Engine(object):
         fcont = DoneFailureContinuation(self)
         if continuation is None:
             continuation = CutScopeNotifier(self, DoneSuccessContinuation(self), fcont)
-        driver(*self.call(query, rule, continuation, fcont, Heap()))
+        continuation = BodyContinuation(self, rule, continuation, query)
+        return driver(continuation, fcont, Heap())
 
     def run_query_in_current(self, query, continuation=None):
         module = self.modulewrapper.current_module

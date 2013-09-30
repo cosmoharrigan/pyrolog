@@ -29,3 +29,10 @@ def test_exception_knows_rule():
     info = pytest.raises(UncaughtError, e.run_query_in_current, t)
     assert info.value.rule is rule
 
+    # toplevel rule
+    (t, vs) = get_query_and_vars("drumandbass(X).")
+
+    m = e.modulewrapper
+
+    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
+    assert info.value.rule is m.current_module._toplevel_rule
