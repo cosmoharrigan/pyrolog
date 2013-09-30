@@ -34,6 +34,7 @@ def expose_builtin(*args, **kwargs):
 
 def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
                    translatable=True, needs_module=False, needs_rule=False):
+    numargs = len(unwrap_spec)
     if isinstance(name, list):
         expose_as = name
         name = name[0]
@@ -42,7 +43,7 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
     if not name.isalnum():
         name = func.func_name
     orig_funcargs = inspect.getargs(func.func_code)[0]
-    funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
+    funcname = "wrap_%s_%s" % (name, numargs)
     code = ["def %s(engine, query, rule, scont, fcont, heap):" % (funcname, )]
     code.append("    module = rule.module")
     if not translatable:
@@ -113,12 +114,9 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
     used_globals = ["helper", "error", "term", "eval_arithmetic"]
     miniglobals = {key: globals()[key] for key in used_globals}
     miniglobals[func.func_name] = func
-    #if func.__module__[len("prolog.builtin."):] not in jit_modules:
-    #    jit.dont_look_inside(func)
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
-        l = len(unwrap_spec)
-        signature = Signature.getsignature(name, l)
-        b = Builtin(miniglobals[funcname], funcname, l, signature)
+        signature = Signature.getsignature(name, numargs)
+        b = Builtin(miniglobals[funcname], funcname, numargs, signature)
         signature.set_extra("builtin", b)
     return func
