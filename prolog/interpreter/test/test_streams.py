@@ -9,7 +9,6 @@ prolog_raises, assert_true, assert_false, file_content
 from prolog.interpreter import term
 from prolog.interpreter.heap import Heap
 from prolog.builtin.streams import impl_current_input, impl_current_output
-from prolog.builtin.streams import _strip
 
 def test_current_stream_after_startup():
     e = get_engine("")
@@ -748,12 +747,6 @@ def test_append():
 def test_open_stream_strange_buffering():
     prolog_raises("domain_error(buffering, _)",
             "open(blub, write, _, [buffer(strange_stuff)])")
-
-def test_strip():
-    assert _strip("abc") == "abc"
-    assert _strip("") == ""
-    assert _strip(" \n \r \t   abc  \n  \r  \t  ") == "abc"
-    assert _strip("    \n    \t   \n   ") == ""
 
 def test_open_with_options():
     m = "mod"
