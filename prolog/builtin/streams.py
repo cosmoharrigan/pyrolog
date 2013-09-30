@@ -4,11 +4,13 @@ from prolog.interpreter.continuation import Engine
 from prolog.interpreter.heap import Heap
 from prolog.interpreter import error
 from prolog.interpreter import term
-from rpython.rlib.streamio import fdopen_as_stream, open_file_as_stream
 from prolog.interpreter.stream import PrologStream, PrologInputStream, \
 PrologOutputStream
 from prolog.interpreter import helper
 from prolog.builtin.formatting import TermFormatter
+
+from rpython.rlib.streamio import fdopen_as_stream, open_file_as_stream
+from rpython.rlib import rstring
 
 rwa = {"read": "r", "write": "w", "append": "a"}
 seek_mode = {"bof": os.SEEK_SET, "current": os.SEEK_CUR, "eof": os.SEEK_END}
@@ -284,7 +286,7 @@ def read_till_next_dot(stream):
             continue
         if char == "end_of_file":
             ignore = False
-        if _strip(char) == "":
+        if rstring.strip_spaces(char) == "":
             continue
         if not ignore:
             if char == "end_of_file":
@@ -298,7 +300,7 @@ def read_till_next_dot(stream):
             if char == ".":
                 nextchar, n = read_unicode_char(stream)
                 stream.seek(-n, 1)
-                if _strip(nextchar) in tlist:
+                if rstring.strip_spaces(nextchar) in tlist:
                     return "".join(charlist)
 
 @expose_builtin("read", unwrap_spec=["instream", "obj"])
@@ -332,21 +334,3 @@ def impl_see(engine, heap, obj):
 @expose_builtin("seen")
 def impl_seen(engine, heap):
     impl_close(engine, heap, engine.streamwrapper.current_instream)
-
-def _strip(s):
-    whites = " \n\r\t"
-    length = len(s)
-    start = 0
-    for c in s:
-        if c not in whites:
-            break
-        start += 1
-    end = length
-    for i in range(length - 1, -1, -1):
-        if s[i] not in whites:
-            break
-        end -= 1
-    assert start <= length
-    assert end >= 0
-    return s[start:end]
-        
