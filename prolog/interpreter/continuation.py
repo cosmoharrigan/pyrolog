@@ -268,6 +268,7 @@ class Engine(object):
         # copy to make sure that variables in the exception that are
         # backtracked by the revert_upto below have the right value.
         exc_term = exc.term.copy(heap, memo.CopyMemo())
+        orig_scont = scont
         while not scont.is_done():
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont
@@ -281,7 +282,7 @@ class Engine(object):
             else:
                 return self.call(
                     scont.recover, scont.rule, scont.nextcont, scont.fcont, heap)
-        raise error.UncaughtError(exc_term, exc.sig_context, rule_likely_source)
+        raise error.UncaughtError(exc_term, exc.sig_context, rule_likely_source, orig_scont)
 
 
 

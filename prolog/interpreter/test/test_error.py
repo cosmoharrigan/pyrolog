@@ -58,3 +58,20 @@ def test_exception_knows_builtin_signature():
     """)
     error = get_uncaught_error("f(1, Y).", e)
     assert error.sig_context == Signature.getsignature("atom_length", 2)
+
+def test_traceback():
+    e = get_engine("""
+        h(y).
+        g(a).
+        g(_) :- throw(foo).
+        f(X, Y) :- g(X), h(Y).
+    """)
+    error = get_uncaught_error("f(1, Y).", e)
+    sig_g = Signature.getsignature("g", 1)
+    sig_f = Signature.getsignature("f", 2)
+    m = e.modulewrapper
+    rule_f = m.user_module.lookup(sig_f).rulechain
+    rule_g = m.user_module.lookup(sig_g).rulechain.next
+    tb = error.traceback
+    assert tb.rule is rule_f
+    assert tb.next.rule is rule_g

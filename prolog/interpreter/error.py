@@ -68,9 +68,30 @@ class TermedError(PrologError):
 
 class CatchableError(TermedError): pass
 class UncaughtError(TermedError):
-    def __init__(self, term, sig_context=None, rule_likely_source=None):
+    def __init__(self, term, sig_context=None, rule_likely_source=None, scont=None):
         TermedError.__init__(self, term, sig_context)
         self.rule = rule_likely_source
+        self.traceback = _construct_traceback(scont)
+
+
+class TraceFrame(object):
+    def __init__(self, rule, next=None):
+        self.rule = rule
+        self.next = next
+
+    def __repr__(self):
+        return "TraceFrame(%r, %r)" % (self.rule, self.next)
+
+def _construct_traceback(scont):
+    from prolog.interpreter.continuation import ContinuationWithRule
+    if scont is None:
+        return None
+    next = None
+    while not scont.is_done():
+        if isinstance(scont, ContinuationWithRule):
+            next = TraceFrame(scont.rule, next)
+        scont = scont.nextcont
+    return next
 
 def wrap_error(t):
     from prolog.interpreter import term
