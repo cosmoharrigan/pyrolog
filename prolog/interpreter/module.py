@@ -1,9 +1,9 @@
 import py
 from rpython.rlib import jit
 from prolog.interpreter.signature import Signature
-from prolog.interpreter import error
+from prolog.interpreter import error, term
 from prolog.interpreter.term import Callable, Atom
-from prolog.interpreter.function import Function
+from prolog.interpreter.function import Function, _make_toplevel_rule
 from prolog.interpreter.helper import unwrap_predicate_indicator
 
 class VersionTag(object):
@@ -58,6 +58,7 @@ class Module(object):
         self.nameatom = Atom(name)
         self.functions = {}
         self.exports = []
+        self._toplevel_rule = _make_toplevel_rule(self)
 
     def add_meta_predicate(self, signature, arglist):
         func = self.lookup(signature)

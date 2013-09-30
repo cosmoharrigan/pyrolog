@@ -87,7 +87,8 @@ def run(query, var_to_pos, engine):
     try:
         if query is None:
             return
-        engine.run(query, engine.modulewrapper.current_module, 
+        engine.run_query_in_current(
+                query,
                 ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("Nein\n")

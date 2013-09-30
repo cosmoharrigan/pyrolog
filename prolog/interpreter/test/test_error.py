@@ -12,7 +12,7 @@ def test_errstr():
 
     m = e.modulewrapper
 
-    info = pytest.raises(UncaughtError, e.run, t, m.user_module)
+    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
     assert info.value.get_errstr(e) == "Undefined procedure: drumandbass/1"
 
 def test_exception_knows_rule():
@@ -26,6 +26,6 @@ def test_exception_knows_rule():
     sig = t.argument_at(0).signature()
     rule = m.user_module.lookup(sig).rulechain.next
 
-    info = pytest.raises(UncaughtError, e.run, t, m.user_module)
+    info = pytest.raises(UncaughtError, e.run_query_in_current, t)
     assert info.value.rule is rule
 

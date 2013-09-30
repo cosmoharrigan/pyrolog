@@ -21,8 +21,8 @@ class Builtin(object):
         self.numargs = numargs
         self.signature = signature
 
-    def call(self, engine, query, module, scont, fcont, heap):
-        return self.function(engine, query, module, scont, fcont, heap)
+    def call(self, engine, query, rule, scont, fcont, heap):
+        return self.function(engine, query, rule, scont, fcont, heap)
         
     def _freeze_(self):
         return True
@@ -33,7 +33,7 @@ def expose_builtin(*args, **kwargs):
     return really_expose
 
 def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
-                   translatable=True, needs_module=False):
+                   translatable=True, needs_module=False, needs_rule=False):
     if isinstance(name, list):
         expose_as = name
         name = name[0]
@@ -43,7 +43,8 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         name = func.func_name
     orig_funcargs = inspect.getargs(func.func_code)[0]
     funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
-    code = ["def %s(engine, query, module, scont, fcont, heap):" % (funcname, )]
+    code = ["def %s(engine, query, rule, scont, fcont, heap):" % (funcname, )]
+    code.append("    module = rule.module")
     if not translatable:
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
@@ -95,6 +96,9 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
     if needs_module:
         subargs.insert(2, "module")
         assert orig_funcargs[2] == "module"
+    if needs_rule:
+        subargs.insert(2, "rule")
+        assert orig_funcargs[2] == "rule"
     if handles_continuation:
         subargs.append("scont")
         subargs.append("fcont")

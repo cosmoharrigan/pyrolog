@@ -36,18 +36,18 @@ def impl_functor(engine, heap, t, functor, arity):
                     heap)
 
 @continuation.make_failure_continuation
-def continue_arg(Choice, engine, scont, fcont, heap, varnum, num, temarg, vararg):
+def continue_arg(Choice, engine, scont, fcont, heap, varnum, num, temarg, vararg, rule):
     if num < temarg.argument_count() - 1:
-        fcont = Choice(engine, scont, fcont, heap, varnum, num + 1, temarg, vararg)
+        fcont = Choice(engine, scont, fcont, heap, varnum, num + 1, temarg, vararg, rule)
         heap = heap.branch()
     scont = continuation.BodyContinuation(
-            engine, engine.modulewrapper.user_module, scont, term.Callable.build("=", [vararg, temarg.argument_at(num)]))
+            engine, rule, scont, term.Callable.build("=", [vararg, temarg.argument_at(num)]))
     varnum.unify(term.Number(num + 1), heap)
     return scont, fcont, heap
 
 @expose_builtin("arg", unwrap_spec=["obj", "obj", "obj"],
-handles_continuation=True)
-def impl_arg(engine, heap, first, second, third, scont, fcont):
+                needs_rule=True, handles_continuation=True)
+def impl_arg(engine, heap, rule, first, second, third, scont, fcont):
     if isinstance(second, term.Var):
         error.throw_instantiation_error()
     if isinstance(second, term.Atom):
@@ -57,7 +57,7 @@ def impl_arg(engine, heap, first, second, third, scont, fcont):
         error.throw_type_error("compound", second)
     assert isinstance(second, term.Callable)
     if isinstance(first, term.Var):
-        return continue_arg(engine, scont, fcont, heap, first, 0, second, third)
+        return continue_arg(engine, scont, fcont, heap, first, 0, second, third, rule)
     elif isinstance(first, term.Number):
         num = first.num
         if num == 0:

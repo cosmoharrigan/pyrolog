@@ -156,10 +156,10 @@ def test_run():
     hp = Heap()
     X = hp.newvar()
     c3 = Callable.build("f", [Callable.build("b"), X])
-    e.run(c3, e.modulewrapper.user_module)
+    e.run_query_in_current(c3)
     assert X.dereference(hp).name()== "b"
     query = Callable.build("f", [Callable.build("b"), Callable.build("a")]) 
-    e.run(query, e.modulewrapper.user_module)
+    e.run_query_in_current(query)
 
 
 def test_quick_unify_check():

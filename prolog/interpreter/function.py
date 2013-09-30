@@ -119,6 +119,12 @@ class Rule(object):
     def __ne__(self, other):
         return not self == other
 
+def _make_toplevel_rule(module):
+    # this is a rule object that is used for error messages when running
+    # toplevel goals
+    head = Callable.build("<%s toplevel>" % (module.name, ))
+    body = Callable.build("true")
+    return Rule(head, body, module)
 
 class Function(object):
     _immutable_fields_ = ["rulechain?", "meta_args?"]

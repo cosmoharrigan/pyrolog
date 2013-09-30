@@ -52,8 +52,8 @@ def driver(scont, fcont, heap):
     while not scont.is_done():
         #view(scont=scont, fcont=fcont, heap=heap)
         if isinstance(scont, RuleContinuation):
-            rule = scont._rule
-            if scont._rule.body is not None:
+            rule = scont.rule
+            if scont.rule.body is not None:
                 jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
                                         heap=heap)
         try:
@@ -96,7 +96,7 @@ def _process_hooks(scont, fcont, heap):
                 except error.CatchableError, err:
                     scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
                     break
-                scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
+                scont, fcont, heap = e.call_in_module(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(attvar, module)
             hookcell = hookcell.next
             attvar.value_list = None # XXX?
@@ -160,7 +160,7 @@ class Engine(object):
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
-            self.run(term.argument_at(0), self.modulewrapper.current_module)
+            self.run_query_in_current(term.argument_at(0))
         else:
             self._term_expand(term)
         return self.parser
@@ -170,11 +170,11 @@ class Engine(object):
             v = BindingVar()
             call = Callable.build("term_expand", [term, v])
             try:
-                self.run(call, self.modulewrapper.current_module)
+                self.run_query_in_current(call)
             except error.UnificationFailed:
                 v = BindingVar()
                 call = Callable.build("term_expand", [term, v])
-                self.run(call, self.modulewrapper.system)
+                self.run_query(call, self.modulewrapper.system)
             term = v.dereference(None)
         self.add_rule(term)
 
@@ -200,13 +200,17 @@ class Engine(object):
 
     def run_query(self, query, module, continuation=None):
         assert isinstance(module, Module)
+        rule = module._toplevel_rule
         fcont = DoneFailureContinuation(self)
         if continuation is None:
             continuation = CutScopeNotifier(self, DoneSuccessContinuation(self), fcont)
-        driver(*self.call(query, module, continuation, fcont, Heap()))
-    run = run_query
+        driver(*self.call(query, rule, continuation, fcont, Heap()))
 
-    def call(self, query, module, scont, fcont, heap):
+    def run_query_in_current(self, query, continuation=None):
+        module = self.modulewrapper.current_module
+        return self.run_query(query, module, continuation)
+
+    def call(self, query, rule, scont, fcont, heap):
         if isinstance(query, Var):
             query = query.dereference(heap)
         if not isinstance(query, Callable):
@@ -216,9 +220,10 @@ class Engine(object):
         signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return BuiltinContinuation(self, module, scont, builtin, query), fcont, heap
+            return BuiltinContinuation(self, rule, scont, builtin, query), fcont, heap
 
         # do a real call
+        module = rule.module
         function = self._get_function(signature, module, query)
         query = function.add_meta_prefixes(query, module.nameatom)
         startrulechain = jit.hint(function.rulechain, promote=True)
@@ -227,6 +232,9 @@ class Engine(object):
             raise error.UnificationFailed
         scont, fcont, heap = _make_rule_conts(self, scont, fcont, heap, query, rulechain)
         return scont, fcont, heap
+
+    def call_in_module(self, query, module, scont, fcont, heap):
+        return self.call(query, module._toplevel_rule, scont, fcont, heap)
 
     def _get_function(self, signature, module, query): 
         function = module.lookup(signature)
@@ -270,7 +278,7 @@ class Engine(object):
                 scont = scont.nextcont
             else:
                 return self.call(
-                    scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
+                    scont.recover, scont.rule, scont.nextcont, scont.fcont, heap)
         raise error.UncaughtError(exc, rule_likely_source)
 
 
@@ -331,13 +339,15 @@ class Continuation(object):
 
     _dot = _dot
 
-class ContinuationWithModule(Continuation):
+class ContinuationWithRule(Continuation):
     """ This class represents continuations which need
-    to take care of the module system. """
+    to have a reference to the current rule
+    (e.g. to get at the module). """
 
-    def __init__(self, engine, module, nextcont):
+    def __init__(self, engine, nextcont, rule):
         Continuation.__init__(self, engine, nextcont)
-        self.module = module
+        assert isinstance(rule, Rule)
+        self.rule = rule
 
 def view(*objects, **names):
     from dotviewer import graphclient
@@ -418,27 +428,27 @@ class DoneFailureContinuation(FailureContinuation):
         return True
 
 
-class BodyContinuation(ContinuationWithModule):
+class BodyContinuation(ContinuationWithRule):
     """ Represents a bit of Prolog code that is still to be called. """
-    def __init__(self, engine, module, nextcont, body):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, rule, nextcont, body):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.body = body
 
     def activate(self, fcont, heap):
-        return self.engine.call(self.body, self.module, self.nextcont, fcont, heap)
+        return self.engine.call(self.body, self.rule, self.nextcont, fcont, heap)
 
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
 
-class BuiltinContinuation(ContinuationWithModule):
+class BuiltinContinuation(ContinuationWithRule):
     """ Represents the call to a builtin. """
-    def __init__(self, engine, module, nextcont, builtin, query):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, rule, nextcont, builtin, query):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.builtin = builtin
         self.query = query
 
     def activate(self, fcont, heap):
-        return self.builtin.call(self.engine, self.query, self.module, 
+        return self.builtin.call(self.engine, self.query, self.rule,
                 self.nextcont, fcont, heap)
 
     def __repr__(self):
@@ -462,7 +472,7 @@ class UserCallContinuation(FailureContinuation):
                 self.query, self.rulechain)
     
 
-class RuleContinuation(Continuation):
+class RuleContinuation(ContinuationWithRule):
     """ A Continuation that represents the application of a rule, i.e.:
         - standardizing apart of the rule
         - unifying the rule head with the query
@@ -470,22 +480,21 @@ class RuleContinuation(Continuation):
     """
 
     def __init__(self, engine, nextcont, rule, query):
-        Continuation.__init__(self, engine, nextcont)
-        self._rule = rule
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.query = query
 
     def activate(self, fcont, heap):
         nextcont = self.nextcont
-        rule = jit.hint(self._rule, promote=True)
+        rule = jit.hint(self.rule, promote=True)
         nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            return self.engine.call(nextcall, self._rule.module, nextcont, fcont, heap)
+            return self.engine.call(nextcall, self.rule, nextcont, fcont, heap)
         else:
             cont = nextcont
         return cont, fcont, heap
 
     def __repr__(self):
-        return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
+        return "<RuleContinuation rule=%r query=%r>" % (self.rule, self.query)
 
 class CutScopeNotifier(Continuation):
     def __init__(self, engine, nextcont, fcont_after_cut):
@@ -505,9 +514,9 @@ class CutScopeNotifier(Continuation):
         return self.nextcont, fcont, heap
 
 
-class CatchingDelimiter(ContinuationWithModule):
-    def __init__(self, engine, module, nextcont, fcont, catcher, recover, heap):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+class CatchingDelimiter(ContinuationWithRule):
+    def __init__(self, engine, rule, nextcont, fcont, catcher, recover, heap):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.catcher = catcher
         self.recover = recover
         self.fcont = fcont
