@@ -75,3 +75,22 @@ def test_traceback():
     tb = error.traceback
     assert tb.rule is rule_f
     assert tb.next.rule is rule_g
+    assert tb.next.next is None
+
+@pytest.mark.xfail
+def test_traceback_in_if():
+    e = get_engine("""
+        h(y).
+        g(a).
+        g(_) :- throw(foo).
+        f(X, Y) :- (g(X) -> X = 1 ; X = 2), h(Y).
+    """)
+    error = get_uncaught_error("f(1, Y).", e)
+    sig_g = Signature.getsignature("g", 1)
+    sig_f = Signature.getsignature("f", 2)
+    m = e.modulewrapper
+    rule_f = m.user_module.lookup(sig_f).rulechain
+    rule_g = m.user_module.lookup(sig_g).rulechain.next
+    tb = error.traceback
+    assert tb.rule is rule_f
+    assert tb.next.rule is rule_g
