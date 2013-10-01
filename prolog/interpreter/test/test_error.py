@@ -107,13 +107,19 @@ def test_traceback_print():
         h(y).
         g(a).
         g(_) :- throw(foo).
-        f(X, Y) :- g(X), h(Y).
+        f(X, Y) :-
+            g(X),
+            h(Y).
     """)
     error = get_uncaught_error("f(1, Y).", e)
     s = error.format_traceback(e)
     assert s == """\
 Traceback (most recent call last):
-    In user:f/2
-    In user:g/1
+  File "<unknown>" lines 5-7 in user:f/2 :
+    f(X, Y) :-
+                g(X),
+                h(Y).
+  File "<unknown>" line 3 in user:g/1 :
+    g(_) :- throw(foo).
 Unhandled exception: foo"""
 
