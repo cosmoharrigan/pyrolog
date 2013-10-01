@@ -202,14 +202,14 @@ def make_parser_at_runtime(operations):
     parser_fact = PrologPackratParser(real_rules, "fact")
     return parser_fact
 
-def _dummyfunc(arg, tree):
+def _dummyfunc(arg, tree, file_name):
     return parser_fact
 
 def parse_file(s, parser=None, callback=_dummyfunc, arg=None, file_name=None):
     if file_name is None:
         file_name = "<unknown>" # for error messages only
     try:
-        return _parse_file(s, parser, callback, arg)
+        return _parse_file(s, parser, callback, arg, file_name)
     except ParseError, exc:
         message = exc.nice_error_message(file_name, s)
         lineno = exc.source_pos.lineno
@@ -219,7 +219,7 @@ def parse_file(s, parser=None, callback=_dummyfunc, arg=None, file_name=None):
     raise error.PrologParseError(file_name, lineno, message)
 
 
-def _parse_file(s, parser, callback, arg):
+def _parse_file(s, parser, callback, arg, file_name):
     tokens = lexer.tokenize(s)
     lines = []
     line = []
@@ -238,7 +238,7 @@ def _parse_file(s, parser, callback, arg):
         tree = parser.parse(line, lazy=False)
         if callback is not None:
             # XXX ugh
-            parser = callback(arg, tree)
+            parser = callback(arg, tree, file_name)
             if parser is None:
                 parser = parser_fact
         trees.append(tree)

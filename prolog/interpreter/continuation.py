@@ -121,7 +121,7 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, rule, end=True, old_modname=None):
+    def add_rule(self, rule, end=True, old_modname=None, file_name=None):
         m = self.modulewrapper
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
@@ -154,7 +154,7 @@ class Engine(object):
     # _____________________________________________________
     # parsing-related functionality
 
-    def _build_and_run(self, tree):
+    def _build_and_run(self, tree, file_name):
         assert self is not None # for the annotator (!)
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
@@ -162,10 +162,10 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run_query_in_current(term.argument_at(0))
         else:
-            self._term_expand(term)
+            self._term_expand(term, file_name)
         return self.parser
 
-    def _term_expand(self, term):
+    def _term_expand(self, term, file_name):
         if self.modulewrapper.system is not None:
             v = BindingVar()
             call = Callable.build("term_expand", [term, v])
@@ -176,7 +176,7 @@ class Engine(object):
                 call = Callable.build("term_expand", [term, v])
                 self.run_query(call, self.modulewrapper.system)
             term = v.dereference(None)
-        self.add_rule(term)
+        self.add_rule(term, file_name=file_name)
 
     def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
