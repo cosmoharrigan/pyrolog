@@ -120,27 +120,28 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, rule, end=True, file_name=None):
-        m = self.modulewrapper
-        if helper.is_term(rule):
-            assert isinstance(rule, Callable)
-            if rule.signature().eq(predsig):
-                rule = Rule(rule.argument_at(0), rule.argument_at(1),
-                        m.current_module)
-            else:
-                rule = Rule(rule, None, m.current_module)
-        elif isinstance(rule, Atom):
-            rule = Rule(rule, None, m.current_module)
-        else:
-            error.throw_type_error("callable", rule)
-            assert 0, "unreachable" # make annotator happy
-        signature = rule.signature        
+    def add_rule(self, ruleterm, end=True, file_name=None):
+        module = self.modulewrapper.current_module
+        rule = self.make_rule(ruleterm, module)
+        signature = rule.signature
         if self.get_builtin(signature):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
 
-        function = m.current_module.lookup(signature)
+        function = module.lookup(signature)
         function.add_rule(rule, end)
+
+    def make_rule(self, ruleterm, module):
+        if helper.is_term(ruleterm):
+            assert isinstance(ruleterm, Callable)
+            if ruleterm.signature().eq(predsig):
+                return Rule(ruleterm.argument_at(0), ruleterm.argument_at(1), module)
+            else:
+                return Rule(ruleterm, None, module)
+        elif isinstance(ruleterm, Atom):
+            return Rule(ruleterm, None, module)
+        else:
+            error.throw_type_error("callable", ruleterm)
 
     @jit.elidable_promote('all')
     def get_builtin(self, signature):
@@ -159,9 +160,10 @@ class Engine(object):
         if isinstance(term, Callable) and term.signature().eq(callsig):
             self.run_query_in_current(term.argument_at(0))
         else:
-            self._term_expand(term, file_name)
+            term = self._term_expand(term)
+            self.add_rule(term, file_name)
 
-    def _term_expand(self, term, file_name):
+    def _term_expand(self, term):
         if self.modulewrapper.system is not None:
             v = BindingVar()
             call = Callable.build("term_expand", [term, v])
@@ -172,7 +174,7 @@ class Engine(object):
                 call = Callable.build("term_expand", [term, v])
                 self.run_query(call, self.modulewrapper.system)
             term = v.dereference(None)
-        self.add_rule(term, file_name=file_name)
+        return term
 
     def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
