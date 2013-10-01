@@ -78,6 +78,12 @@ class UncaughtError(TermedError):
         self.rule = rule_likely_source
         self.traceback = _construct_traceback(scont)
 
+    def format_traceback(self, engine):
+        out = ["Traceback (most recent call last):"]
+        self.traceback._format(out)
+        out.append(self.get_errstr(engine))
+        return "\n".join(out)
+
 
 class TraceFrame(object):
     def __init__(self, rule, next=None):
@@ -86,6 +92,13 @@ class TraceFrame(object):
 
     def __repr__(self):
         return "TraceFrame(%r, %r)" % (self.rule, self.next)
+
+    def _format(self, out):
+        rule = self.rule
+        out.append("    In %s:%s" % (
+            rule.module.name, rule.signature.string()))
+        if self.next is not None:
+            self.next._format(out)
 
 def _construct_traceback(scont):
     from prolog.interpreter.continuation import ContinuationWithRule

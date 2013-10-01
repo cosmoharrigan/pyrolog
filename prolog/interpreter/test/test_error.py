@@ -101,3 +101,19 @@ def test_traceback_in_if():
     tb = error.traceback
     assert tb.rule is rule_f
     assert tb.next.rule is rule_g
+
+def test_traceback_print():
+    e = get_engine("""
+        h(y).
+        g(a).
+        g(_) :- throw(foo).
+        f(X, Y) :- g(X), h(Y).
+    """)
+    error = get_uncaught_error("f(1, Y).", e)
+    s = error.format_traceback(e)
+    assert s == """\
+Traceback (most recent call last):
+    In user:f/2
+    In user:g/1
+Unhandled exception: foo"""
+
