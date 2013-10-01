@@ -95,14 +95,19 @@ class TraceFrame(object):
 
     def _format(self, out):
         rule = self.rule
-        if rule.line_range[0] + 1 ==  rule.line_range[1]:
-            lines = "line %s" % (rule.line_range[0], )
+        if rule.line_range is not None:
+            if rule.line_range[0] + 1 ==  rule.line_range[1]:
+                lines = "line %s " % (rule.line_range[0], )
+            else:
+                lines = "lines %s-%s " % (rule.line_range[0] + 1, rule.line_range[1])
         else:
-            lines = "lines %s-%s" % (rule.line_range[0] + 1, rule.line_range[1])
-        out.append("  File \"%s\" %s in %s:%s :" % (
+            lines = ""
+        out.append("  File \"%s\" %sin %s:%s" % (
             rule.file_name, lines,
             rule.module.name, rule.signature.string()))
-        out.append("    " + rule.source.replace("\n", "\n    "))
+        if rule.source is not None:
+            out.append("    " + rule.source.replace("\n", "\n    "))
+            # XXX format source?
         if self.next is not None:
             self.next._format(out)
 

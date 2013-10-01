@@ -104,22 +104,32 @@ def test_traceback_in_if():
 
 def test_traceback_print():
     e = get_engine("""
-        h(y).
-        g(a).
-        g(_) :- throw(foo).
-        f(X, Y) :-
-            g(X),
-            h(Y).
+h(y).
+g(a).
+g(_) :- throw(foo).
+f(X, Y) :-
+    g(X),
+    h(Y).
+:- assert((h :- g(b), true)).
     """)
     error = get_uncaught_error("f(1, Y).", e)
     s = error.format_traceback(e)
     assert s == """\
 Traceback (most recent call last):
-  File "<unknown>" lines 5-7 in user:f/2 :
+  File "<unknown>" lines 5-7 in user:f/2
     f(X, Y) :-
-                g(X),
-                h(Y).
-  File "<unknown>" line 3 in user:g/1 :
+        g(X),
+        h(Y).
+  File "<unknown>" line 3 in user:g/1
+    g(_) :- throw(foo).
+Unhandled exception: foo"""
+
+    error = get_uncaught_error("h.", e)
+    s = error.format_traceback(e)
+    assert s == """\
+Traceback (most recent call last):
+  File "<unknown>" in user:h/0
+  File "<unknown>" line 3 in user:g/1
     g(_) :- throw(foo).
 Unhandled exception: foo"""
 

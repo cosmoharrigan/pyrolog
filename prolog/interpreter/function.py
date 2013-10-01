@@ -34,8 +34,9 @@ class Rule(object):
         self.signature = head.signature()        
         self.module = module
         self.next = next
-        self.file_name = None
+        self.file_name = "<unknown>"
         self.line_range = None
+        self.source = None
 
         self._does_contain_cut()
 
