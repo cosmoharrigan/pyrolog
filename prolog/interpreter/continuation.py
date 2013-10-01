@@ -104,7 +104,6 @@ def _process_hooks(scont, fcont, heap):
 
 class Engine(object):
     def __init__(self, load_system=False):
-        self.parser = None
         self.operations = None
         self.modulewrapper = ModuleWrapper(self)
         if load_system:
@@ -163,7 +162,6 @@ class Engine(object):
             self.run_query_in_current(term.argument_at(0))
         else:
             self._term_expand(term, file_name)
-        return self.parser
 
     def _term_expand(self, term, file_name):
         if self.modulewrapper.system is not None:
@@ -180,12 +178,12 @@ class Engine(object):
 
     def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
-        parse_file(s, self.parser, Engine._build_and_run, self, file_name=file_name)
+        parse_file(s, None, Engine._build_and_run, self, file_name=file_name)
 
     def parse(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file, TermBuilder
         builder = TermBuilder()
-        trees = parse_file(s, self.parser, file_name=file_name)
+        trees = parse_file(s, None, file_name=file_name)
         terms = builder.build_many(trees)
         return terms, builder.varname_to_var
 

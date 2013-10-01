@@ -236,11 +236,7 @@ def _parse_file(s, parser, callback, arg, file_name):
     trees = []
     for line in lines:
         tree = parser.parse(line, lazy=False)
-        if callback is not None:
-            # XXX ugh
-            parser = callback(arg, tree, file_name)
-            if parser is None:
-                parser = parser_fact
+        callback(arg, tree, file_name)
         trees.append(tree)
     return trees
 
