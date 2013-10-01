@@ -120,7 +120,7 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, rule, end=True, old_modname=None, file_name=None):
+    def add_rule(self, rule, end=True, file_name=None):
         m = self.modulewrapper
         if helper.is_term(rule):
             assert isinstance(rule, Callable)
@@ -141,8 +141,6 @@ class Engine(object):
 
         function = m.current_module.lookup(signature)
         function.add_rule(rule, end)
-        if old_modname is not None:
-            self.switch_module(old_modname)
 
     @jit.elidable_promote('all')
     def get_builtin(self, signature):
