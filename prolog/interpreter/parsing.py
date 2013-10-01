@@ -202,7 +202,7 @@ def make_parser_at_runtime(operations):
     parser_fact = PrologPackratParser(real_rules, "fact")
     return parser_fact
 
-def _dummyfunc(arg, tree, file_name):
+def _dummyfunc(arg, tree, source_string, file_name):
     return parser_fact
 
 def parse_file(s, parser=None, callback=_dummyfunc, arg=None, file_name=None):
@@ -236,7 +236,7 @@ def _parse_file(s, parser, callback, arg, file_name):
     trees = []
     for line in lines:
         tree = parser.parse(line, lazy=False)
-        callback(arg, tree, file_name)
+        callback(arg, tree, s, file_name)
         trees.append(tree)
     return trees
 

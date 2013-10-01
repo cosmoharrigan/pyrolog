@@ -2,6 +2,7 @@ from prolog.interpreter.function import Rule, Function
 from prolog.interpreter.term import Callable
 from prolog.interpreter.signature import Signature
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.test.tool import get_engine
 
 class C(Callable):
     def __init__(self, name):
@@ -76,3 +77,19 @@ def test_function():
     f.add_rule(r4, True)
     assert get_rules(rulechain) == [(C(0), C(0)), (C(1), C(2)), (C(2), C(3))]
     assert get_rules(f.rulechain) == [(C(0), C(0)), (C(1), C(2)), (C(2), C(3)), (C(15), C(-1))]
+
+def test_source_range():
+    e = get_engine("""
+f(a) :- a.
+f(b) :-
+    b.
+a.
+b.
+""")
+    func = e.modulewrapper.current_module.lookup(Signature.getsignature("f", 1))
+    assert func.rulechain.line_range == [1, 2]
+    assert func.rulechain.next.line_range == [2, 4]
+    assert func.rulechain.file_name == "<unknown>"
+    assert func.rulechain.source == "f(a) :- a."
+    assert func.rulechain.next.source == "f(b) :-\n    b."
+

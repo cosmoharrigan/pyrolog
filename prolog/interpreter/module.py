@@ -37,6 +37,12 @@ class ModuleWrapper(object):
         error.throw_existence_error("procedure",
             errorterm.get_prolog_signature())
 
+    def get_or_make_module(self, name):
+        module = self._get_module(name, self.version)
+        if module is not None:
+            return module
+
+
     @jit.elidable
     def _get_module(self, name, version):
         return self.modules.get(name, None)

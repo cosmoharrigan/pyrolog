@@ -123,6 +123,7 @@ class Engine(object):
     def add_rule(self, ruleterm, end=True, file_name=None):
         module = self.modulewrapper.current_module
         rule = self.make_rule(ruleterm, module)
+
         signature = rule.signature
         if self.get_builtin(signature):
             error.throw_permission_error(
@@ -130,6 +131,7 @@ class Engine(object):
 
         function = module.lookup(signature)
         function.add_rule(rule, end)
+        return rule
 
     def make_rule(self, ruleterm, module):
         if helper.is_term(ruleterm):
@@ -152,7 +154,7 @@ class Engine(object):
     # _____________________________________________________
     # parsing-related functionality
 
-    def _build_and_run(self, tree, file_name):
+    def _build_and_run(self, tree, source_string, file_name):
         assert self is not None # for the annotator (!)
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
@@ -161,7 +163,9 @@ class Engine(object):
             self.run_query_in_current(term.argument_at(0))
         else:
             term = self._term_expand(term)
-            self.add_rule(term, file_name)
+            rule = self.add_rule(term, file_name)
+            rule.file_name = file_name
+            rule._init_source_info(tree, source_string)
 
     def _term_expand(self, term):
         if self.modulewrapper.system is not None:
