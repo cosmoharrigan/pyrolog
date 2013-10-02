@@ -90,12 +90,12 @@ class TestArithmeticMethod(object):
         assert Number(5).arith_div(BigInt(rbigint.fromdecimalstr('5'))).num == 1
         assert BigInt(rbigint.fromdecimalstr('5')).arith_div(Number(5)).num == 1
 
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(BigInt(rbigint.fromdecimalstr(\'0\')))')
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Number(0))')
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Float(0))')
-        py.test.raises(ZeroDivisionError, 'Float(1).arith_div(Number(0))')
-        py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Number(0))')
-        py.test.raises(ZeroDivisionError, 'Number(1).arith_div(Float(0))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(BigInt(rbigint.fromdecimalstr(\'0\')))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Number(0))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_div(Float(0))')
+        py.test.raises(error.CatchableError, 'Float(1).arith_div(Number(0))')
+        py.test.raises(error.CatchableError, 'Number(1).arith_div(Number(0))')
+        py.test.raises(error.CatchableError, 'Number(1).arith_div(Float(0))')
 
     def test_floordiv(self):
         assert Number(5).arith_floordiv(Number(2)).num == 2
@@ -109,9 +109,9 @@ class TestArithmeticMethod(object):
         assert Number(5).arith_floordiv(BigInt(rbigint.fromdecimalstr('5'))).num == 1
         assert BigInt(rbigint.fromdecimalstr('5')).arith_floordiv(Number(5)).num == 1
 
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(BigInt(rbigint.fromdecimalstr(\'0\')))')
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(Number(0))')
-        py.test.raises(ZeroDivisionError, 'Number(1).arith_floordiv(Number(0))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(BigInt(rbigint.fromdecimalstr(\'0\')))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr(\'1\')).arith_floordiv(Number(0))')
+        py.test.raises(error.CatchableError, 'Number(1).arith_floordiv(Number(0))')
 
     def test_power(self):
         assert Number(5).arith_pow(Number(2)).num == 25
@@ -159,9 +159,9 @@ class TestArithmeticMethod(object):
         assert BigInt(rbigint.fromint(46546)).arith_mod(Number(33)).num == 16
         assert Number(46546).arith_mod(BigInt(rbigint.fromint(33))).num == 16
 
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(BigInt(rbigint.fromint(0)))')
-        py.test.raises(ZeroDivisionError, 'Number(34535).arith_mod(BigInt(rbigint.fromint(0)))')
-        py.test.raises(ZeroDivisionError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(Number(0))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(BigInt(rbigint.fromint(0)))')
+        py.test.raises(error.CatchableError, 'Number(34535).arith_mod(BigInt(rbigint.fromint(0)))')
+        py.test.raises(error.CatchableError, 'BigInt(rbigint.fromdecimalstr("12342424234")).arith_mod(Number(0))')
 
     def test_invert(self):
         assert Number(2345).arith_not().num == -2346

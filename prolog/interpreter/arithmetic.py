@@ -178,6 +178,8 @@ class __extend__(term.Number):
         return other.arith_div_number(self.num)
 
     def arith_div_number(self, other_num):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         try:
             res = rarithmetic.ovfcheck(other_num / self.num)
         except OverflowError:
@@ -185,15 +187,21 @@ class __extend__(term.Number):
         return term.Number(res)
 
     def arith_div_bigint(self, other_value):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         return make_int(term.BigInt(other_value.div(rbigint.fromint(self.num))))
 
     def arith_div_float(self, other_float):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         return term.Float(other_float / float(self.num))
 
     def arith_floordiv(self, other):
         return other.arith_floordiv_number(self.num)
 
     def arith_floordiv_number(self, other_num):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         try:
             res = rarithmetic.ovfcheck(other_num // self.num)
         except OverflowError:
@@ -201,6 +209,8 @@ class __extend__(term.Number):
         return term.Number(res)
 
     def arith_floordiv_bigint(self, other_value):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         return make_int(term.BigInt(other_value.floordiv(rbigint.fromint(self.num))))
 
     def arith_floordiv_float(self, other_float):
@@ -279,9 +289,13 @@ class __extend__(term.Number):
         return other.arith_mod_number(self.num)
 
     def arith_mod_number(self, other_num):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         return term.Number(other_num % self.num)
 
     def arith_mod_bigint(self, other_value):
+        if self.num == 0:
+            error.throw_evaluation_error("zero_divisor")
         return make_int(term.BigInt(other_value.mod(rbigint.fromint(self.num))))
 
     # ------------------ inversion ------------------
@@ -395,12 +409,18 @@ class __extend__(term.Float):
         return other.arith_div_float(self.floatval)
 
     def arith_div_number(self, other_num):
+        if self.floatval == 0.0:
+            error.throw_evaluation_error("zero_divisor")
         return term.Float(float(other_num) / self.floatval)
 
     def arith_div_bigint(self, other_value):
+        if self.floatval == 0.0:
+            error.throw_evaluation_error("zero_divisor")
         return term.Float(other_value.tofloat() / self.floatval)
 
     def arith_div_float(self, other_float):
+        if self.floatval == 0.0:
+            error.throw_evaluation_error("zero_divisor")
         return term.Float(other_float / self.floatval)
 
     def arith_floordiv(self, other_float):
@@ -553,7 +573,10 @@ class __extend__(term.BigInt):
         return make_int(term.BigInt(rbigint.fromint(other_num).div(self.value)))
 
     def arith_div_bigint(self, other_value):
-        return make_int(term.BigInt(other_value.div(self.value)))
+        try:
+            return make_int(term.BigInt(other_value.div(self.value)))
+        except ZeroDivisionError:
+            error.throw_evaluation_error("zero_divisor")
 
     def arith_div_float(self, other_float):
         return term.Float(other_float / self.value.tofloat())
@@ -565,7 +588,10 @@ class __extend__(term.BigInt):
         return make_int(term.BigInt(rbigint.fromint(other_num).div(self.value)))
 
     def arith_floordiv_bigint(self, other_value):
-        return make_int(term.BigInt(other_value.div(self.value)))
+        try:
+            return make_int(term.BigInt(other_value.div(self.value)))
+        except ZeroDivisionError:
+            error.throw_evaluation_error("zero_divisor")
 
     def arith_floordiv_float(self, other_float):
         error.throw_type_error("integer", other_float)
@@ -658,10 +684,16 @@ class __extend__(term.BigInt):
         return other.arith_mod_bigint(self.value)
 
     def arith_mod_number(self, other_num):
-        return make_int(term.BigInt(rbigint.fromint(other_num).mod(self.value)))
+        try:
+            return make_int(term.BigInt(rbigint.fromint(other_num).mod(self.value)))
+        except ZeroDivisionError:
+            error.throw_evaluation_error("zero_divisor")
 
     def arith_mod_bigint(self, other_value):
-        return make_int(term.BigInt(other_value.mod(self.value)))
+        try:
+            return make_int(term.BigInt(other_value.mod(self.value)))
+        except ZeroDivisionError:
+            error.throw_evaluation_error("zero_divisor")
 
     # ------------------ inversion ------------------ 
     def arith_not(self):

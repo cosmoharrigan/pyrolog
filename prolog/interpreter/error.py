@@ -137,3 +137,9 @@ def throw_permission_error(operation, permission_type, obj):
         term.Callable.build("permission_error", [term.Callable.build(operation),
                                        term.Callable.build(permission_type),
                                        obj]))
+
+def throw_evaluation_error(error):
+    from prolog.interpreter import term
+    raise wrap_error(
+        term.Callable.build("evaluation_error", [term.Callable.build(error)]))
+
