@@ -1,3 +1,5 @@
+from rpython.rlib import rstring
+
 class PrologError(Exception):
     pass
 
@@ -106,8 +108,7 @@ class TraceFrame(object):
             rule.file_name, lines,
             rule.module.name, rule.signature.string()))
         if rule.source is not None:
-            out.append("    " + rule.source.replace("\n", "\n    "))
-            # XXX format source?
+            out.append("    " + rstring.replace(rule.source, "\n", "\n    "))
         if self.next is not None:
             self.next._format(out)
 

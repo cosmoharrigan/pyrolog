@@ -120,7 +120,7 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, ruleterm, end=True, file_name=None):
+    def add_rule(self, ruleterm, end=True):
         module = self.modulewrapper.current_module
         rule = self.make_rule(ruleterm, module)
 
@@ -163,7 +163,7 @@ class Engine(object):
             self.run_query_in_current(term.argument_at(0))
         else:
             term = self._term_expand(term)
-            rule = self.add_rule(term, file_name)
+            rule = self.add_rule(term)
             rule.file_name = file_name
             rule._init_source_info(tree, source_string)
 

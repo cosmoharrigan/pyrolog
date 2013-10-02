@@ -56,7 +56,10 @@ class Rule(object):
         if end_source_pos is None:
             end_source_pos = start_source_pos
         self.line_range = [start_source_pos.lineno, end_source_pos.lineno + 1]
-        self.source = source_info[start_source_pos.i:end_source_pos.i + 1]
+        start = start_source_pos.i
+        stop = end_source_pos.i + 1
+        assert 0 <= start <= stop
+        self.source = source_info[start:stop]
 
     def _does_contain_cut(self):
         if self.body is None:
