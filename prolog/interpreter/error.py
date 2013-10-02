@@ -112,8 +112,9 @@ class TraceFrame(object):
         out.append("  File \"%s\" %sin %s:%s" % (
             rule.file_name, lines,
             rule.module.name, rule.signature.string()))
-        if rule.source is not None:
-            out.append("    " + rstring.replace(rule.source, "\n", "\n    "))
+        source = self.source
+        if source is not None:
+            out.append("    " + rstring.replace(source, newline, "\n    "))
         if self.next is not None:
             self.next._format(out)
 
