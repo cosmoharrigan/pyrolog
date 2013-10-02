@@ -314,7 +314,7 @@ def test_comparison():
 
 @py.test.mark.xfail
 def test_pow_error():
-    prolog_raises("_", "X is -2 ** 0.5")
+    prolog_raises("_", "X is (-2) ** 0.5")
 
 def test_sqrt():
     for x in [0, 1, 4, 9, 0.25, 0.16, 100*100]:
