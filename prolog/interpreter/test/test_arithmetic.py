@@ -6,6 +6,7 @@ from prolog.interpreter.error import UnificationFailed
 from prolog.interpreter.continuation import Heap, Engine
 from prolog.interpreter import error
 from prolog.interpreter.test.tool import collect_all, assert_false, assert_true
+from prolog.interpreter.test.tool import prolog_raises
 from prolog.interpreter.term import Number, Float, BigInt
 import prolog.interpreter.arithmetic # has side-effects, changes Number etc
 
@@ -310,3 +311,7 @@ def test_comparison():
     assert_true("1.1 > 1.")
     assert_false("1 =\\= 1.0.")
     assert_true("1 =\\= 32.")
+
+@py.test.mark.xfail
+def test_pow_error():
+    prolog_raises("_", "X is -2 ** 0.5")
