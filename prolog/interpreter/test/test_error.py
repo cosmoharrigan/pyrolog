@@ -133,3 +133,25 @@ Traceback (most recent call last):
     g(_) :- throw(foo).
 Unhandled exception: foo"""
 
+def test_traceback_print_builtin():
+    e = get_engine("""
+h(y).
+g(a).
+g(_) :- _ is _.
+f(X, Y) :-
+    g(X),
+    h(Y).
+:- assert((h :- g(b), true)).
+    """)
+    error = get_uncaught_error("f(1, Y).", e)
+    s = error.format_traceback(e)
+    assert s == """\
+Traceback (most recent call last):
+  File "<unknown>" lines 5-7 in user:f/2
+    f(X, Y) :-
+        g(X),
+        h(Y).
+  File "<unknown>" line 3 in user:g/1
+    g(_) :- _ is _.
+is/2: arguments not sufficiently instantiated"""
+
