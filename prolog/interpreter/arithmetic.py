@@ -64,6 +64,7 @@ simple_functions = [
     ("/", 2, "div"),
     ("//", 2, "floordiv"),
     ("**", 2, "pow"),
+    ("sqrt", 1, "sqrt"),
     (">>", 2, "shr"),
     ("<<", 2, "shl"),
     ("\\/", 2, "or"),
@@ -106,6 +107,9 @@ def make_int(w_value):
             return term.Number(num)
     return w_value
 
+class __extend__(term.Numeric):
+    def arith_sqrt(self):
+        return self.arith_pow(term.Float(0.5))
 
 class __extend__(term.Number):
     # ------------------ addition ------------------ 
