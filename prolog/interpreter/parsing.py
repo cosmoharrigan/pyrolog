@@ -18,7 +18,7 @@ def make_regexes():
     regexs = [
         ("VAR", parse_regex("[A-Z_]([a-zA-Z0-9]|_)*|_")),
         ("NUMBER", parse_regex("(0|[1-9][0-9]*)")),
-        ("FLOAT", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)")),
+        ("FLOAT", parse_regex("(0|[1-9][0-9]*)(\.[0-9]+)([eE][-+]?[0-9]+)?")),
         ("IGNORE", parse_regex(
             "[ \\n\\t\\r]|(/\\*[^\\*]*(\\*[^/][^\\*]*)*\\*+/)|(%[^\\n]*)")),
         ("ATOM", parse_regex("([a-z]([a-zA-Z0-9]|_)*)|('[^']*')|\[\]|!|\+|\-|\{\}")),
@@ -1065,13 +1065,13 @@ def recognize(runner, i):
                 return i
             if char == '@':
                 state = 54
-            elif char == '.':
-                state = 55
-            elif char == ':':
-                state = 56
-            elif char == '=':
-                state = 57
             elif char == '<':
+                state = 55
+            elif char == '.':
+                state = 56
+            elif char == ':':
+                state = 57
+            elif char == '=':
                 state = 58
             elif char == '\\':
                 state = 59
@@ -1573,23 +1573,23 @@ def recognize(runner, i):
                 state = 63
             else:
                 break
-        if state == 55:
-            try:
-                char = input[i]
-                i += 1
-            except IndexError:
-                runner.state = 55
-                return ~i
-            if char == '.':
-                state = 62
-            else:
-                break
         if state == 56:
             try:
                 char = input[i]
                 i += 1
             except IndexError:
                 runner.state = 56
+                return ~i
+            if char == '.':
+                state = 62
+            else:
+                break
+        if state == 57:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 57
                 return ~i
             if char == '=':
                 state = 61
@@ -1971,6 +1971,50 @@ def recognize(runner, i):
             if '0' <= char <= '9':
                 state = 99
                 continue
+            elif char == 'E':
+                state = 100
+            elif char == 'e':
+                state = 100
+            else:
+                break
+        if state == 100:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 100
+                return ~i
+            if char == '+':
+                state = 101
+            elif char == '-':
+                state = 101
+            elif '0' <= char <= '9':
+                state = 102
+            else:
+                break
+        if state == 101:
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 101
+                return ~i
+            if '0' <= char <= '9':
+                state = 102
+            else:
+                break
+        if state == 102:
+            runner.last_matched_index = i - 1
+            runner.last_matched_state = state
+            try:
+                char = input[i]
+                i += 1
+            except IndexError:
+                runner.state = 102
+                return i
+            if '0' <= char <= '9':
+                state = 102
+                continue
             else:
                 break
         runner.last_matched_state = state
@@ -1983,7 +2027,7 @@ def recognize(runner, i):
         break
     runner.state = state
     return ~i
-lexer = DummyLexer(recognize, DFA(100,
+lexer = DummyLexer(recognize, DFA(103,
  {(0, '\t'): 1,
   (0, '\n'): 1,
   (0, '\r'): 1,
@@ -3192,10 +3236,10 @@ lexer = DummyLexer(recognize, DFA(100,
   (30, '\xff'): 30,
   (32, '-'): 64,
   (32, '>'): 65,
-  (33, '.'): 55,
-  (33, ':'): 56,
-  (33, '<'): 58,
-  (33, '='): 57,
+  (33, '.'): 56,
+  (33, ':'): 57,
+  (33, '<'): 55,
+  (33, '='): 58,
   (33, '@'): 54,
   (33, '\\'): 59,
   (35, '0'): 10,
@@ -4333,8 +4377,8 @@ lexer = DummyLexer(recognize, DFA(100,
   (53, 'y'): 10,
   (53, 'z'): 10,
   (54, '='): 63,
-  (55, '.'): 62,
-  (56, '='): 61,
+  (56, '.'): 62,
+  (57, '='): 61,
   (59, '='): 60,
   (64, '>'): 66,
   (67, '0'): 10,
@@ -5887,7 +5931,41 @@ lexer = DummyLexer(recognize, DFA(100,
   (99, '6'): 99,
   (99, '7'): 99,
   (99, '8'): 99,
-  (99, '9'): 99},
+  (99, '9'): 99,
+  (99, 'E'): 100,
+  (99, 'e'): 100,
+  (100, '+'): 101,
+  (100, '-'): 101,
+  (100, '0'): 102,
+  (100, '1'): 102,
+  (100, '2'): 102,
+  (100, '3'): 102,
+  (100, '4'): 102,
+  (100, '5'): 102,
+  (100, '6'): 102,
+  (100, '7'): 102,
+  (100, '8'): 102,
+  (100, '9'): 102,
+  (101, '0'): 102,
+  (101, '1'): 102,
+  (101, '2'): 102,
+  (101, '3'): 102,
+  (101, '4'): 102,
+  (101, '5'): 102,
+  (101, '6'): 102,
+  (101, '7'): 102,
+  (101, '8'): 102,
+  (101, '9'): 102,
+  (102, '0'): 102,
+  (102, '1'): 102,
+  (102, '2'): 102,
+  (102, '3'): 102,
+  (102, '4'): 102,
+  (102, '5'): 102,
+  (102, '6'): 102,
+  (102, '7'): 102,
+  (102, '8'): 102,
+  (102, '9'): 102},
  set([1,
       2,
       3,
@@ -5938,7 +6016,7 @@ lexer = DummyLexer(recognize, DFA(100,
       51,
       52,
       53,
-      57,
+      55,
       58,
       60,
       61,
@@ -5973,7 +6051,8 @@ lexer = DummyLexer(recognize, DFA(100,
       95,
       96,
       97,
-      99]),
+      99,
+      102]),
  set([1,
       2,
       3,
@@ -6024,7 +6103,7 @@ lexer = DummyLexer(recognize, DFA(100,
       51,
       52,
       53,
-      57,
+      55,
       58,
       60,
       61,
@@ -6059,8 +6138,9 @@ lexer = DummyLexer(recognize, DFA(100,
       95,
       96,
       97,
-      99]),
- ['0, 0, 0, 0, start|, 0, start|, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, 0, start|, 0, start|, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
+      99,
+      102]),
+ ['0, 0, 0, 0, start|, 0, start|, 0, 0, 0, 0, 0, start|, 0, 0, 0, 0, start|, 0, 0, 0, 0, 0, 0, start|, 0, start|, 0, start|, 0, 0, start|, 0, 0, 0, 0, 0, 0, start|, 0, start|, start|, 0, 0, start|, 0, start|, start|, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0',
   'IGNORE',
   '(',
   'ATOM',
@@ -6115,9 +6195,9 @@ lexer = DummyLexer(recognize, DFA(100,
   'ATOM',
   'ATOM',
   '2',
-  '2',
-  '2',
   'ATOM',
+  '2',
+  '2',
   'ATOM',
   '2',
   'ATOM',
@@ -6159,6 +6239,9 @@ lexer = DummyLexer(recognize, DFA(100,
   'ATOM',
   'ATOM',
   '1, 0',
+  'FLOAT',
+  'final|, 1, final*, 0, final|, start|, 0, start|, 0, 0, final*, 1, final|, final*, 0, final|, start|, 0, start|, 0, 0, final*',
+  'final|, 0, 1, final|, final*, final|, 0, final|, final*, 1',
   'FLOAT']), {'IGNORE': None})
 
 # generated code between this line and its other occurence

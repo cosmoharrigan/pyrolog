@@ -136,6 +136,17 @@ def test_number():
         arg(X, h(a, b, g(X, b)), g(3, B)), X = 3, B = b.
     """)
 
+def test_scientific_notation():
+    t = parse_file("""
+        X = -1.2e5.
+        Y = -1.345e0.
+    """)
+    builder = TermBuilder()
+    facts = builder.build(t)
+    assert len(facts) == 2
+    assert facts[0].argument_at(1).floatval == -1.2e5
+    assert facts[1].argument_at(1).floatval == -1.345
+
 def test_chaining():
     t = parse_file("f(X) = X + X + 1 + 2.")
     builder = TermBuilder()
