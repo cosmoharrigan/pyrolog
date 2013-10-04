@@ -55,7 +55,8 @@ def handle_assert(engine, heap, module, rule, end):
     if rule.signature().eq(prefixsig):
         modname, rule = unpack_modname_and_predicate(rule)
         engine.switch_module(modname)
-    engine.add_rule(rule.dereference(heap), end=end, old_modname=current_modname)
+    engine.add_rule(rule.dereference(heap), end=end)
+    engine.switch_module(current_modname)
 
 @expose_builtin("retract", unwrap_spec=["callable"], needs_module=True)
 def impl_retract(engine, heap, module, pattern):

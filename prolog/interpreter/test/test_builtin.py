@@ -456,9 +456,7 @@ def test_type_checks():
 def test_repeat():
     assert_true("repeat, true.")
     e = Engine()
-    py.test.raises(UnificationFailed,
-        e.run, parse_query_term("repeat, !, fail."), 
-                e.modulewrapper.user_module)
+    assert_false("repeat, !, fail.")
     # hard to test repeat differently
     e = get_engine('f :- repeat, !, fail.')
     assert_false('f.', e)

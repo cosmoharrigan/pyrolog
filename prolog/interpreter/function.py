@@ -11,7 +11,7 @@ prefixsig = Signature.getsignature(":", 2)
 class Rule(object):
     _immutable_ = True
     _immutable_fields_ = ["headargs[*]"]
-    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature', 'module']
+    _attrs_ = ['next', 'head', 'headargs', 'contains_cut', 'body', 'size_env', 'signature', 'module', 'file_name', 'line_range', 'source']
     unrolling_attrs = unroll.unrolling_iterable(_attrs_)
     
     def __init__(self, head, body, module, next = None):
@@ -32,9 +32,34 @@ class Rule(object):
             self.body = None
         self.size_env = memo.size()
         self.signature = head.signature()        
-        self._does_contain_cut()
         self.module = module
         self.next = next
+        self.file_name = "<unknown>"
+        self.line_range = None
+        self.source = None
+
+        self._does_contain_cut()
+
+    def _init_source_info(self, tree, source_info):
+        from rpython.rlib.parsing.tree import Nonterminal, Symbol
+        start_source_pos = tree.getsourcepos()
+        end_source_pos = None
+        parts = [tree]
+        while parts:
+            first = parts.pop()
+            if isinstance(first, Nonterminal):
+                parts.extend(first.children)
+            else:
+                assert isinstance(first, Symbol)
+                end_source_pos = first.getsourcepos()
+                break
+        if end_source_pos is None:
+            end_source_pos = start_source_pos
+        self.line_range = [start_source_pos.lineno, end_source_pos.lineno + 1]
+        start = start_source_pos.i
+        stop = end_source_pos.i + 1
+        assert 0 <= start <= stop
+        self.source = source_info[start:stop]
 
     def _does_contain_cut(self):
         if self.body is None:
@@ -119,6 +144,11 @@ class Rule(object):
     def __ne__(self, other):
         return not self == other
 
+def _make_toplevel_rule(module):
+    # this is a rule object that is used for error messages when running
+    # toplevel goals
+    head = Callable.build("<%s toplevel>" % (module.name, ))
+    return Rule(head, None, module)
 
 class Function(object):
     _immutable_fields_ = ["rulechain?", "meta_args?"]

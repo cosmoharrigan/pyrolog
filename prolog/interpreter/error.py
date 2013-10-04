@@ -1,3 +1,5 @@
+from rpython.rlib import rstring
+
 class PrologError(Exception):
     pass
 
@@ -12,22 +14,28 @@ class PrologParseError(PrologError):
         self.message = message
 
 class TermedError(PrologError):
-    def __init__(self, term):
+    def __init__(self, term, sig_context=None):
         self.term = term
+        self.sig_context = sig_context
 
     def get_errstr(self, engine):
         from prolog.builtin import formatting
-        from prolog.interpreter import term
+        from prolog.interpreter import term, signature
+        errorsig = signature.Signature.getsignature("error", 1)
 
         f = formatting.TermFormatter(engine, quoted=True, max_depth=20)
         f._make_reverse_op_mapping()
 
-        errorterm = self.term.argument_at(0)
+        t = self.term
+        if not isinstance(t, term.Callable) or not t.signature().eq(errorsig):
+            return "Unhandled exception: %s" % (f.format(t), )
+
+        errorterm = t.argument_at(0)
 
         if isinstance(errorterm, term.Callable):
             if errorterm.name() == "instantiation_error":
                 return "arguments not sufficiently instantiated"
-            elif errorterm.name()== "existence_error":
+            elif errorterm.name() == "existence_error":
                 if isinstance(errorterm, term.Callable):
                      return "Undefined %s: %s" % (
                         f.format(errorterm.argument_at(0)),
@@ -67,9 +75,60 @@ class TermedError(PrologError):
 
 class CatchableError(TermedError): pass
 class UncaughtError(TermedError):
-    def __init__(self, term, rule_likely_source=None):
-        TermedError.__init__(self, term)
+    def __init__(self, term, sig_context=None, rule_likely_source=None, scont=None):
+        TermedError.__init__(self, term, sig_context)
         self.rule = rule_likely_source
+        self.traceback = _construct_traceback(scont)
+
+    def format_traceback(self, engine):
+        out = ["Traceback (most recent call last):"]
+        self.traceback._format(out)
+        context = self.sig_context.string()
+        if context == "throw/1":
+            context = ""
+        else:
+            context += ": "
+        out.append("%s%s" % (context, self.get_errstr(engine)))
+        return "\n".join(out)
+
+
+class TraceFrame(object):
+    def __init__(self, rule, next=None):
+        self.rule = rule
+        self.next = next
+
+    def __repr__(self):
+        return "TraceFrame(%r, %r)" % (self.rule, self.next)
+
+    def _format(self, out):
+        rule = self.rule
+        if rule.line_range is not None:
+            if rule.line_range[0] + 1 ==  rule.line_range[1]:
+                lines = "line %s " % (rule.line_range[0], )
+            else:
+                lines = "lines %s-%s " % (rule.line_range[0] + 1, rule.line_range[1])
+        else:
+            lines = ""
+        out.append("  File \"%s\" %sin %s:%s" % (
+            rule.file_name, lines,
+            rule.module.name, rule.signature.string()))
+        source = rule.source
+        if source is not None:
+            # poor man's indent
+            out.append("    " + rstring.replace(source, "\n", "\n    "))
+        if self.next is not None:
+            self.next._format(out)
+
+def _construct_traceback(scont):
+    from prolog.interpreter.continuation import ContinuationWithRule
+    if scont is None:
+        return None
+    next = None
+    while not scont.is_done():
+        if isinstance(scont, ContinuationWithRule):
+            next = TraceFrame(scont.rule, next)
+        scont = scont.nextcont
+    return next
 
 def wrap_error(t):
     from prolog.interpreter import term

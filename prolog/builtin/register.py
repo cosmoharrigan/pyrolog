@@ -21,9 +21,13 @@ class Builtin(object):
         self.numargs = numargs
         self.signature = signature
 
-    def call(self, engine, query, module, scont, fcont, heap):
-        return self.function(engine, query, module, scont, fcont, heap)
-        
+    def call(self, engine, query, rule, scont, fcont, heap):
+        try:
+            return self.function(engine, query, rule, scont, fcont, heap)
+        except error.CatchableError as e:
+            e.sig_context = self.signature
+            raise
+
     def _freeze_(self):
         return True
 
@@ -33,7 +37,8 @@ def expose_builtin(*args, **kwargs):
     return really_expose
 
 def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
-                   translatable=True, needs_module=False):
+                   translatable=True, needs_module=False, needs_rule=False):
+    numargs = len(unwrap_spec)
     if isinstance(name, list):
         expose_as = name
         name = name[0]
@@ -42,8 +47,9 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
     if not name.isalnum():
         name = func.func_name
     orig_funcargs = inspect.getargs(func.func_code)[0]
-    funcname = "wrap_%s_%s" % (name, len(unwrap_spec))
-    code = ["def %s(engine, query, module, scont, fcont, heap):" % (funcname, )]
+    funcname = "wrap_%s_%s" % (name, numargs)
+    code = ["def %s(engine, query, rule, scont, fcont, heap):" % (funcname, )]
+    code.append("    module = rule.module")
     if not translatable:
         code.append("    if we_are_translated():")
         code.append("        raise error.UncatchableError('%s does not work in translated version')" % (name, ))
@@ -95,6 +101,9 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
     if needs_module:
         subargs.insert(2, "module")
         assert orig_funcargs[2] == "module"
+    if needs_rule:
+        subargs.insert(2, "rule")
+        assert orig_funcargs[2] == "rule"
     if handles_continuation:
         subargs.append("scont")
         subargs.append("fcont")
@@ -106,14 +115,13 @@ def make_wrapper(func, name, unwrap_spec=[], handles_continuation=False,
         code.append("    return scont, fcont, heap")
     else:
         code.append("    return result")
-    miniglobals = globals().copy()
+
+    used_globals = ["helper", "error", "term", "eval_arithmetic"]
+    miniglobals = {key: globals()[key] for key in used_globals}
     miniglobals[func.func_name] = func
-    #if func.__module__[len("prolog.builtin."):] not in jit_modules:
-    #    jit.dont_look_inside(func)
     exec py.code.Source("\n".join(code)).compile() in miniglobals
     for name in expose_as:
-        l = len(unwrap_spec)
-        signature = Signature.getsignature(name, l)
-        b = Builtin(miniglobals[funcname], funcname, l, signature)
+        signature = Signature.getsignature(name, numargs)
+        b = Builtin(miniglobals[funcname], funcname, numargs, signature)
         signature.set_extra("builtin", b)
     return func

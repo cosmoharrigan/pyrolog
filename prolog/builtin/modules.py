@@ -99,7 +99,7 @@ def impl_module_1(engine, heap, name):
 def impl_module_prefixing(engine, heap, modulename, 
         call, scont, fcont):
     module = engine.modulewrapper.get_module(modulename, call)
-    return engine.call(call, module, scont, fcont, heap)
+    return engine.call_in_module(call, module, scont, fcont, heap)
 
 @expose_builtin("add_library_dir", unwrap_spec=["atom"])
 def impl_add_library_dir(engine, heap, path):

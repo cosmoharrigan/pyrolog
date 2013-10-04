@@ -51,11 +51,11 @@ def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
         #view(scont=scont, fcont=fcont, heap=heap)
-        if isinstance(scont, RuleContinuation):
-            rule = scont._rule
-            if scont._rule.body is not None:
-                jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
-                                        heap=heap)
+        if isinstance(scont, ContinuationWithRule):
+            rule = scont.rule
+        if isinstance(scont, RuleContinuation) and rule.body is not None:
+            jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+                                    heap=heap)
         try:
             jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
                                       heap=heap)
@@ -67,8 +67,8 @@ def driver(scont, fcont, heap):
                 if fcont.is_done():
                     raise
             scont, fcont, heap = fcont.fail(heap)
-        except error.CatchableError, e:
-            scont, fcont, heap = scont.engine.throw(e.term, scont, fcont, heap, rule)
+        except error.CatchableError, exc:
+            scont, fcont, heap = scont.engine.throw(exc, scont, fcont, heap, rule)
         else:
             scont, fcont, heap = _process_hooks(scont, fcont, heap)
     assert isinstance(scont, DoneSuccessContinuation)
@@ -94,9 +94,9 @@ def _process_hooks(scont, fcont, heap):
                 try:
                     mod = e.modulewrapper.get_module(module, query)
                 except error.CatchableError, err:
-                    scont, fcont, heap = scont.engine.throw(err.term, scont, fcont, heap)
+                    scont, fcont, heap = scont.engine.throw(err, scont, fcont, heap)
                     break
-                scont, fcont, heap = e.call(query, mod, scont, fcont, heap)
+                scont, fcont, heap = e.call_in_module(query, mod, scont, fcont, heap)
                 heap.add_trail_atts(attvar, module)
             hookcell = hookcell.next
             attvar.value_list = None # XXX?
@@ -104,7 +104,6 @@ def _process_hooks(scont, fcont, heap):
 
 class Engine(object):
     def __init__(self, load_system=False):
-        self.parser = None
         self.operations = None
         self.modulewrapper = ModuleWrapper(self)
         if load_system:
@@ -121,29 +120,30 @@ class Engine(object):
     # _____________________________________________________
     # database functionality
 
-    def add_rule(self, rule, end=True, old_modname=None):
-        m = self.modulewrapper
-        if helper.is_term(rule):
-            assert isinstance(rule, Callable)
-            if rule.signature().eq(predsig):
-                rule = Rule(rule.argument_at(0), rule.argument_at(1),
-                        m.current_module)
-            else:
-                rule = Rule(rule, None, m.current_module)
-        elif isinstance(rule, Atom):
-            rule = Rule(rule, None, m.current_module)
-        else:
-            error.throw_type_error("callable", rule)
-            assert 0, "unreachable" # make annotator happy
-        signature = rule.signature        
+    def add_rule(self, ruleterm, end=True):
+        module = self.modulewrapper.current_module
+        rule = self.make_rule(ruleterm, module)
+
+        signature = rule.signature
         if self.get_builtin(signature):
             error.throw_permission_error(
                 "modify", "static_procedure", rule.head.get_prolog_signature())
 
-        function = m.current_module.lookup(signature)
+        function = module.lookup(signature)
         function.add_rule(rule, end)
-        if old_modname is not None:
-            self.switch_module(old_modname)
+        return rule
+
+    def make_rule(self, ruleterm, module):
+        if helper.is_term(ruleterm):
+            assert isinstance(ruleterm, Callable)
+            if ruleterm.signature().eq(predsig):
+                return Rule(ruleterm.argument_at(0), ruleterm.argument_at(1), module)
+            else:
+                return Rule(ruleterm, None, module)
+        elif isinstance(ruleterm, Atom):
+            return Rule(ruleterm, None, module)
+        else:
+            error.throw_type_error("callable", ruleterm)
 
     @jit.elidable_promote('all')
     def get_builtin(self, signature):
@@ -154,38 +154,40 @@ class Engine(object):
     # _____________________________________________________
     # parsing-related functionality
 
-    def _build_and_run(self, tree):
+    def _build_and_run(self, tree, source_string, file_name):
         assert self is not None # for the annotator (!)
         from prolog.interpreter.parsing import TermBuilder
         builder = TermBuilder()
         term = builder.build_query(tree)
         if isinstance(term, Callable) and term.signature().eq(callsig):
-            self.run(term.argument_at(0), self.modulewrapper.current_module)
+            self.run_query_in_current(term.argument_at(0))
         else:
-            self._term_expand(term)
-        return self.parser
+            term = self._term_expand(term)
+            rule = self.add_rule(term)
+            rule.file_name = file_name
+            rule._init_source_info(tree, source_string)
 
     def _term_expand(self, term):
         if self.modulewrapper.system is not None:
             v = BindingVar()
             call = Callable.build("term_expand", [term, v])
             try:
-                self.run(call, self.modulewrapper.current_module)
+                self.run_query_in_current(call)
             except error.UnificationFailed:
                 v = BindingVar()
                 call = Callable.build("term_expand", [term, v])
-                self.run(call, self.modulewrapper.system)
+                self.run_query(call, self.modulewrapper.system)
             term = v.dereference(None)
-        self.add_rule(term)
+        return term
 
     def runstring(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file
-        parse_file(s, self.parser, Engine._build_and_run, self, file_name=file_name)
+        parse_file(s, None, Engine._build_and_run, self, file_name=file_name)
 
     def parse(self, s, file_name=None):
         from prolog.interpreter.parsing import parse_file, TermBuilder
         builder = TermBuilder()
-        trees = parse_file(s, self.parser, file_name=file_name)
+        trees = parse_file(s, None, file_name=file_name)
         terms = builder.build_many(trees)
         return terms, builder.varname_to_var
 
@@ -200,13 +202,18 @@ class Engine(object):
 
     def run_query(self, query, module, continuation=None):
         assert isinstance(module, Module)
+        rule = module._toplevel_rule
         fcont = DoneFailureContinuation(self)
         if continuation is None:
             continuation = CutScopeNotifier(self, DoneSuccessContinuation(self), fcont)
-        driver(*self.call(query, module, continuation, fcont, Heap()))
-    run = run_query
+        continuation = BodyContinuation(self, rule, continuation, query)
+        return driver(continuation, fcont, Heap())
 
-    def call(self, query, module, scont, fcont, heap):
+    def run_query_in_current(self, query, continuation=None):
+        module = self.modulewrapper.current_module
+        return self.run_query(query, module, continuation)
+
+    def call(self, query, rule, scont, fcont, heap):
         if isinstance(query, Var):
             query = query.dereference(heap)
         if not isinstance(query, Callable):
@@ -216,9 +223,10 @@ class Engine(object):
         signature = query.signature()        
         builtin = self.get_builtin(signature)
         if builtin is not None:
-            return BuiltinContinuation(self, module, scont, builtin, query), fcont, heap
+            return BuiltinContinuation(self, rule, scont, builtin, query), fcont, heap
 
         # do a real call
+        module = rule.module
         function = self._get_function(signature, module, query)
         query = function.add_meta_prefixes(query, module.nameatom)
         startrulechain = jit.hint(function.rulechain, promote=True)
@@ -227,6 +235,9 @@ class Engine(object):
             raise error.UnificationFailed
         scont, fcont, heap = _make_rule_conts(self, scont, fcont, heap, query, rulechain)
         return scont, fcont, heap
+
+    def call_in_module(self, query, module, scont, fcont, heap):
+        return self.call(query, module._toplevel_rule, scont, fcont, heap)
 
     def _get_function(self, signature, module, query): 
         function = module.lookup(signature)
@@ -255,9 +266,11 @@ class Engine(object):
     @jit.unroll_safe
     def throw(self, exc, scont, fcont, heap, rule_likely_source=None):
         from prolog.interpreter import memo
+        exc_term = exc.term
         # copy to make sure that variables in the exception that are
         # backtracked by the revert_upto below have the right value.
-        exc = exc.copy(heap, memo.CopyMemo())
+        exc_term = exc.term.copy(heap, memo.CopyMemo())
+        orig_scont = scont
         while not scont.is_done():
             if not isinstance(scont, CatchingDelimiter):
                 scont = scont.nextcont
@@ -265,13 +278,13 @@ class Engine(object):
             discard_heap = scont.heap
             heap = heap.revert_upto(discard_heap)
             try:
-                scont.catcher.unify(exc, heap)
+                scont.catcher.unify(exc_term, heap)
             except error.UnificationFailed:
                 scont = scont.nextcont
             else:
                 return self.call(
-                    scont.recover, scont.module, scont.nextcont, scont.fcont, heap)
-        raise error.UncaughtError(exc, rule_likely_source)
+                    scont.recover, scont.rule, scont.nextcont, scont.fcont, heap)
+        raise error.UncaughtError(exc_term, exc.sig_context, rule_likely_source, orig_scont)
 
 
 
@@ -331,13 +344,15 @@ class Continuation(object):
 
     _dot = _dot
 
-class ContinuationWithModule(Continuation):
+class ContinuationWithRule(Continuation):
     """ This class represents continuations which need
-    to take care of the module system. """
+    to have a reference to the current rule
+    (e.g. to get at the module). """
 
-    def __init__(self, engine, module, nextcont):
+    def __init__(self, engine, nextcont, rule):
         Continuation.__init__(self, engine, nextcont)
-        self.module = module
+        assert isinstance(rule, Rule)
+        self.rule = rule
 
 def view(*objects, **names):
     from dotviewer import graphclient
@@ -418,27 +433,27 @@ class DoneFailureContinuation(FailureContinuation):
         return True
 
 
-class BodyContinuation(ContinuationWithModule):
+class BodyContinuation(ContinuationWithRule):
     """ Represents a bit of Prolog code that is still to be called. """
-    def __init__(self, engine, module, nextcont, body):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, rule, nextcont, body):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.body = body
 
     def activate(self, fcont, heap):
-        return self.engine.call(self.body, self.module, self.nextcont, fcont, heap)
+        return self.engine.call(self.body, self.rule, self.nextcont, fcont, heap)
 
     def __repr__(self):
         return "<BodyContinuation %r>" % (self.body, )
 
-class BuiltinContinuation(ContinuationWithModule):
+class BuiltinContinuation(ContinuationWithRule):
     """ Represents the call to a builtin. """
-    def __init__(self, engine, module, nextcont, builtin, query):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+    def __init__(self, engine, rule, nextcont, builtin, query):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.builtin = builtin
         self.query = query
 
     def activate(self, fcont, heap):
-        return self.builtin.call(self.engine, self.query, self.module, 
+        return self.builtin.call(self.engine, self.query, self.rule,
                 self.nextcont, fcont, heap)
 
     def __repr__(self):
@@ -462,7 +477,7 @@ class UserCallContinuation(FailureContinuation):
                 self.query, self.rulechain)
     
 
-class RuleContinuation(Continuation):
+class RuleContinuation(ContinuationWithRule):
     """ A Continuation that represents the application of a rule, i.e.:
         - standardizing apart of the rule
         - unifying the rule head with the query
@@ -470,22 +485,21 @@ class RuleContinuation(Continuation):
     """
 
     def __init__(self, engine, nextcont, rule, query):
-        Continuation.__init__(self, engine, nextcont)
-        self._rule = rule
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.query = query
 
     def activate(self, fcont, heap):
         nextcont = self.nextcont
-        rule = jit.hint(self._rule, promote=True)
+        rule = jit.hint(self.rule, promote=True)
         nextcall = rule.clone_and_unify_head(heap, self.query)
         if nextcall is not None:
-            return self.engine.call(nextcall, self._rule.module, nextcont, fcont, heap)
+            return self.engine.call(nextcall, self.rule, nextcont, fcont, heap)
         else:
             cont = nextcont
         return cont, fcont, heap
 
     def __repr__(self):
-        return "<RuleContinuation rule=%r query=%r>" % (self._rule, self.query)
+        return "<RuleContinuation rule=%r query=%r>" % (self.rule, self.query)
 
 class CutScopeNotifier(Continuation):
     def __init__(self, engine, nextcont, fcont_after_cut):
@@ -505,9 +519,9 @@ class CutScopeNotifier(Continuation):
         return self.nextcont, fcont, heap
 
 
-class CatchingDelimiter(ContinuationWithModule):
-    def __init__(self, engine, module, nextcont, fcont, catcher, recover, heap):
-        ContinuationWithModule.__init__(self, engine, module, nextcont)
+class CatchingDelimiter(ContinuationWithRule):
+    def __init__(self, engine, rule, nextcont, fcont, catcher, recover, heap):
+        ContinuationWithRule.__init__(self, engine, nextcont, rule)
         self.catcher = catcher
         self.recover = recover
         self.fcont = fcont

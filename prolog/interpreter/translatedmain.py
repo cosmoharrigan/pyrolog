@@ -87,11 +87,14 @@ def run(query, var_to_pos, engine):
     try:
         if query is None:
             return
-        engine.run(query, engine.modulewrapper.current_module, 
+        engine.run_query_in_current(
+                query,
                 ContinueContinuation(engine, var_to_pos, printmessage))
     except error.UnificationFailed:
         printmessage("Nein\n")
-    except (error.UncaughtError, error.CatchableError), e:
+    except error.UncaughtError, e:
+        printmessage("ERROR:\n%s\n" % e.format_traceback(engine))
+    except error.CatchableError, e:
         printmessage("ERROR: %s\n" % e.get_errstr(engine))
     except error.PrologParseError, exc:
         printmessage(exc.message + "\n")

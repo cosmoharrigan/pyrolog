@@ -114,3 +114,16 @@ class TestInteraction:
         child.expect(re.escape("X = a b c."))
         child.expect(re.escape("      ^"))
         child.expect(re.escape("ParseError: expected ."))
+
+    def test_traceback(self):
+        child = self.spawn([])
+        child.expect("welcome!")
+        child.expect(">?- ")
+        child.sendline("assert((f(X) :- X is X)).")
+        child.expect("yes")
+        child.sendline("f(X).")
+        child.expect(re.escape("ERROR:"))
+        child.expect(re.escape("Traceback (most recent call last):"))
+        child.expect(re.escape('  File "<unknown>" in user:f/1'))
+        child.expect(re.escape("arguments not sufficiently instantiated"))
+
