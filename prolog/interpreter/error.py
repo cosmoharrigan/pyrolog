@@ -83,11 +83,13 @@ class UncaughtError(TermedError):
     def format_traceback(self, engine):
         out = ["Traceback (most recent call last):"]
         self.traceback._format(out)
-        context = self.sig_context.string()
-        if context == "throw/1":
-            context = ""
-        else:
-            context += ": "
+        context = ""
+        if self.sig_context is not None:
+            context = self.sig_context.string()
+            if context == "throw/1":
+                context = ""
+            else:
+                context += ": "
         out.append("%s%s" % (context, self.get_errstr(engine)))
         return "\n".join(out)
 

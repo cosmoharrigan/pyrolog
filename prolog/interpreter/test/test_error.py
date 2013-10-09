@@ -155,3 +155,11 @@ Traceback (most recent call last):
     g(_) :- _ is _.
 is/2: arguments not sufficiently instantiated"""
 
+def test_traceback_print_no_context():
+    e = get_engine("")
+    error = get_uncaught_error("f(1, Y).", e)
+    s = error.format_traceback(e)
+    assert s == """\
+Traceback (most recent call last):
+  File "<unknown>" in user:<user toplevel>/0
+Undefined procedure: f/2"""
