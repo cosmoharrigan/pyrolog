@@ -433,11 +433,13 @@ class NonVar(PrologObject):
             other._unify_derefed(copy, heap)
             return copy
         else:
-            return self.copy_and_basic_unify(other, heap, env)
-    
-    def copy_and_basic_unify(self, other, heap, env):
-        raise NotImplementedError("abstract base class")
-    
+            return self.basic_unify_and_standardize_apart(other, heap, env)
+
+    def basic_unify_and_standardize_apart(self, other, heap, env):
+        # good enough default implementation:
+        self.basic_unify(other, heap, False)
+        return self
+
     def enumerate_vars(self, memo):
         return self
 
@@ -479,7 +481,7 @@ class Callable(NonVar):
             raise UnificationFailed
     
     @jit.unroll_safe
-    def copy_and_basic_unify(self, other, heap, env):
+    def basic_unify_and_standardize_apart(self, other, heap, env):
         if (isinstance(other, Callable) and
             self.signature().eq(other.signature())):
             for i in range(self.argument_count()):
@@ -664,6 +666,13 @@ class Atom(Callable):
     def signature(self):
         return self._signature
 
+    def basic_unify_and_standardize_apart(self, other, heap, env):
+        if not isinstance(other, Atom):
+            return Callable.basic_unify_and_standardize_apart(self, other, heap, env)
+        if not self.signature().eq(other.signature()):
+            raise UnificationFailed
+
+
 class Numeric(NonVar):
     __slots__ = ()
 
@@ -684,13 +693,7 @@ class Number(Numeric):#, UnboxedValue):
         if isinstance(other, Number) and other.num == self.num:
             return
         raise UnificationFailed
-    
-    def copy_and_basic_unify(self, other, heap, env):
-        if isinstance(other, Number) and other.num == self.num:
-            return self
-        else:
-            raise UnificationFailed
-    
+
     def __str__(self):
         return repr(self.num)
     
@@ -728,11 +731,6 @@ class BigInt(Numeric):
             return
         raise UnificationFailed
 
-    def copy_and_basic_unify(self, other, heap, env):
-        if isinstance(other, BigInt) and other.value.eq(self.value):
-            return self
-        raise UnificationFailed
-
     def __str__(self):
         return repr(self.value)
 
@@ -762,13 +760,7 @@ class Float(Numeric):
         if isinstance(other, Float) and other.floatval == self.floatval:
             return
         raise UnificationFailed
-    
-    def copy_and_basic_unify(self, other, heap, env):
-        if isinstance(other, Float) and other.floatval == self.floatval:
-            return self
-        else:
-            raise UnificationFailed
-    
+
     def __str__(self):
         return repr(self.floatval)
     
@@ -964,9 +956,9 @@ def generate_abstract_class(n_args, immutable=True):
                     return False
             return True
 
-        def copy_and_basic_unify(self, other, heap, env):
+        def basic_unify_and_standardize_apart(self, other, heap, env):
             if not isinstance(other, abstract_callable):
-                return Callable.copy_and_basic_unify(self, other, heap, env)
+                return Callable.basic_unify_and_standardize_apart(self, other, heap, env)
             if self.signature().eq(other.signature()):
                 for x in arg_iter:
                     a = getattr(self, 'val_%d' % x)
