@@ -120,7 +120,7 @@ Traceback (most recent call last):
     f(X, Y) :-
         g(X),
         h(Y).
-  File "<unknown>" line 3 in user:g/1
+  File "<unknown>" line 4 in user:g/1
     g(_) :- throw(foo).
 Unhandled exception: foo"""
 
@@ -129,7 +129,7 @@ Unhandled exception: foo"""
     assert s == """\
 Traceback (most recent call last):
   File "<unknown>" in user:h/0
-  File "<unknown>" line 3 in user:g/1
+  File "<unknown>" line 4 in user:g/1
     g(_) :- throw(foo).
 Unhandled exception: foo"""
 
@@ -151,7 +151,7 @@ Traceback (most recent call last):
     f(X, Y) :-
         g(X),
         h(Y).
-  File "<unknown>" line 3 in user:g/1
+  File "<unknown>" line 4 in user:g/1
     g(_) :- _ is _.
 is/2: arguments not sufficiently instantiated"""
 

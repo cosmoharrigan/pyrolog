@@ -106,7 +106,7 @@ class TraceFrame(object):
         rule = self.rule
         if rule.line_range is not None:
             if rule.line_range[0] + 1 ==  rule.line_range[1]:
-                lines = "line %s " % (rule.line_range[0], )
+                lines = "line %s " % (rule.line_range[0] + 1, )
             else:
                 lines = "lines %s-%s " % (rule.line_range[0] + 1, rule.line_range[1])
         else:
