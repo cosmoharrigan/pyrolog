@@ -2,6 +2,7 @@ import py
 from prolog.builtin import formatting
 from prolog.interpreter.parsing import parse_query_term
 from prolog.interpreter.continuation import Engine
+from prolog.interpreter.term import Callable, BindingVar
 
 def test_list():
     f = formatting.TermFormatter(Engine(), quoted=False, ignore_ops=False)
@@ -11,6 +12,14 @@ def test_list():
     assert f.format(t) == "[a, b, A$%%$$]"
     t = parse_query_term("'.'(a, b, c).")
     assert f.format(t) == ".(a, b, c)"
+
+    X = BindingVar()
+    a = Callable.build('a')
+    t = Callable.build(".", [a, X])
+    X.binding = Callable.build(".", [a, Callable.build("[]")])
+    assert f.format(t) == "[a, a]"
+
+
 
 def test_op_formatting():
     f = formatting.TermFormatter(Engine(), quoted=False, ignore_ops=False)

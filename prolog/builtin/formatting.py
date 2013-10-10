@@ -130,7 +130,7 @@ class TermFormatter(object):
             result = ["["]
             while helper.is_term(term) and isinstance(term, Callable) and term.signature().eq(conssig):
                 first = term.argument_at(0)
-                second = term.argument_at(1)
+                second = term.argument_at(1).dereference(None)
                 result.append(self.format(first))
                 result.append(", ")
                 term = second
