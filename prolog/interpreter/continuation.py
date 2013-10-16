@@ -17,12 +17,12 @@ Signature.register_extr_attr("function", engine=True)
 # ___________________________________________________________________
 # JIT stuff
 
-def get_printable_location(rule):
+def get_printable_location(rule, sconttype):
     if rule:
         s = rule.signature.string()
     else:
         s = "No rule"
-    return s
+    return "%s %s" % (s, sconttype)
 
 def get_jitcell_at(where, rule):
     # XXX can be vastly simplified
@@ -36,7 +36,7 @@ predsig = Signature.getsignature(":-", 2)
 callsig = Signature.getsignature(":-", 1)
 
 jitdriver = jit.JitDriver(
-        greens=["rule"],
+        greens=["rule", "sconttype"],
         reds=["scont", "fcont", "heap"],
         get_printable_location=get_printable_location,
         #get_jitcell_at=get_jitcell_at,
@@ -51,13 +51,14 @@ def driver(scont, fcont, heap):
     rule = None
     while not scont.is_done():
         #view(scont=scont, fcont=fcont, heap=heap)
+        sconttype = scont.cont_type_name
         if isinstance(scont, ContinuationWithRule):
             rule = scont.rule
         if isinstance(scont, RuleContinuation) and rule.body is not None:
-            jitdriver.can_enter_jit(rule=rule, scont=scont, fcont=fcont,
+            jitdriver.can_enter_jit(rule=rule, sconttype=sconttype, scont=scont, fcont=fcont,
                                     heap=heap)
         try:
-            jitdriver.jit_merge_point(rule=rule, scont=scont, fcont=fcont,
+            jitdriver.jit_merge_point(rule=rule, sconttype=sconttype, scont=scont, fcont=fcont,
                                       heap=heap)
             oldscont = scont
             scont, fcont, heap  = scont.activate(fcont, heap)
@@ -318,10 +319,16 @@ def _dot(self, seen):
             for line in value._dot(seen):
                 yield line
 
+class MetaCont(type):
+    def __new__(cls, name, bases, dct):
+        dct['cont_type_name'] = name
+        return type.__new__(cls, name, bases, dct)
 
 class Continuation(object):
     """ Represents a continuation of the Prolog computation. This can be seen
     as an RPython-compatible way to express closures. """
+
+    __metaclass__ = MetaCont
 
     def __init__(self, engine, nextcont):
         self.engine = engine
