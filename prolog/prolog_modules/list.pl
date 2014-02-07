@@ -1,4 +1,4 @@
-:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3, min_member/2, max_member/2, delete/3, length/2]).
+:- module(list, [append/3, member/2, is_list/1, select/3, nextto/3, memberchk/2, subtract/3, min_member/2, max_member/2, delete/3, length/2, last/2]).
 
 append([], L, L).
 append([H|T], L, [H|R]) :- append(T, L, R).
@@ -67,3 +67,10 @@ nextto(A, B, [_ | List]) :-
 select(Elem, [Elem | List1], List1).
 select(Elem, [Head | List1], [Head | List3]) :-
 	select(Elem, List1, List3).
+
+% last/2
+last([H | T], X) :-
+	last(T, X, H).
+last([], X, X).
+last([H | T], X, _) :-
+	last(T, X, H).
