@@ -119,3 +119,8 @@ def test_length():
     assert_true('length(List, 6), is_list(List), length(List, 6).', e)
     assert_false('length(X, -1).', e)
     assert_false('length(a, Y).', e)
+
+def test_last():
+    assert_true('last([1,2,3], 3).', e)
+    assert_true('last([666], 666).', e)
+    assert_false('last([], X).', e)
