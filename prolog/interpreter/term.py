@@ -112,7 +112,7 @@ class Var(PrologObject):
             return result
 
     def copy(self, heap, memo):
-        self = self.dereference(heap)
+        self = self.dereference(None)
         if isinstance(self, Var):
             res = memo.get(self)
             if res is not None:
@@ -284,11 +284,11 @@ class AttVar(BindingVar):
             for key, index in attmap.indexes.iteritems():
                 value = self.value_list[index]
                 if value is not None:
-                    attrs.append("%s=%s" % (key, value))
+                    attrs.append("%s" % (key, ))
         return "AttVar(%s, %s)" % (self.getbinding(), "[" + ", ".join(attrs) + "]")
 
     def copy(self, heap, memo):
-        self = self.dereference(heap)
+        self = self.dereference(None)
         if isinstance(self, AttVar):
             res = memo.get(self)
             if res is not None:

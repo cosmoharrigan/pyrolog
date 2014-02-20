@@ -9,17 +9,14 @@ class FindallContinuation(continuation.Continuation):
     def __init__(self, engine, template, heap, scont):
         # nextcont still needs to be set, for correct exception propagation
         continuation.Continuation.__init__(self, engine, scont)
-        self.resultvar = self.fullsolution = heap.newvar()
+        self.result = []
         self.template = template
         self.heap = heap
 
     def activate(self, fcont, _):
         m = memo.CopyMemo()
         clone = self.template.copy(self.heap, m)
-        newresultvar = self.heap.newvar()
-        result = term.Callable.build(".", [clone, newresultvar])
-        self.resultvar.setvalue(result, self.heap)
-        self.resultvar = newresultvar
+        self.result.append(clone)
         raise error.UnificationFailed()
 
 class DoneWithFindallContinuation(continuation.FailureContinuation):
@@ -30,10 +27,7 @@ class DoneWithFindallContinuation(continuation.FailureContinuation):
 
     def fail(self, heap):
         heap = heap.revert_upto(self.undoheap)
-        result = term.Callable.build("[]")
-        resultvar = self.collector.resultvar
-        resultvar.setvalue(result, heap)
-        self.bag.unify(self.collector.fullsolution, heap)
+        self.bag.unify(helper.wrap_list(self.collector.result), heap)
         return self.nextcont, self.orig_fcont, heap
 
 

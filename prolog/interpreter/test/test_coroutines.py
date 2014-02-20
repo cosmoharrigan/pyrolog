@@ -362,8 +362,7 @@ def test_sat_solver():
 
     assert_true("sat([[false-X]], [X]), X == false.", e)
     assert_true("sat([[true-X], [false-Y]], [X, Y]), X == true, Y == false.", e)
-    # XXX fix findall
-    #assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
+    assert_true("findall(X, sat([[true-X, false-Y]], [X, Y]), L), L == [true, true, false].", e)
     assert_false("sat([[true-X], [true-Y], [true-Z], [false-Z]], [X, Y, Z]).", e)
     assert_false("sat([[true-X, false-Y], [true-Y], [true-X], [false-Y]], [X, Y, Z]).", e)
     assert_false("sat([[true-X], [false-X]], [X]).", e)
@@ -422,10 +421,8 @@ def test_4_queens():
     assert_true("queens(X), X == [2, 4, 1, 3].", e)
     assert_true("queens(X), X == [3, 1, 4, 2].", e)
     assert_false("queens(X), X == [4, 2, 1, 3].", e)
-    # XXX make findall run
-    #assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)
+    assert_true("findall(X, queens(X), L), L == [[2, 4, 1, 3], [3, 1, 4, 2]].", e)
 
-@py.test.mark.xfail
 def test_findall_when():
     e = get_engine("""
     f(X) :-
