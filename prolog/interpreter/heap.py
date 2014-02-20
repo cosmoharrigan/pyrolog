@@ -139,7 +139,8 @@ class Heap(object):
         self.i = 0
 
         if self.trail_attrs is not None:
-            for attvar, index, value in self.trail_attrs:
+            for i in range(len(self.trail_attrs) - 1, -1, -1):
+                attvar, index, value = self.trail_attrs[i]
                 attvar.reset_field(index, value)
 
         self.trail_attrs = None

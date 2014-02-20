@@ -41,6 +41,7 @@ def test_backtracking():
     assert_false("put_attr(X, m, 2), (put_attr(X, m, 1), fail); get_attr(X, m, 2).")
     assert_true("(put_attr(X, b, 1), fail); \+ get_attr(X, b, 1).")
     assert_true("put_attr(X, a, 2), ((put_attr(X, b, 1), fail); get_attr(X, a, 2)), \+ get_attr(X, b, 1).")
+    assert_true("put_attr(X, a, 2), ((put_attr(X, a, 1), put_attr(X, a, 3), fail); get_attr(X, a, 2)).")
     assert_true("put_attr(X, a, 2), ((put_attr(X, b, 1), put_attr(X, c, 3), fail); get_attr(X, a, 2)), \+ get_attr(X, b, 1), \+ get_attr(X, c, 3).")
 
 def test_del_attributes():
