@@ -12,6 +12,7 @@ def test_driver():
     done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
+        cont_type_name = "FakeC"
         def __init__(self, next, val):
             self.next = next
             self.val = val
@@ -46,6 +47,7 @@ def test_failure_continuation():
     done = DoneFailureContinuation(None)
     class FakeC(object):
         rule = None
+        cont_type_name = "FakeC"
         def __init__(self, next, val):
             self.next = next
             self.val = val
@@ -89,6 +91,7 @@ def test_full():
     e = Engine()
     class CollectContinuation(object):
         rule = None
+        cont_type_name = "CollectContinuation"
         module = e.modulewrapper.user_module
         def is_done(self):
             return False
